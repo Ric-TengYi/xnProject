@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #1890ff;
+  
+  /* Light Mode Variables - high contrast */
+  --bg-color: #f1f5f9; /* slate-100 */
+  --bg-panel: #ffffff;
+  --border-color: #e2e8f0; /* slate-200 */
+  --text-primary: #0f172a; /* slate-900 */
+  --text-secondary: #475569; /* slate-600 */
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  
+  --success: #059669; /* green-600 */
+  --warning: #d97706; /* orange-600 */
+  --error: #dc2626; /* red-600 */
+}
+
+.dark {
+  /* Dark Mode Variables */
+  --bg-color: #0b1120;
+  --bg-panel: rgba(15, 23, 42, 0.6);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  
+  --success: #10b981; /* green-500 */
+  --warning: #f59e0b; /* orange-500 */
+  --error: #ef4444; /* red-500 */
+}
+
+/* Sider collapse trigger - dual theme */
+.ant-layout-sider-trigger {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-top: 1px solid var(--border-color) !important;
+}
+.dark .ant-layout-sider-trigger {
+  background: rgba(2, 6, 23, 0.9) !important;
+  color: #f8fafc !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+    'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  background-attachment: fixed;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* 炫酷的背景动态渐变仅在暗黑模式下启用，保持浅色模式清爽 */
+.dark body {
+  background-image: 
+    radial-gradient(circle at 15% 50%, rgba(24, 144, 255, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.08) 0%, transparent 50%);
+}
+
+/* 毛玻璃面板通用类 */
+.glass-panel {
+  background: var(--bg-panel);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--glass-shadow);
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* 隐藏滚动条但保留功能 */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* 修复 Antd 在暗黑模式下的一些默认边框 */
+.ant-card, .ant-table, .ant-layout-header, .ant-layout-sider {
+  border-color: var(--border-color) !important;
+}
+
+/* 自定义 Tabs 样式 */
+.custom-tabs .ant-tabs-nav {
+  margin-bottom: 24px;
+}
+.custom-tabs .ant-tabs-tab {
+  color: var(--text-secondary);
+}
+.custom-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--primary) !important;
+}

@@ -1,0 +1,309 @@
+@import "tailwindcss";
+
+/* 浅色系主题 - 对齐 uniubi-uan-inspection-web var.less / BasicLayout */
+:root {
+  --primary: #0f62ff;
+  --primary-hover: #3884ff;
+  --bg-color: #f0f3f6;
+  --bg-panel: #ffffff;
+  --border-color: #e0e0e0;
+  --text-primary: #4a4a4a;
+  --text-secondary: #7c7c7c;
+  --text-placeholder: #8d8d8d;
+  --glass-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --success: #46cf84;
+  --warning: #ffa42e;
+  --error: #fa4646;
+  --info: #4766ff;
+  --sider-bg: #ffffff;
+  --header-bg: #ffffff;
+  --menu-text: rgba(0, 0, 0, 0.65);
+  --menu-text-hover: #0f62ff;
+  --menu-selected-bg: #ffffff;
+  --page-container-bg: #ffffff;
+  /* 顶栏/侧栏 - 与 inspection-web 一致：高透明度，透出背景图 */
+  --sider-bg-glass: linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.1) 100%);
+  --header-bg-glass: linear-gradient(90deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.12) 100%);
+  --sider-border-glass: rgba(255, 255, 255, 0.35);
+  --header-border-glass: rgba(0, 0, 0, 0.06);
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+    'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+}
+
+/* 与 inspection-web 一致：主布局背景（浅灰+背景图） */
+body.g-layout-body {
+  background-image: url(https://fe-cloud.uni-ubi.com/image/1764752125575-bggg.jpg?x-oss-process=img/q/80);
+  background-size: 100vw auto;
+  background-repeat: no-repeat;
+  min-height: 100vh;
+}
+
+/* 主内容区透明，与 inspection-web .ant-pro-layout-content / .ant-pro-basicLayout-content 一致 */
+.g-main-layout-content.ant-layout-content {
+  background: transparent !important;
+}
+
+/* 内容区白底面板（替代毛玻璃，浅色系不透明） */
+.glass-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--glass-shadow);
+  border-radius: 8px;
+}
+
+.ant-layout-sider-trigger {
+  background: #ffffff !important;
+  color: #4a4a4a !important;
+  border-top: 1px solid var(--border-color) !important;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.ant-card,
+.ant-table,
+.ant-layout-header,
+.ant-layout-sider {
+  border-color: var(--border-color) !important;
+}
+
+.custom-tabs .ant-tabs-nav {
+  margin-bottom: 24px;
+}
+.custom-tabs .ant-tabs-tab {
+  color: var(--text-secondary);
+}
+.custom-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--primary) !important;
+}
+
+/* 菜单 - 与 inspection-web BasicLayout 一致：选中左侧竖条、浅色项 */
+.ant-menu-light .ant-menu-item-selected {
+  position: relative;
+  background-color: var(--menu-selected-bg) !important;
+  color: var(--menu-text-hover) !important;
+}
+.ant-menu-light .ant-menu-item-selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 20px;
+  border-radius: 0 4px 4px 0;
+  background: var(--primary);
+}
+.ant-menu-light .ant-menu-item:hover,
+.ant-menu-light .ant-menu-submenu-title:hover {
+  color: var(--menu-text-hover) !important;
+}
+.ant-menu-light .ant-menu-item,
+.ant-menu-light .ant-menu-submenu-title {
+  color: var(--menu-text) !important;
+}
+
+/* 主布局菜单项 - 与 inspection-web BasicLayout 一致 */
+.g-main-layout-menu.ant-menu-inline .ant-menu-item,
+.g-main-layout-menu.ant-menu-inline .ant-menu-submenu-title {
+  padding: 10px 10px 10px 12px !important;
+  margin: 0 0 4px 0 !important;
+  width: auto !important;
+  border-radius: 8px;
+  height: auto;
+  line-height: 22px;
+}
+.g-main-layout-menu.ant-menu-inline .ant-menu-item:not(:first-child),
+.g-main-layout-menu.ant-menu-inline .ant-menu-submenu-title:not(:first-child) {
+  margin-top: 2px !important;
+}
+.g-main-layout-menu .ant-menu-sub .ant-menu-item,
+.g-main-layout-menu .ant-menu-sub .ant-menu-submenu-title {
+  margin: 2px 0 !important;
+}
+.g-main-layout-menu .ant-menu-item .anticon,
+.g-main-layout-menu .ant-menu-submenu-title .anticon {
+  font-size: 18px;
+}
+.g-main-layout-menu.ant-menu-inline .ant-menu-selected::after,
+.g-main-layout-menu.ant-menu-inline .ant-menu-item-selected::after {
+  display: none;
+}
+
+/* 侧栏结构 - 与 inspection-web 一致：Logo、可滚动菜单、左下角我的信息 + 收起展开按钮 */
+.g-main-layout-sider.ant-layout-sider > .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.g-main-layout-sider.ant-layout-sider {
+  background: var(--sider-bg-glass) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-right-color: var(--sider-border-glass) !important;
+}
+.g-sider-header {
+  flex-shrink: 0;
+  height: 64px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--header-border-glass);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+.g-sider-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  overflow: hidden;
+}
+.g-sider-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  color: #fff;
+  flex-shrink: 0;
+}
+.g-sider-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.g-sider-menu-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.g-sider-footer {
+  flex-shrink: 0;
+  padding: 16px;
+  padding-bottom: 20px;
+  border-top: 1px solid var(--header-border-glass);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  transition: padding 0.2s ease;
+  background: transparent;
+}
+.g-sider-footer-collapsed {
+  justify-content: center;
+  padding-left: 16px;
+  padding-right: 16px;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+.g-sider-footer-collapsed .g-sider-footer-user {
+  order: 1;
+}
+.g-sider-footer-collapsed .g-sider-collapse-btn {
+  order: 2;
+}
+.g-sider-footer-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  cursor: pointer;
+}
+.g-sider-footer-user .ant-avatar,
+.g-sider-footer-avatar {
+  flex-shrink: 0;
+}
+.g-sider-footer-name {
+  font-size: 14px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.g-sider-collapse-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-primary);
+  flex-shrink: 0;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.g-sider-collapse-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--primary);
+}
+.g-sider-collapse-btn .anticon {
+  font-size: 18px;
+}
+.g-sider-collapse-btn-collapsed {
+  margin-left: 0;
+}
+
+.g-sider-wrap {
+  display: flex;
+  align-items: stretch;
+}
+.g-sider-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 101;
+  flex-shrink: 0;
+}
+.g-sider-resize-handle:hover,
+.g-sider-wrap:has(.g-sider-resize-handle:active) .g-sider-resize-handle {
+  background: rgba(15, 98, 255, 0.12);
+}
+.g-sider-resize-handle::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 40px;
+  border-radius: 1px;
+  background: rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+}
+.g-sider-resize-handle:hover::after {
+  background: var(--primary);
+}
+
+/* 顶栏 - 与 inspection-web 一致：高透明 + 毛玻璃 */
+.g-main-layout-header.ant-layout-header {
+  background: var(--header-bg-glass) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--header-border-glass) !important;
+}
