@@ -60,6 +60,19 @@ body.g-layout-body {
   border-radius: 8px;
 }
 
+/* 浅色系页面用工具类（替代原 dark/slate 双主题） */
+.g-text-primary { color: var(--text-primary); }
+.g-text-secondary { color: var(--text-secondary); }
+.g-text-primary-link { color: var(--primary); }
+.g-text-primary-link:hover { opacity: 0.85; }
+.g-text-success { color: var(--success); }
+.g-text-warning { color: var(--warning); }
+.g-text-error { color: var(--error); }
+.g-bg-toolbar { background: #fafafa; }
+.g-border-panel { border-color: var(--border-color); }
+.g-btn-primary { background: var(--primary) !important; color: #fff !important; }
+.g-btn-primary:hover { opacity: 0.9; color: #fff !important; }
+
 .ant-layout-sider-trigger {
   background: #ffffff !important;
   color: #4a4a4a !important;
