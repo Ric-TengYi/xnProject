@@ -1,0 +1,17 @@
+package com.xngl.web.controller;
+
+import com.xngl.web.dto.ApiResult;
+import java.util.List;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/alerts")
+public class AlertsController {
+
+  @GetMapping
+  public ApiResult<List<?>> list() {
+    return ApiResult.ok(List.of());
+  }
+}
