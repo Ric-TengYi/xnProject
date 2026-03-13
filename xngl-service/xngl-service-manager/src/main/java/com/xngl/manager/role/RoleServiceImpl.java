@@ -1,0 +1,174 @@
+package com.xngl.manager.role;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.xngl.infrastructure.persistence.entity.organization.Role;
+import com.xngl.infrastructure.persistence.entity.system.DataScopeRule;
+import com.xngl.infrastructure.persistence.entity.system.RolePermissionRel;
+import com.xngl.infrastructure.persistence.entity.system.RoleMenuRel;
+import com.xngl.infrastructure.persistence.mapper.DataScopeRuleMapper;
+import com.xngl.infrastructure.persistence.mapper.RoleMapper;
+import com.xngl.infrastructure.persistence.mapper.RoleMenuRelMapper;
+import com.xngl.infrastructure.persistence.mapper.RolePermissionRelMapper;
+import java.util.List;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
+
+@Service
+public class RoleServiceImpl implements RoleService {
+
+  private final RoleMapper roleMapper;
+  private final RolePermissionRelMapper rolePermissionRelMapper;
+  private final RoleMenuRelMapper roleMenuRelMapper;
+  private final DataScopeRuleMapper dataScopeRuleMapper;
+
+  public RoleServiceImpl(
+      RoleMapper roleMapper,
+      RolePermissionRelMapper rolePermissionRelMapper,
+      RoleMenuRelMapper roleMenuRelMapper,
+      DataScopeRuleMapper dataScopeRuleMapper) {
+    this.roleMapper = roleMapper;
+    this.rolePermissionRelMapper = rolePermissionRelMapper;
+    this.roleMenuRelMapper = roleMenuRelMapper;
+    this.dataScopeRuleMapper = dataScopeRuleMapper;
+  }
+
+  @Override
+  public Role getById(Long id) {
+    return roleMapper.selectById(id);
+  }
+
+  @Override
+  public IPage<Role> page(
+      String keyword, Long tenantId, String roleScope, String status, int pageNo, int pageSize) {
+    LambdaQueryWrapper<Role> q = new LambdaQueryWrapper<>();
+    if (tenantId != null) q.eq(Role::getTenantId, tenantId);
+    if (StringUtils.hasText(keyword)) {
+      q.and(
+          w ->
+              w.like(Role::getRoleCode, keyword)
+                  .or()
+                  .like(Role::getRoleName, keyword));
+    }
+    if (StringUtils.hasText(roleScope)) q.eq(Role::getRoleScope, roleScope);
+    if (StringUtils.hasText(status)) q.eq(Role::getStatus, status);
+    return roleMapper.selectPage(new Page<>(pageNo, pageSize), q);
+  }
+
+  @Override
+  public long create(Role role) {
+    roleMapper.insert(role);
+    return role.getId();
+  }
+
+  @Override
+  public void update(Role role) {
+    roleMapper.updateById(role);
+  }
+
+  @Override
+  @Transactional(rollbackFor = Exception.class)
+  public void delete(Long id) {
+    roleMapper.deleteById(id);
+  }
+
+  @Override
+  public List<Role> listByIds(List<Long> ids) {
+    if (CollectionUtils.isEmpty(ids)) {
+      return List.of();
+    }
+    return roleMapper.selectList(new LambdaQueryWrapper<Role>().in(Role::getId, ids));
+  }
+
+  @Override
+  public List<Long> listPermissionIdsByRoleId(Long roleId) {
+    return rolePermissionRelMapper
+        .selectList(new LambdaQueryWrapper<RolePermissionRel>().eq(RolePermissionRel::getRoleId, roleId))
+        .stream()
+        .map(RolePermissionRel::getPermissionId)
+        .toList();
+  }
+
+  @Override
+  @Transactional(rollbackFor = Exception.class)
+  public void updatePermissions(Long roleId, List<Long> menuIds, List<Long> permissionIds) {
+    Role role = roleMapper.selectById(roleId);
+    if (role == null) return;
+    Long tenantId = role.getTenantId();
+    roleMenuRelMapper.delete(new LambdaQueryWrapper<RoleMenuRel>().eq(RoleMenuRel::getRoleId, roleId));
+    if (!CollectionUtils.isEmpty(menuIds)) {
+      for (Long menuId : menuIds) {
+        RoleMenuRel rel = new RoleMenuRel();
+        rel.setTenantId(tenantId);
+        rel.setRoleId(roleId);
+        rel.setMenuId(menuId);
+        roleMenuRelMapper.insert(rel);
+      }
+    }
+    rolePermissionRelMapper.delete(
+        new LambdaQueryWrapper<RolePermissionRel>().eq(RolePermissionRel::getRoleId, roleId));
+    if (!CollectionUtils.isEmpty(permissionIds)) {
+      for (Long permId : permissionIds) {
+        RolePermissionRel rel = new RolePermissionRel();
+        rel.setTenantId(tenantId);
+        rel.setRoleId(roleId);
+        rel.setPermissionId(permId);
+        rolePermissionRelMapper.insert(rel);
+      }
+    }
+  }
+
+  @Override
+  public List<DataScopeRule> listDataScopeRulesByRoleId(Long roleId) {
+    return dataScopeRuleMapper.selectList(
+        new LambdaQueryWrapper<DataScopeRule>().eq(DataScopeRule::getRoleId, roleId));
+  }
+
+  @Override
+  @Transactional(rollbackFor = Exception.class)
+  public void updateDataScopeRules(Long roleId, List<DataScopeRule> rules) {
+    Role role = roleMapper.selectById(roleId);
+    if (role == null) return;
+    dataScopeRuleMapper.delete(
+        new LambdaQueryWrapper<DataScopeRule>().eq(DataScopeRule::getRoleId, roleId));
+    if (!CollectionUtils.isEmpty(rules)) {
+      for (DataScopeRule r : rules) {
+        r.setId(null);
+        r.setTenantId(role.getTenantId());
+        r.setRoleId(roleId);
+        dataScopeRuleMapper.insert(r);
+      }
+    }
+  }
+
+  @Override
+  public List<Long> listMenuIdsByRoleId(Long roleId) {
+    return roleMenuRelMapper
+        .selectList(new LambdaQueryWrapper<RoleMenuRel>().eq(RoleMenuRel::getRoleId, roleId))
+        .stream()
+        .map(RoleMenuRel::getMenuId)
+        .toList();
+  }
+
+  @Override
+  @Transactional(rollbackFor = Exception.class)
+  public void updateMenus(Long roleId, List<Long> menuIds) {
+    Role role = roleMapper.selectById(roleId);
+    if (role == null) return;
+    Long tenantId = role.getTenantId();
+    roleMenuRelMapper.delete(
+        new LambdaQueryWrapper<RoleMenuRel>().eq(RoleMenuRel::getRoleId, roleId));
+    if (!CollectionUtils.isEmpty(menuIds)) {
+      for (Long menuId : menuIds) {
+        RoleMenuRel rel = new RoleMenuRel();
+        rel.setTenantId(tenantId);
+        rel.setRoleId(roleId);
+        rel.setMenuId(menuId);
+        roleMenuRelMapper.insert(rel);
+      }
+    }
+  }
+}

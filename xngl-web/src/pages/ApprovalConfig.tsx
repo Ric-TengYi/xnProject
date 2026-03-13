@@ -1,16 +1,36 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Steps, Button, Table, Tag, Space, Avatar } from 'antd';
 import { EditOutlined, UserOutlined, SettingOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
-
-const approvalTypes = [
-    { id: 'contract_approve', name: '消纳合同审批', status: '启用', updateTime: '2024-03-01 10:00' },
-    { id: 'delay_approve', name: '项目延期审批', status: '启用', updateTime: '2024-02-15 14:30' },
-    { id: 'settle_approve', name: '财务结算单审批', status: '启用', updateTime: '2024-01-20 09:15' },
-    { id: 'event_approve', name: '异常事件处理审批', status: '停用', updateTime: '2023-12-10 16:45' },
-];
+import request from '../utils/request';
 
 const ApprovalConfig: React.FC = () => {
+    const [rules, setRules] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const fetchRules = async () => {
+            setLoading(true);
+            try {
+                const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                const res = await request.get('/approval-actor-rules', { params: { tenantId: userInfo.tenantId || '1', pageSize: 100 } });
+                if (res.code === 200 && res.data && res.data.records) {
+                    setRules(res.data.records.map((r: any) => ({
+                        id: r.id,
+                        name: r.ruleName || r.processKey || r.id,
+                        status: r.status === 'ENABLED' ? '启用' : '停用',
+                        updateTime: '-',
+                    })));
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchRules();
+    }, []);
+
     const columns = [
         { title: '审批事项名称', dataIndex: 'name', key: 'name', render: (t: string) => <strong className="g-text-primary">{t}</strong> },
         { 
@@ -74,8 +94,9 @@ const ApprovalConfig: React.FC = () => {
             <Card className="glass-panel g-border-panel border" bodyStyle={{ padding: 0 }}>
                 <Table 
                     columns={columns} 
-                    dataSource={approvalTypes} 
+                    dataSource={rules} 
                     rowKey="id"
+                    loading={loading}
                     pagination={false}
                     className="bg-transparent"
                     rowClassName="hover:bg-white transition-colors"

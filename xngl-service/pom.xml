@@ -9,7 +9,6 @@
     <artifactId>spring-boot-starter-parent</artifactId>
     <version>3.3.4</version>
     <relativePath/>
-    <scope>import</scope>
   </parent>
 
   <groupId>com.xngl</groupId>

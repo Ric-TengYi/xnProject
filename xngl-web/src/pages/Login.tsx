@@ -3,20 +3,38 @@
  * 白底卡片、#0F62FF 主色、账号/验证码 Tab
  */
 import React, { useState } from 'react';
-import { Form, Input, Button, Tabs } from 'antd';
+import { Form, Input, Button, Tabs, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import request from '../utils/request';
 import styles from './Login.module.css';
 
 const Login: React.FC = () => {
   const [form] = Form.useForm();
   const [activeTab, setActiveTab] = useState<string>('account');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const onFinish = (values: Record<string, string>) => {
-    console.log('Login values', values);
-    // 模拟登录成功，跳转首页
-    navigate('/', { replace: true });
+  const onFinish = async (values: Record<string, string>) => {
+    try {
+      setLoading(true);
+      const res = await request.post('/auth/login', {
+        username: values.account,
+        password: values.password,
+        loginType: 'ACCOUNT',
+        tenantId: '1', // default tenant
+      });
+      if (res.code === 200) {
+        message.success('登录成功');
+        localStorage.setItem('token', res.data.token);
+        localStorage.setItem('userInfo', JSON.stringify(res.data.user));
+        navigate('/', { replace: true });
+      }
+    } catch (error) {
+      console.error('Login error', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -90,6 +108,7 @@ const Login: React.FC = () => {
                 htmlType="submit"
                 block
                 size="large"
+                loading={loading}
                 className={styles.submit}
               >
                 登录

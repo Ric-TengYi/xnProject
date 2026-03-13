@@ -27,6 +27,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
     String path = request.getRequestURI();
+    if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+      return true;
+    }
     List<String> skip = List.of("/api/auth/login", "/api/health", "/swagger-ui", "/v3/api-docs");
     return skip.stream().anyMatch(path::startsWith);
   }
@@ -37,14 +40,26 @@ public class JwtAuthFilter extends OncePerRequestFilter {
       @NonNull HttpServletResponse response,
       @NonNull FilterChain chain) throws ServletException, IOException {
     String header = request.getHeader(AUTHORIZATION);
-    if (header != null && header.startsWith(BEARER)) {
-      String token = header.substring(BEARER.length()).trim();
-      if (jwtUtils.validateToken(token)) {
-        var claims = jwtUtils.parseToken(token);
-        request.setAttribute(ATTR_USER_ID, claims.get("userId", String.class));
-        request.setAttribute(ATTR_USERNAME, claims.getSubject());
-      }
+    if (header == null || !header.startsWith(BEARER)) {
+      writeUnauthorized(response, "未登录或 token 缺失");
+      return;
     }
+
+    String token = header.substring(BEARER.length()).trim();
+    if (!jwtUtils.validateToken(token)) {
+      writeUnauthorized(response, "未登录或 token 无效");
+      return;
+    }
+
+    var claims = jwtUtils.parseToken(token);
+    request.setAttribute(ATTR_USER_ID, claims.get("userId", String.class));
+    request.setAttribute(ATTR_USERNAME, claims.getSubject());
     chain.doFilter(request, response);
+  }
+
+  private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
+    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    response.setContentType("application/json;charset=UTF-8");
+    response.getWriter().write("{\"code\":401,\"message\":\"" + message + "\",\"data\":null}");
   }
 }

@@ -1,25 +1,73 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Tabs, Table, Input, DatePicker, Button, Tag } from 'antd';
 import { SearchOutlined, ExportOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
+import request from '../utils/request';
 
 const { TabPane } = Tabs;
 const { RangePicker } = DatePicker;
 
-const loginLogs = [
-    { id: 1, account: 'admin', time: '2024-03-05 10:00:23', ip: '192.168.1.100', browser: 'Chrome 120.0', os: 'Windows 11', status: '成功' },
-    { id: 2, account: 'zhangsan', time: '2024-03-05 09:45:12', ip: '114.254.12.33', browser: 'Safari 17.0', os: 'macOS', status: '失败 (密码错误)' },
-    { id: 3, account: 'lisi', time: '2024-03-05 08:30:00', ip: '10.0.0.55', browser: 'WeChat', os: 'iOS', status: '成功' },
-];
-
-const operateLogs = [
-    { id: 1, operator: '系统管理员', module: '合同管理', action: '新增合同', content: '创建合同 HT-2403-0102', time: '2024-03-05 10:15:30', ip: '192.168.1.100' },
-    { id: 2, operator: '李场地', module: '消纳场地', action: '设备配置', content: '修改 1号地磅 IP 地址', time: '2024-03-04 16:20:11', ip: '10.0.0.88' },
-    { id: 3, operator: '王执法', module: '预警管理', action: '预警处置', content: '处理违规记录 V002', time: '2024-03-04 11:05:45', ip: '114.254.12.33' },
-];
-
 const SystemLogs: React.FC = () => {
     const [searchText, setSearchText] = useState('');
+    const [loginLogs, setLoginLogs] = useState<any[]>([]);
+    const [operateLogs, setOperateLogs] = useState<any[]>([]);
+    const [loginLoading, setLoginLoading] = useState(false);
+    const [operateLoading, setOperateLoading] = useState(false);
+    const [loginPagination, setLoginPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+    const [operatePagination, setOperatePagination] = useState({ current: 1, pageSize: 10, total: 0 });
+
+    const fetchLoginLogs = async (pageNo = 1, pageSize = 10) => {
+        setLoginLoading(true);
+        try {
+            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+            const res = await request.get('/login-logs', { params: { tenantId: userInfo.tenantId || '1', pageNo, pageSize } });
+            if (res.code === 200 && res.data) {
+                const records = (res.data.records || []).map((r: any) => ({
+                    id: r.id,
+                    account: r.username,
+                    time: r.loginTime,
+                    ip: r.ip,
+                    browser: '-',
+                    os: '-',
+                    status: r.success ? '成功' : (r.failReason ? `失败 (${r.failReason})` : '失败'),
+                }));
+                setLoginLogs(records);
+                setLoginPagination(prev => ({ ...prev, total: res.data.total || 0 }));
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoginLoading(false);
+        }
+    };
+
+    const fetchOperateLogs = async (pageNo = 1, pageSize = 10) => {
+        setOperateLoading(true);
+        try {
+            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+            const res = await request.get('/operation-logs', { params: { tenantId: userInfo.tenantId || '1', pageNo, pageSize } });
+            if (res.code === 200 && res.data) {
+                const records = (res.data.records || []).map((r: any) => ({
+                    id: r.id,
+                    operator: r.username,
+                    module: r.module,
+                    action: r.operation,
+                    content: r.requestUri || `${r.method || ''} ${r.requestUri || ''}`.trim() || '-',
+                    time: r.createTime,
+                    ip: r.ip,
+                }));
+                setOperateLogs(records);
+                setOperatePagination(prev => ({ ...prev, total: res.data.total || 0 }));
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setOperateLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchLoginLogs(loginPagination.current, loginPagination.pageSize); }, [loginPagination.current, loginPagination.pageSize]);
+    useEffect(() => { fetchOperateLogs(operatePagination.current, operatePagination.pageSize); }, [operatePagination.current, operatePagination.pageSize]);
 
     const loginColumns = [
         { title: '登录账号', dataIndex: 'account', key: 'account', render: (t: string) => <strong className="g-text-primary">{t}</strong> },
@@ -64,9 +112,17 @@ const SystemLogs: React.FC = () => {
                         </div>
                         <Table 
                             columns={operateColumns} 
-                            dataSource={operateLogs.filter(l => l.operator.includes(searchText) || l.content.includes(searchText))} 
+                            dataSource={operateLogs.filter((l: any) => !searchText || (l.operator && l.operator.includes(searchText)) || (l.content && l.content.includes(searchText)))} 
                             rowKey="id"
-                            pagination={{ defaultPageSize: 10, className: 'pb-4' }}
+                            loading={operateLoading}
+                            pagination={{
+                                current: operatePagination.current,
+                                pageSize: operatePagination.pageSize,
+                                total: operatePagination.total,
+                                className: 'pb-4',
+                                showSizeChanger: true,
+                                onChange: (page, size) => setOperatePagination(prev => ({ ...prev, current: page, pageSize: size || 10 })),
+                            }}
                             className="bg-transparent"
                             rowClassName="hover:bg-white transition-colors"
                         />
@@ -83,7 +139,15 @@ const SystemLogs: React.FC = () => {
                             columns={loginColumns} 
                             dataSource={loginLogs} 
                             rowKey="id"
-                            pagination={{ defaultPageSize: 10, className: 'pb-4' }}
+                            loading={loginLoading}
+                            pagination={{
+                                current: loginPagination.current,
+                                pageSize: loginPagination.pageSize,
+                                total: loginPagination.total,
+                                className: 'pb-4',
+                                showSizeChanger: true,
+                                onChange: (page, size) => setLoginPagination(prev => ({ ...prev, current: page, pageSize: size || 10 })),
+                            }}
                             className="bg-transparent"
                             rowClassName="hover:bg-white transition-colors"
                         />

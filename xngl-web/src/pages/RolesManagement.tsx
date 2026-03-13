@@ -1,48 +1,94 @@
-import React, { useState } from 'react';
-import { Card, Tree, List, Button, Tag, Select, Divider } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Card, Tree, List, Button, Tag, Select, Divider, message } from 'antd';
 import { PlusOutlined, SaveOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
+import request from '../utils/request';
 
 const { Option } = Select;
 
-const rolesList = [
-    { id: 'R01', name: '系统管理员', type: '系统内置', desc: '拥有系统所有权限' },
-    { id: 'R02', name: '执法领导', type: '业务角色', desc: '查看全局数据及宏观统计' },
-    { id: 'R03', name: '执法人员', type: '业务角色', desc: '处理违规预警及现场执法' },
-    { id: 'R04', name: '车队管理员', type: '业务角色', desc: '管理本车队车辆及人员' },
-    { id: 'R05', name: '场地管理员', type: '业务角色', desc: '管理本场地消纳及设备' },
-];
-
-const menuTreeData = [
-    {
-        title: '数据看板',
-        key: 'dashboard',
-        children: [
-            { title: '总体分析', key: 'dashboard-all' },
-            { title: '消纳场数据', key: 'dashboard-site' },
-            { title: '项目数据', key: 'dashboard-project' },
-        ],
-    },
-    {
-        title: '项目管理',
-        key: 'projects',
-        children: [
-            { title: '项目清单', key: 'projects-list' },
-            { title: '交款数据', key: 'projects-payment' },
-        ],
-    },
-    {
-        title: '预警与安全',
-        key: 'alerts',
-        children: [
-            { title: '系统预警', key: 'alerts-list' },
-            { title: '预警配置', key: 'alerts-config' },
-        ],
-    },
-];
-
 const RolesManagement: React.FC = () => {
-    const [selectedRole, setSelectedRole] = useState(rolesList[1]);
+    const [rolesList, setRolesList] = useState<any[]>([]);
+    const [menuTreeData, setMenuTreeData] = useState<any[]>([]);
+    const [selectedRole, setSelectedRole] = useState<any>(null);
+    const [checkedKeys, setCheckedKeys] = useState<React.Key[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        fetchRoles();
+        fetchMenus();
+    }, []);
+
+    useEffect(() => {
+        if (selectedRole) {
+            fetchRolePermissions(selectedRole.id);
+        }
+    }, [selectedRole]);
+
+    const fetchRoles = async () => {
+        try {
+            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+            const tenantId = userInfo.tenantId || '1';
+            const res = await request.get('/roles', { params: { pageSize: 100, tenantId } });
+            if (res.code === 200) {
+                const roles = res.data.records || [];
+                setRolesList(roles);
+                if (roles.length > 0 && !selectedRole) {
+                    setSelectedRole(roles[0]);
+                }
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const fetchMenus = async () => {
+        try {
+            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+            const tenantId = userInfo.tenantId || '1';
+            const res = await request.get('/menus/tree', { params: { tenantId } });
+            if (res.code === 200) {
+                const formatTree = (nodes: any[]): any[] => {
+                    return nodes.map(node => ({
+                        title: node.menuName,
+                        key: node.id,
+                        children: node.children ? formatTree(node.children) : [],
+                    }));
+                };
+                setMenuTreeData(formatTree(res.data || []));
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const fetchRolePermissions = async (roleId: string) => {
+        try {
+            const res = await request.get(`/roles/${roleId}/permissions`);
+            if (res.code === 200) {
+                setCheckedKeys(res.data.menuIds || []);
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const handleSave = async () => {
+        if (!selectedRole) return;
+        setLoading(true);
+        try {
+            const res = await request.put(`/roles/${selectedRole.id}/permissions`, {
+                menuIds: checkedKeys,
+                permissionIds: [] // TODO: Add permission handling if needed
+            });
+            if (res.code === 200) {
+                message.success('保存成功');
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="space-y-6 h-[calc(100vh-110px)] flex flex-col">
@@ -65,15 +111,15 @@ const RolesManagement: React.FC = () => {
                             dataSource={rolesList}
                             renderItem={item => (
                                 <List.Item 
-                                    className={`px-4 py-3 cursor-pointer rounded mb-1 transition-colors border-none ${selectedRole.id === item.id ? 'bg-blue-600/20 border border-blue-500/50' : 'hover:bg-white'}`}
+                                    className={`px-4 py-3 cursor-pointer rounded mb-1 transition-colors border-none ${selectedRole?.id === item.id ? 'bg-blue-600/20 border border-blue-500/50' : 'hover:bg-white'}`}
                                     onClick={() => setSelectedRole(item)}
                                 >
                                     <div className="w-full">
                                         <div className="flex justify-between items-center mb-1">
-                                            <span className={`font-bold ${selectedRole.id === item.id ? 'g-text-primary-link' : 'g-text-primary'}`}>{item.name}</span>
-                                            <Tag color={item.type === '系统内置' ? 'default' : 'blue'} className="border-none m-0">{item.type}</Tag>
+                                            <span className={`font-bold ${selectedRole?.id === item.id ? 'g-text-primary-link' : 'g-text-primary'}`}>{item.roleName}</span>
+                                            <Tag color={item.roleScope === 'SYSTEM' ? 'default' : 'blue'} className="border-none m-0">{item.roleScope === 'SYSTEM' ? '系统内置' : '业务角色'}</Tag>
                                         </div>
-                                        <div className="text-xs g-text-secondary truncate">{item.desc}</div>
+                                        <div className="text-xs g-text-secondary truncate">{item.description || '暂无描述'}</div>
                                     </div>
                                 </List.Item>
                             )}
@@ -85,8 +131,8 @@ const RolesManagement: React.FC = () => {
                 <Card 
                     className="glass-panel g-border-panel border flex-1 flex flex-col" 
                     bodyStyle={{ padding: '24px', flex: 1, overflow: 'auto' }}
-                    title={<span className="g-text-primary">【{selectedRole.name}】权限配置</span>}
-                    extra={<Button type="primary" icon={<SaveOutlined />} className="bg-green-600 hover:bg-green-500 border-none">保存配置</Button>}
+                    title={<span className="g-text-primary">【{selectedRole?.roleName || '-'}】权限配置</span>}
+                    extra={<Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={loading} className="bg-green-600 hover:bg-green-500 border-none">保存配置</Button>}
                 >
                     <div className="space-y-8">
                         <div>
@@ -104,13 +150,16 @@ const RolesManagement: React.FC = () => {
                         <div>
                             <div className="g-text-secondary font-bold mb-4 border-l-4 border-blue-500 pl-2">菜单与按钮权限</div>
                             <div className="g-bg-toolbar p-4 rounded-lg border g-border-panel border">
-                                <Tree
-                                    checkable
-                                    defaultExpandAll
-                                    defaultCheckedKeys={['dashboard', 'dashboard-all', 'alerts', 'alerts-list']}
-                                    treeData={menuTreeData}
-                                    className="bg-transparent g-text-secondary custom-tree"
-                                />
+                                {menuTreeData.length > 0 && (
+                                    <Tree
+                                        checkable
+                                        defaultExpandAll
+                                        checkedKeys={checkedKeys}
+                                        onCheck={(keys) => setCheckedKeys(keys as React.Key[])}
+                                        treeData={menuTreeData}
+                                        className="bg-transparent g-text-secondary custom-tree"
+                                    />
+                                )}
                             </div>
                         </div>
                     </div>

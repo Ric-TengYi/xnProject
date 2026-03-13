@@ -6,5 +6,7 @@ public interface AuthService {
 
   User getByUsername(String username);
 
+  User getByTenantAndUsername(Long tenantId, String username);
+
   boolean checkPassword(User user, String rawPassword);
 }

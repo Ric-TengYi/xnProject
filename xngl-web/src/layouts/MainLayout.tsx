@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Input, Badge, Avatar } from 'antd';
+import { Layout, Menu, Button, Input, Badge, Avatar, Dropdown } from 'antd';
 import {
   PieChartOutlined,
   DesktopOutlined,
@@ -15,9 +15,11 @@ import {
   MenuUnfoldOutlined,
   FullscreenOutlined,
   FullscreenExitOutlined,
+  LogoutOutlined,
 } from '@ant-design/icons';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import request from '../utils/request';
 
 const { Header, Content, Sider } = Layout;
 
@@ -101,7 +103,38 @@ const MainLayout: React.FC = () => {
   const [resizing, setResizing] = useState(false);
   const [resizeStartX, setResizeStartX] = useState(0);
   const [resizeStartWidth, setResizeStartWidth] = useState(SIDER_DEFAULT_WIDTH);
+  const [userInfo, setUserInfo] = useState<any>(null);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      try {
+        const res = await request.get('/me');
+        if (res.code === 200) {
+          setUserInfo(res.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user info', error);
+      }
+    };
+    fetchUserInfo();
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userInfo');
+    navigate('/login', { replace: true });
+  };
+
+  const userMenuItems = [
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: '退出登录',
+      onClick: handleLogout,
+    },
+  ];
 
   useEffect(() => {
     document.body.classList.add('g-layout-body');
@@ -222,17 +255,19 @@ const MainLayout: React.FC = () => {
           />
         </div>
         <div className={`g-sider-footer ${collapsed ? 'g-sider-footer-collapsed' : ''}`}>
-          <div className="g-sider-footer-user">
-            <Avatar
-              size={collapsed ? 32 : 36}
-              icon={<UserOutlined />}
-              src="https://api.dicebear.com/7.x/notionists/svg?seed=Felix"
-              className="g-sider-footer-avatar"
-            />
-            {!collapsed && (
-              <span className="g-sider-footer-name">超级管理员</span>
-            )}
-          </div>
+          <Dropdown menu={{ items: userMenuItems }} placement="topRight" trigger={['click']}>
+            <div className="g-sider-footer-user" style={{ cursor: 'pointer' }}>
+              <Avatar
+                size={collapsed ? 32 : 36}
+                icon={<UserOutlined />}
+                src="https://api.dicebear.com/7.x/notionists/svg?seed=Felix"
+                className="g-sider-footer-avatar"
+              />
+              {!collapsed && (
+                <span className="g-sider-footer-name">{userInfo?.name || userInfo?.username || '加载中...'}</span>
+              )}
+            </div>
+          </Dropdown>
           <div
             className={`g-sider-collapse-btn ${collapsed ? 'g-sider-collapse-btn-collapsed' : ''}`}
             onClick={() => setCollapsed(!collapsed)}

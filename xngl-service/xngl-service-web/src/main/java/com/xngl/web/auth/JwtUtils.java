@@ -30,7 +30,11 @@ public class JwtUtils {
 
   public Claims parseToken(String token) {
     SecretKey key = Keys.hmacShaKeyFor(props.getSecret().getBytes(StandardCharsets.UTF_8));
-    return Jwts.parser().verifyWith(key).build().parseClaimsJws(token).getBody();
+    return Jwts.parserBuilder()
+        .setSigningKey(key)
+        .build()
+        .parseClaimsJws(token)
+        .getBody();
   }
 
   public boolean validateToken(String token) {
