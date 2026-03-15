@@ -1,5 +1,7 @@
 package com.xngl.web.exception;
 
+import com.xngl.manager.contract.ContractServiceException;
+import com.xngl.manager.project.ProjectPaymentException;
 import com.xngl.web.dto.ApiResult;
 import jakarta.validation.ConstraintViolationException;
 import java.util.stream.Collectors;
@@ -16,6 +18,18 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(BizException.class)
   @ResponseStatus(HttpStatus.OK)
   public ApiResult<?> handleBiz(BizException e) {
+    return ApiResult.fail(e.getCode(), e.getMessage());
+  }
+
+  @ExceptionHandler(ContractServiceException.class)
+  @ResponseStatus(HttpStatus.OK)
+  public ApiResult<?> handleContract(ContractServiceException e) {
+    return ApiResult.fail(e.getCode(), e.getMessage());
+  }
+
+  @ExceptionHandler(ProjectPaymentException.class)
+  @ResponseStatus(HttpStatus.OK)
+  public ApiResult<?> handleProjectPayment(ProjectPaymentException e) {
     return ApiResult.fail(e.getCode(), e.getMessage());
   }
 

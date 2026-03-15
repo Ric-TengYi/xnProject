@@ -67,6 +67,29 @@ CREATE TABLE IF NOT EXISTS biz_site (
   deleted INT DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS biz_site_settlement (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  site_id BIGINT NOT NULL,
+  settlement_no VARCHAR(64) NOT NULL,
+  period_start DATE NOT NULL,
+  period_end DATE NOT NULL,
+  settlement_date DATE NOT NULL,
+  total_volume DECIMAL(18,2) NOT NULL DEFAULT 0,
+  unit_price DECIMAL(18,2) NOT NULL DEFAULT 0,
+  total_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
+  adjust_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
+  payable_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
+  settlement_status VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
+  approval_status VARCHAR(32) NOT NULL DEFAULT 'NOT_SUBMITTED',
+  remark VARCHAR(500),
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted INT DEFAULT 0,
+  UNIQUE KEY uk_biz_site_settlement_no (settlement_no),
+  KEY idx_biz_site_settlement_site_status_date (site_id, settlement_status, settlement_date),
+  KEY idx_biz_site_settlement_site_period (site_id, period_start, period_end)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS biz_vehicle (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   plate_no VARCHAR(20),

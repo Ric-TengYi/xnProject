@@ -5,7 +5,7 @@ spring:
     active: local
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT:8090}
 
 # 本地开发时覆盖
 ---

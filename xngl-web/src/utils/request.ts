@@ -21,6 +21,9 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   (response: AxiosResponse) => {
     const res = response.data;
+    if (typeof res !== 'object' || res === null || !('code' in res)) {
+      return res;
+    }
     if (res.code !== 200) {
       message.error(res.message || 'Error');
       if (res.code === 401) {
@@ -40,6 +43,8 @@ request.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+export { request };
 
 export interface CustomResponse<T = any> {
   code: number;
