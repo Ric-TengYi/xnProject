@@ -15,12 +15,16 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
+  private static final Logger log = LoggerFactory.getLogger(AuthController.class);
   private static final long PERMISSION_VERSION = 1L;
 
   private final JwtUtils jwtUtils;
@@ -42,36 +46,55 @@ public class AuthController {
   @PostMapping("/login")
   public ApiResult<LoginResponse> login(
       @Valid @RequestBody LoginRequest req, HttpServletRequest request) {
-    Long tenantId = parseLong(req.getTenantId());
-    User user = authService.getByTenantAndUsername(tenantId, req.getUsername());
-    if (user == null || !authService.checkPassword(user, req.getPassword())) {
-      saveLoginLog(null, req.getUsername(), false, "用户名或密码错误", request);
-      throw new BizException(401, "用户名或密码错误");
-    }
-    if (!"ENABLED".equalsIgnoreCase(user.getStatus())) {
-      saveLoginLog(user, req.getUsername(), false, "用户已被禁用", request);
-      throw new BizException(403, "用户已被禁用");
-    }
+    try {
+      Long tenantId = parseLong(req.getTenantId());
+      User user = authService.getByTenantAndUsername(tenantId, req.getUsername());
+      if (user == null || !authService.checkPassword(user, req.getPassword())) {
+        saveLoginLogSafe(null, req.getUsername(), false, "用户名或密码错误", request);
+        throw new BizException(401, "用户名或密码错误");
+      }
+      if (!"ENABLED".equalsIgnoreCase(user.getStatus())) {
+        saveLoginLogSafe(user, req.getUsername(), false, "用户已被禁用", request);
+        throw new BizException(403, "用户已被禁用");
+      }
 
-    String userId = String.valueOf(user.getId());
-    String token = jwtUtils.createToken(user.getUsername(), userId);
-    long expiresIn = jwtUtils.parseToken(token).getExpiration().getTime() - System.currentTimeMillis();
-    User update = new User();
-    update.setId(user.getId());
-    update.setLastLoginTime(java.time.LocalDateTime.now());
-    userService.update(update);
+      String userId = String.valueOf(user.getId());
+      String token = jwtUtils.createToken(user.getUsername(), userId);
+      long expiresIn = jwtUtils.parseToken(token).getExpiration().getTime() - System.currentTimeMillis();
+      User update = new User();
+      update.setId(user.getId());
+      update.setLastLoginTime(java.time.LocalDateTime.now());
+      userService.update(update);
 
-    saveLoginLog(user, req.getUsername(), true, null, request);
-    LoginResponse.UserInfo userInfo =
-        new LoginResponse.UserInfo(
-            userId,
-            user.getTenantId() != null ? String.valueOf(user.getTenantId()) : null,
-            user.getMainOrgId() != null ? String.valueOf(user.getMainOrgId()) : null,
-            user.getUsername(),
-            user.getName(),
-            user.getUserType());
-    return ApiResult.ok(
-        new LoginResponse(token, "Bearer", expiresIn / 1000, PERMISSION_VERSION, userInfo));
+      saveLoginLogSafe(user, req.getUsername(), true, null, request);
+      LoginResponse.UserInfo userInfo =
+          new LoginResponse.UserInfo(
+              userId,
+              user.getTenantId() != null ? String.valueOf(user.getTenantId()) : null,
+              user.getMainOrgId() != null ? String.valueOf(user.getMainOrgId()) : null,
+              user.getUsername(),
+              user.getName(),
+              user.getUserType());
+      return ApiResult.ok(
+          new LoginResponse(token, "Bearer", expiresIn / 1000, PERMISSION_VERSION, userInfo));
+    } catch (BizException e) {
+      throw e;
+    } catch (DataAccessException e) {
+      log.warn("Login failed due to data access error: {}", e.getMessage());
+      throw new BizException(503, "服务暂时不可用，请稍后重试");
+    } catch (Exception e) {
+      log.warn("Login failed: {}", e.getMessage());
+      throw new BizException(503, "服务暂时不可用，请稍后重试");
+    }
+  }
+
+  private void saveLoginLogSafe(
+      User user, String username, boolean success, String failReason, HttpServletRequest request) {
+    try {
+      saveLoginLog(user, username, success, failReason, request);
+    } catch (Exception e) {
+      log.warn("Failed to save login log: {}", e.getMessage());
+    }
   }
 
   private void saveLoginLog(

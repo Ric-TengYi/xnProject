@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, Select, DatePicker, Button, Space } from 'antd';
 import { EnvironmentOutlined, CarOutlined, ProjectOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -6,8 +6,32 @@ import dayjs from 'dayjs';
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
+declare global {
+    interface Window {
+        AMap?: any;
+    }
+}
+
 const DashboardMap: React.FC = () => {
     const [filterType, setFilterType] = useState('all');
+    const mapRef = useRef<HTMLDivElement>(null);
+    const mapInstanceRef = useRef<any>(null);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined' && window.AMap && mapRef.current && !mapInstanceRef.current) {
+            mapInstanceRef.current = new window.AMap.Map(mapRef.current, {
+                zoom: 11,
+                center: [104.065735, 30.657689],
+                viewMode: '2D',
+            });
+        }
+        return () => {
+            if (mapInstanceRef.current) {
+                mapInstanceRef.current.destroy();
+                mapInstanceRef.current = null;
+            }
+        };
+    }, []);
 
     return (
         <div className="h-[calc(100vh-120px)] flex flex-col space-y-4">
@@ -66,14 +90,15 @@ const DashboardMap: React.FC = () => {
 
                 {/* 右侧地图区域 */}
                 <Card className="glass-panel flex-1 relative overflow-hidden" bodyStyle={{ padding: 0, height: '100%' }}>
-                    {/* 地图占位 */}
-                    <div className="absolute inset-0 g-bg-toolbar flex items-center justify-center">
-                        <div className="text-center">
-                            <EnvironmentOutlined className="text-6xl text-slate-700 mb-4" />
-                            <h2 className="text-xl g-text-secondary">地图组件加载区</h2>
-                            <p className="text-slate-600">在此接入百度/高德/天地图 SDK</p>
+                    <div ref={mapRef} className="absolute inset-0" style={{ minHeight: 400 }} />
+                    {typeof window !== 'undefined' && !window.AMap && (
+                        <div className="absolute inset-0 g-bg-toolbar flex items-center justify-center pointer-events-none">
+                            <div className="text-center">
+                                <EnvironmentOutlined className="text-6xl text-slate-700 mb-4" />
+                                <p className="text-slate-600">高德地图加载中…</p>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* 悬浮统计面板 */}
                     <div className="absolute top-4 right-4 bg-white backdrop-blur-md p-4 rounded-lg border g-border-panel border shadow-xl">

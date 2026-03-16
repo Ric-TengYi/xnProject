@@ -1,12 +1,39 @@
-import React from 'react';
-import { Card, Tabs, Descriptions, Tag, Button, Space, Timeline, List, Row, Col, Table } from 'antd';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Card, Tabs, Descriptions, Tag, Button, Space, Timeline, List, Row, Col, Table, message } from 'antd';
+import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeftOutlined, EditOutlined, DownloadOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
+import { listContractReceipts, type ContractReceipt } from '../utils/contractReceipts';
 
 const ContractDetail: React.FC = () => {
     const { id } = useParams();
+    const location = useLocation();
     const navigate = useNavigate();
+    const [receiptLoading, setReceiptLoading] = useState(false);
+    const [receipts, setReceipts] = useState<ContractReceipt[]>([]);
+
+    useEffect(() => {
+        const loadReceipts = async () => {
+            setReceiptLoading(true);
+            try {
+                const data = await listContractReceipts();
+                setReceipts(data);
+            } catch (error) {
+                console.error(error);
+                message.error('获取合同入账记录失败');
+            } finally {
+                setReceiptLoading(false);
+            }
+        };
+
+        void loadReceipts();
+    }, []);
+
+    const paymentTab = useMemo(() => new URLSearchParams(location.search).get('tab'), [location.search]);
+    const contractReceipts = useMemo(
+        () => receipts.filter((item) => String(item.contractId ?? '') === String(id ?? '')),
+        [id, receipts],
+    );
 
     // 模拟数据
     const contractInfo = {
@@ -139,17 +166,34 @@ const ContractDetail: React.FC = () => {
                 <div className="space-y-6">
                     <Card title="入账记录" className="glass-panel g-border-panel border" extra={<Button type="primary" size="small">新增入账</Button>}>
                         <Table
-                            dataSource={[
-                                { id: 'RZ-202401-001', time: '2024-01-15 10:00:00', amount: 500000, voucher: 'PZ-8892101', status: '已入账', operator: '张财务' },
-                                { id: 'RZ-202402-015', time: '2024-02-20 14:30:00', amount: 900000, voucher: 'PZ-8892155', status: '已入账', operator: '张财务' },
-                            ]}
+                            dataSource={contractReceipts}
+                            loading={receiptLoading}
+                            rowKey={(record) => String(record.id)}
                             columns={[
-                                { title: '入账单号', dataIndex: 'id', key: 'id' },
-                                { title: '入账时间', dataIndex: 'time', key: 'time' },
-                                { title: '入账金额(元)', dataIndex: 'amount', key: 'amount', render: (val) => <span className="g-text-success font-bold">¥ {val.toLocaleString()}</span> },
-                                { title: '凭证号', dataIndex: 'voucher', key: 'voucher' },
-                                { title: '操作人', dataIndex: 'operator', key: 'operator' },
-                                { title: '状态', dataIndex: 'status', key: 'status', render: (s) => <Tag color="success">{s}</Tag> },
+                                { title: '入账记录ID', dataIndex: 'id', key: 'id' },
+                                { title: '入账日期', dataIndex: 'receiptDate', key: 'receiptDate', render: (value) => value || '-' },
+                                {
+                                    title: '入账金额(元)',
+                                    dataIndex: 'amount',
+                                    key: 'amount',
+                                    render: (value) => <span className="g-text-success font-bold">¥ {Number(value ?? 0).toLocaleString()}</span>,
+                                },
+                                { title: '凭证号', dataIndex: 'voucherNo', key: 'voucherNo', render: (value) => value || '-' },
+                                { title: '备注', dataIndex: 'remark', key: 'remark', render: (value) => value || '-' },
+                                {
+                                    title: '状态',
+                                    dataIndex: 'status',
+                                    key: 'status',
+                                    render: (value) => {
+                                        if (String(value ?? '').toUpperCase() === 'NORMAL') {
+                                            return <Tag color="success">正常</Tag>;
+                                        }
+                                        if (String(value ?? '').toUpperCase() === 'CANCELLED') {
+                                            return <Tag color="error">已冲销</Tag>;
+                                        }
+                                        return <Tag>{value || '未知'}</Tag>;
+                                    },
+                                },
                             ]}
                             pagination={false}
                             className="bg-transparent"
@@ -231,7 +275,7 @@ const ContractDetail: React.FC = () => {
             </div>
 
             <Tabs 
-                defaultActiveKey="info" 
+                defaultActiveKey={paymentTab === 'payment' ? 'payments' : 'info'} 
                 items={items} 
                 className="custom-tabs"
             />

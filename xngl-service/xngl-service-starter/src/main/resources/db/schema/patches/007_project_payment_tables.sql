@@ -24,5 +24,6 @@ CREATE TABLE IF NOT EXISTS biz_project_payment_record (
   KEY idx_project_payment_cancel_operator (tenant_id, cancel_operator_id, cancel_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='项目交款记录表';
 
-ALTER TABLE biz_project_payment_record
-  ADD COLUMN IF NOT EXISTS cancel_operator_id BIGINT DEFAULT NULL COMMENT '冲销操作人';
+-- MySQL 不支持 ADD COLUMN IF NOT EXISTS；该列已在上面 CREATE TABLE 中定义。
+-- 若表已存在且缺少 cancel_operator_id，可手动执行：
+-- ALTER TABLE biz_project_payment_record ADD COLUMN cancel_operator_id BIGINT DEFAULT NULL COMMENT '冲销操作人';

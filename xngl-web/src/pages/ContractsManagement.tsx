@@ -1,32 +1,131 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, Table, Tag, Input, Button, DatePicker, Row, Col, Statistic, Progress, Space } from 'antd';
 import { SearchOutlined, DownloadOutlined, DollarOutlined, FileTextOutlined, BlockOutlined, FilterOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { request } from '@/utils/request';
 
 const { RangePicker } = DatePicker;
 
-const contractsData = [
-    { id: 'HT-2401-0012', type: '正常合同', project: '滨海新区基础建设B标段', site: '东区临时消纳场', amount: 3500000, unearned: 2100000, volume: 150000, status: '生效', date: '2024-01-10' },
-    { id: 'HT-2402-0045', type: '三方合同', project: '老旧小区改造工程', site: '南郊复合型消纳中心', amount: 850000, unearned: 700000, volume: 45000, status: '生效', date: '2024-02-15' },
-    { id: 'HT-2403-0102', type: '正常合同', project: '科创园四期平整', site: '北区填埋场', amount: 1200000, unearned: 1200000, volume: 80000, status: '审批中', date: '2024-04-05' },
-    { id: 'HT-2311-0088', type: '正常合同', project: '地铁三期二号线', site: '西郊临时周转站', amount: 5500000, unearned: 150000, volume: 300000, status: '生效', date: '2023-11-20' },
-    { id: 'HT-2308-0125', type: '租赁合同', project: '环路改造工程', site: '无', amount: 320000, unearned: 0, volume: 0, status: '终止', date: '2023-08-10' },
-];
+interface ContractListItem {
+    key: string;
+    id: string;
+    contractId: string;
+    type: string;
+    project: string;
+    site: string;
+    amount: number;
+    unearned: number;
+    volume: number;
+    status: string;
+    date: string;
+}
+
+interface ContractApiItem {
+    id?: number | string;
+    contractNo?: string;
+    code?: string;
+    contractType?: string;
+    projectName?: string;
+    projectId?: number | string;
+    siteName?: string;
+    siteId?: number | string;
+    contractAmount?: number;
+    amount?: number;
+    receivedAmount?: number;
+    agreedVolume?: number;
+    contractStatus?: string;
+    approvalStatus?: string;
+    status?: string | number;
+    signDate?: string;
+    effectiveDate?: string;
+    createTime?: string;
+}
 
 const ContractsManagement: React.FC = () => {
     const [searchText, setSearchText] = useState('');
+    const [contractsData, setContractsData] = useState<ContractListItem[]>([]);
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    const renderStatus = (status: string) => {
-        switch (status) {
-            case '生效': return <Tag color="green" className="border-none">{status}</Tag>;
-            case '审批中': return <Tag color="processing" className="border-none">{status}</Tag>;
-            case '终止': return <Tag color="default" className="border-none g-text-secondary bg-white">{status}</Tag>;
-            case '作废': return <Tag color="error" className="border-none">{status}</Tag>;
-            default: return <Tag color="default">{status}</Tag>;
+    useEffect(() => {
+        void fetchContracts();
+    }, []);
+
+    const fetchContracts = async () => {
+        setLoading(true);
+        try {
+            const res = await request.get('/contracts');
+            const records = Array.isArray(res)
+                ? res
+                : Array.isArray((res as any)?.data)
+                    ? (res as any).data
+                    : [];
+            setContractsData(
+                records.map((item: ContractApiItem) => {
+                    const totalAmount = Number(item.contractAmount ?? item.amount ?? 0);
+                    const receivedAmount = Number(item.receivedAmount ?? 0);
+                    return {
+                        key: String(item.id ?? item.contractNo ?? item.code ?? Math.random()),
+                        id: item.contractNo || item.code || String(item.id ?? '-'),
+                        contractId: String(item.id ?? ''),
+                        type: item.contractType || '-',
+                        project: item.projectName || (item.projectId != null ? `项目#${item.projectId}` : '-'),
+                        site: item.siteName || (item.siteId != null ? `场地#${item.siteId}` : '-'),
+                        amount: totalAmount,
+                        unearned: Math.max(totalAmount - receivedAmount, 0),
+                        volume: Number(item.agreedVolume ?? 0),
+                        status: String(item.contractStatus ?? item.approvalStatus ?? item.status ?? '-'),
+                        date: item.signDate || item.effectiveDate || item.createTime || '-',
+                    };
+                })
+            );
+        } catch (error) {
+            console.error(error);
+            setContractsData([]);
+        } finally {
+            setLoading(false);
         }
     };
+
+    const isEffectiveStatus = (status: string) => {
+        const normalized = String(status || '').toUpperCase();
+        return ['EFFECTIVE', 'EXECUTING', 'IN_PROGRESS', 'NORMAL', '生效'].includes(normalized);
+    };
+
+    const renderStatus = (status: string) => {
+        const normalized = String(status || '').toUpperCase();
+        switch (normalized) {
+            case 'EFFECTIVE':
+            case 'EXECUTING':
+            case 'IN_PROGRESS':
+            case 'NORMAL':
+            case '生效':
+                return <Tag color="green" className="border-none">生效</Tag>;
+            case 'APPROVING':
+            case 'PENDING':
+            case '审批中':
+                return <Tag color="processing" className="border-none">审批中</Tag>;
+            case 'TERMINATED':
+            case '终止':
+                return <Tag color="default" className="border-none g-text-secondary bg-white">终止</Tag>;
+            case 'CANCELLED':
+            case 'VOID':
+            case '作废':
+                return <Tag color="error" className="border-none">作废</Tag>;
+            default:
+                return <Tag color="default">{status}</Tag>;
+        }
+    };
+
+    const filteredContracts = useMemo(
+        () =>
+            contractsData.filter((item) => {
+                const keyword = searchText.trim();
+                return !keyword || item.id.includes(keyword) || item.project.includes(keyword);
+            }),
+        [contractsData, searchText],
+    );
 
     const columns = [
         { title: '合同编号', dataIndex: 'id', key: 'id', render: (t: string) => <span className="g-text-primary-link font-mono tracking-wide">{t}</span> },
@@ -56,9 +155,9 @@ const ContractsManagement: React.FC = () => {
             key: 'action', 
             render: (_: any, record: any) => (
                 <Space size="middle">
-                    <a className="g-text-primary-link hover:g-text-primary-link" onClick={() => navigate(`/contracts/${record.id}`)}>详情</a>
-                    {record.status === '生效' && <a className="g-text-success hover:g-text-success">入账</a>}
-                    {record.status === '生效' && <a className="g-text-warning hover:g-text-warning">变更</a>}
+                    <a className="g-text-primary-link hover:g-text-primary-link" onClick={() => navigate(`/contracts/${record.contractId}`)}>详情</a>
+                    {isEffectiveStatus(record.status) && <a className="g-text-success hover:g-text-success">入账</a>}
+                    {isEffectiveStatus(record.status) && <a className="g-text-warning hover:g-text-warning">变更</a>}
                 </Space>
             )
         },
@@ -114,7 +213,15 @@ const ContractsManagement: React.FC = () => {
                     <RangePicker className="bg-white g-border-panel border"  />
                     <Button icon={<FilterOutlined />} className="bg-transparent g-text-secondary g-border-panel border hover:g-text-primary">状态筛选</Button>
                 </div>
-                <Table columns={columns} dataSource={contractsData.filter(d => d.id.includes(searchText) || d.project.includes(searchText))} pagination={{ pageSize: 5 }} className="bg-transparent" rowClassName="hover:bg-white transition-colors" />
+                <Table
+                    columns={columns}
+                    dataSource={filteredContracts}
+                    rowKey="key"
+                    loading={loading}
+                    pagination={{ pageSize: 5 }}
+                    className="bg-transparent"
+                    rowClassName="hover:bg-white transition-colors"
+                />
             </Card>
         </motion.div>
     );
