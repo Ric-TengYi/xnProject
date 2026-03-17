@@ -1,19 +1,12 @@
 package com.xngl.web.config;
 
-import com.xngl.web.auth.JwtAuthFilter;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.Ordered;
 
+/**
+ * 原 JWT 过滤器通过 FilterRegistrationBean 仅对 /api/* 生效；
+ * 改为依赖 JwtAuthFilter 自身 @Component + shouldNotFilter，避免与 URL 映射差异导致 /api/mini/auth/login 未放行。
+ */
 @Configuration
 public class FilterConfig {
-
-  @Bean
-  public FilterRegistrationBean<JwtAuthFilter> jwtAuthFilterRegistration(JwtAuthFilter filter) {
-    FilterRegistrationBean<JwtAuthFilter> reg = new FilterRegistrationBean<>(filter);
-    reg.setOrder(Ordered.HIGHEST_PRECEDENCE);
-    reg.addUrlPatterns("/api/*");
-    return reg;
-  }
+  // JwtAuthFilter 已为 @Component，由 OncePerRequestFilter 自动注册，无需此处再注册
 }

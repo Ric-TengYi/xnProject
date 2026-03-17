@@ -1,0 +1,14 @@
+{
+  "miniprogramRoot": "dist/",
+  "projectname": "xngl-mp",
+  "description": "消纳移动端 - 微信小程序",
+  "appid": "请替换为你的微信小程序 AppID",
+  "setting": {
+    "urlCheck": false,
+    "es6": false,
+    "enhance": false,
+    "postcss": false,
+    "minified": false
+  },
+  "compileType": "miniprogram"
+}

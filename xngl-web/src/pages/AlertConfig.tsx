@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Tag, Select, Collapse, Switch, InputNumber, Space, Form } from 'antd';
+import { Button, Tag, Select, Collapse, Switch, InputNumber, Space, Form, message } from 'antd';
 import { SaveOutlined, BellOutlined, EnvironmentOutlined, CarOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 
@@ -7,6 +7,9 @@ const { Panel } = Collapse;
 const { Option } = Select;
 
 const AlertConfig: React.FC = () => {
+    const handleSaveConfig = () => {
+        message.success('预警配置已保存（当前为前端占位，后续对接配置接口）');
+    };
 
     return (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="space-y-6">
@@ -15,7 +18,7 @@ const AlertConfig: React.FC = () => {
                     <h1 className="text-2xl font-bold g-text-primary m-0">预警配置</h1>
                     <p className="g-text-secondary mt-1">配置各类预警的触发阈值、电子围栏及推送规则</p>
                 </div>
-                <Button type="primary" icon={<SaveOutlined />} className="g-btn-primary border-none">
+                <Button type="primary" icon={<SaveOutlined />} className="g-btn-primary border-none" onClick={handleSaveConfig}>
                     保存全部配置
                 </Button>
             </div>

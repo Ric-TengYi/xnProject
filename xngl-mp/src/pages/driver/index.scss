@@ -1,0 +1,135 @@
+.driver-page {
+  min-height: 100vh;
+  padding: 24px;
+  background: linear-gradient(180deg, #e6f0ff 0%, #f5f5f5 300px);
+  
+  .loading { 
+    display: block; 
+    padding: 48px; 
+    text-align: center; 
+    color: #999; 
+    font-size: 28px; 
+  }
+  
+  .section {
+    margin-bottom: 32px;
+    padding: 32px 24px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  }
+  
+  .section-title {
+    display: block;
+    font-size: 32px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 24px;
+    position: relative;
+    padding-left: 20px;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 8px;
+      height: 32px;
+      background: #1890ff;
+      border-radius: 4px;
+    }
+  }
+  
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 32px 16px;
+    align-items: start;
+  }
+  
+  .card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  
+  .card-icon { 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    width: 96px; 
+    height: 96px; 
+    background: linear-gradient(135deg, #e6f0ff 0%, #bae0ff 100%); 
+    border-radius: 32px; 
+    font-size: 48px; 
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.2);
+  }
+  
+  .card-title { 
+    font-size: 24px; 
+    color: #333; 
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.4;
+    word-break: break-all;
+  }
+  
+  .card-count { 
+    display: inline-block; 
+    font-size: 20px; 
+    color: #fff; 
+    background: #ff4d4f; 
+    padding: 2px 12px; 
+    border-radius: 20px; 
+    margin-top: 8px;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(255, 77, 79, 0.3);
+  }
+  
+  .empty { 
+    font-size: 28px; 
+    color: #999; 
+    text-align: center;
+    display: block;
+    padding: 20px 0;
+  }
+  
+  .task-item, .alert-item {
+    padding: 24px;
+    background: #f9fbfd;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    
+    &:last-child { 
+      margin-bottom: 0; 
+    }
+  }
+  
+  .task-name, .alert-msg { 
+    font-size: 28px; 
+    color: #333; 
+    font-weight: 500;
+  }
+  
+  .task-status, .alert-time { 
+    display: block; 
+    font-size: 24px; 
+    color: #1890ff; 
+    margin-top: 12px; 
+  }
+  
+  .alert-time {
+    color: #999;
+  }
+  
+  .alert-item {
+    background: #fff1f0;
+    
+    .alert-msg {
+      color: #cf1322;
+    }
+  }
+}

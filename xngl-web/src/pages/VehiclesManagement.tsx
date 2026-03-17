@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Card, Table, Tag, Input, Button, Tabs, Row, Col, Statistic, Space, Drawer, Form, Select } from 'antd';
+import { Card, Table, Tag, Input, Button, Tabs, Row, Col, Statistic, Space, Drawer, Form, Select, Modal, InputNumber, DatePicker } from 'antd';
 import { SearchOutlined, FilterOutlined, PlusOutlined, CarOutlined, SafetyCertificateOutlined, DashboardOutlined, ImportOutlined, ExportOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
+import dayjs from 'dayjs';
 
 const { TabPane } = Tabs;
 
-const vehicleData = [
+const initialVehicleData = [
     { id: '川A88921', type: '重型自卸货车', company: '宏基渣土运输公司', status: '在用', driver: '张三丰', load: '30吨', nextMaintain: '2024-06-12' },
     { id: '川A6258W', type: '中型自卸货车', company: '顺达土方工程队', status: '维修', driver: '李四', load: '20吨', nextMaintain: '2024-05-01' },
     { id: '川A1192N', type: '重型自卸货车', company: '捷安运输', status: '在用', driver: '王五', load: '30吨', nextMaintain: '2024-08-20' },
@@ -25,7 +26,13 @@ const capacityData = [
 const VehiclesManagement: React.FC = () => {
     const [searchText, setSearchText] = useState('');
     const [filterVisible, setFilterVisible] = useState(false);
+    const [vehicleData, setVehicleData] = useState(initialVehicleData);
+    const [addModalOpen, setAddModalOpen] = useState(false);
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editingRecord, setEditingRecord] = useState<any>(null);
     const [form] = Form.useForm();
+    const [addForm] = Form.useForm();
+    const [editForm] = Form.useForm();
 
     const vehicleColumns = [
         { title: '车牌号', dataIndex: 'id', key: 'id', render: (text: string) => <a className="g-text-primary-link font-bold text-lg">{text}</a> },
@@ -54,11 +61,11 @@ const VehiclesManagement: React.FC = () => {
             render: (_: any, record: any) => (
                 <Space size="middle">
                     <a className="g-text-primary-link hover:g-text-primary-link">详情</a>
-                    <a className="g-text-primary-link hover:g-text-primary-link">编辑</a>
+                    <a className="g-text-primary-link hover:g-text-primary-link" onClick={() => { setEditingRecord(record); editForm.setFieldsValue({ plateNo: record.id, type: record.type, company: record.company, driver: record.driver, load: record.load ? parseInt(String(record.load).replace('吨', ''), 10) : undefined, status: record.status, nextMaintain: record.nextMaintain ? dayjs(record.nextMaintain) : undefined }); setEditModalOpen(true); }}>编辑</a>
                     {record.status === '禁用' ? (
-                        <a className="g-text-success hover:g-text-success">解禁</a>
+                        <a className="g-text-success hover:g-text-success" onClick={() => setVehicleData(prev => prev.map(v => v.id === record.id ? { ...v, status: '在用' } : v))}>解禁</a>
                     ) : (
-                        <a className="g-text-error hover:g-text-error">禁用</a>
+                        <a className="g-text-error hover:g-text-error" onClick={() => setVehicleData(prev => prev.map(v => v.id === record.id ? { ...v, status: '禁用' } : v))}>禁用</a>
                     )}
                 </Space>
             )
@@ -125,7 +132,7 @@ const VehiclesManagement: React.FC = () => {
                             <Space>
                                 <Button icon={<ImportOutlined />} className="bg-transparent g-text-secondary g-border-panel border hover:g-text-primary">导入</Button>
                                 <Button icon={<ExportOutlined />} className="bg-transparent g-text-secondary g-border-panel border hover:g-text-primary">导出</Button>
-                                <Button type="primary" icon={<PlusOutlined />} className="g-btn-primary border-none">新增车辆</Button>
+                                <Button type="primary" icon={<PlusOutlined />} className="g-btn-primary border-none" onClick={() => setAddModalOpen(true)}>新增车辆</Button>
                             </Space>
                         </div>
                         <Table columns={vehicleColumns} dataSource={vehicleData.filter(v => v.id.includes(searchText) || v.driver.includes(searchText))} pagination={{ pageSize: 5 }} className="bg-transparent g-text-secondary" rowClassName="hover:bg-white transition-colors" />
@@ -136,6 +143,84 @@ const VehiclesManagement: React.FC = () => {
                     </TabPane>
                 </Tabs>
             </Card>
+
+            <Modal
+                title="新增车辆"
+                open={addModalOpen}
+                onCancel={() => { setAddModalOpen(false); addForm.resetFields(); }}
+                onOk={async () => {
+                    try {
+                        const v = await addForm.validateFields();
+                        setVehicleData(prev => [...prev, {
+                            id: v.plateNo || '新车辆',
+                            type: v.type,
+                            company: v.company || '',
+                            status: v.status || '在用',
+                            driver: v.driver || '-',
+                            load: v.load ? `${v.load}吨` : '-',
+                            nextMaintain: v.nextMaintain ? v.nextMaintain.format('YYYY-MM-DD') : '-',
+                        }]);
+                        setAddModalOpen(false);
+                        addForm.resetFields();
+                    } catch { /* validation */ }
+                }}
+                okText="确定"
+                cancelText="取消"
+                destroyOnClose
+                width={520}
+            >
+                <Form form={addForm} layout="vertical" className="mt-4">
+                    <Form.Item name="plateNo" label="车牌号" rules={[{ required: true, message: '请输入车牌号' }]}>
+                        <Input placeholder="如川A12345" maxLength={8} />
+                    </Form.Item>
+                    <Form.Item name="type" label="车型" rules={[{ required: true, message: '请选择车型' }]}>
+                        <Select placeholder="请选择车型" options={[{ value: '重型自卸货车', label: '重型自卸货车' }, { value: '中型自卸货车', label: '中型自卸货车' }, { value: '轻型自卸货车', label: '轻型自卸货车' }]} />
+                    </Form.Item>
+                    <Form.Item name="company" label="运输单位" rules={[{ required: true, message: '请输入运输单位' }]}>
+                        <Input placeholder="请输入运输单位名称" maxLength={64} />
+                    </Form.Item>
+                    <Form.Item name="driver" label="司乘人员">
+                        <Input placeholder="请输入司机姓名" maxLength={20} />
+                    </Form.Item>
+                    <Form.Item name="load" label="核定载重（吨）">
+                        <InputNumber className="w-full" placeholder="如 30" min={1} max={99} />
+                    </Form.Item>
+                    <Form.Item name="status" label="状态">
+                        <Select placeholder="请选择状态" options={[{ value: '在用', label: '在用' }, { value: '停用', label: '停用' }, { value: '维修', label: '维修' }, { value: '禁用', label: '禁用' }]} />
+                    </Form.Item>
+                    <Form.Item name="nextMaintain" label="保养到期日">
+                        <DatePicker className="w-full" placeholder="选择日期" />
+                    </Form.Item>
+                </Form>
+            </Modal>
+
+            <Modal title="编辑车辆" open={editModalOpen} onCancel={() => { setEditModalOpen(false); setEditingRecord(null); editForm.resetFields(); }}
+                onOk={async () => {
+                    try {
+                        const v = await editForm.validateFields();
+                        if (!editingRecord) return;
+                        setVehicleData(prev => prev.map(item => item.id === editingRecord.id ? {
+                            ...item, type: v.type, company: v.company || item.company, driver: v.driver ?? item.driver, load: v.load ? `${v.load}吨` : item.load, status: v.status || item.status, nextMaintain: v.nextMaintain ? v.nextMaintain.format('YYYY-MM-DD') : item.nextMaintain,
+                        } : item));
+                        setEditModalOpen(false); setEditingRecord(null); editForm.resetFields();
+                    } catch { /* validation */ }
+                }} okText="保存" cancelText="取消" destroyOnClose width={520}>
+                <Form form={editForm} layout="vertical" className="mt-4">
+                    <Form.Item name="plateNo" label="车牌号"><Input disabled /></Form.Item>
+                    <Form.Item name="type" label="车型" rules={[{ required: true, message: '请选择车型' }]}>
+                        <Select options={[{ value: '重型自卸货车', label: '重型自卸货车' }, { value: '中型自卸货车', label: '中型自卸货车' }, { value: '轻型自卸货车', label: '轻型自卸货车' }]} />
+                    </Form.Item>
+                    <Form.Item name="company" label="运输单位" rules={[{ required: true, message: '请输入运输单位' }]}>
+                        <Input maxLength={64} />
+                    </Form.Item>
+                    <Form.Item name="driver" label="司乘人员"><Input maxLength={20} /></Form.Item>
+                    <Form.Item name="load" label="核定载重（吨）"><InputNumber className="w-full" min={1} max={99} /></Form.Item>
+                    <Form.Item name="status" label="状态">
+                        <Select options={[{ value: '在用', label: '在用' }, { value: '停用', label: '停用' }, { value: '维修', label: '维修' }, { value: '禁用', label: '禁用' }]} />
+                    </Form.Item>
+                    <Form.Item name="nextMaintain" label="保养到期日"><DatePicker className="w-full" /></Form.Item>
+                </Form>
+            </Modal>
 
             <Drawer
                 title="高级筛选"

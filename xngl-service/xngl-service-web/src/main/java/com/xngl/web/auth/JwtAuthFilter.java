@@ -26,12 +26,22 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    String path = request.getRequestURI();
     if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
       return true;
     }
-    List<String> skip = List.of("/api/auth/login", "/api/health", "/swagger-ui", "/v3/api-docs");
-    return skip.stream().anyMatch(path::startsWith);
+    String uri = request.getRequestURI() != null ? request.getRequestURI() : "";
+    String servletPath = request.getServletPath() != null ? request.getServletPath() : "";
+    String pathInfo = request.getPathInfo() != null ? request.getPathInfo() : "";
+    String path = servletPath + pathInfo;
+    if (path.isEmpty()) path = uri;
+    // 放行：平台登录、小程序登录、健康检查、Swagger
+    if (uri.startsWith("/api/auth/login") || path.startsWith("/api/auth/login")) return true;
+    if (uri.startsWith("/api/mini/auth/login") || path.startsWith("/api/mini/auth/login")) return true;
+    if (uri.contains("/mini/auth/login") || path.contains("/mini/auth/login")) return true;
+    if ("POST".equalsIgnoreCase(request.getMethod()) && (uri.contains("login") || path.contains("login"))) return true;
+    if (uri.startsWith("/api/health") || path.startsWith("/api/health")) return true;
+    if (uri.contains("swagger") || path.contains("swagger") || uri.contains("api-docs") || path.contains("api-docs")) return true;
+    return false;
   }
 
   @Override

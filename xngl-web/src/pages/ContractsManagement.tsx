@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Card, Table, Tag, Input, Button, DatePicker, Row, Col, Statistic, Progress, Space } from 'antd';
+import { Card, Table, Tag, Input, Button, DatePicker, Row, Col, Statistic, Progress, Space, Modal } from 'antd';
 import { SearchOutlined, DownloadOutlined, DollarOutlined, FileTextOutlined, BlockOutlined, FilterOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -46,6 +46,7 @@ const ContractsManagement: React.FC = () => {
     const [searchText, setSearchText] = useState('');
     const [contractsData, setContractsData] = useState<ContractListItem[]>([]);
     const [loading, setLoading] = useState(false);
+    const [createModalOpen, setCreateModalOpen] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -174,7 +175,7 @@ const ContractsManagement: React.FC = () => {
                     <Button type="primary" icon={<DownloadOutlined />} className="g-btn-primary border-none mr-3 text-white">
                         导出月度报表
                     </Button>
-                    <Button type="primary" className="g-btn-primary border-none">
+                    <Button type="primary" className="g-btn-primary border-none" onClick={() => setCreateModalOpen(true)}>
                         发起新合同审批
                     </Button>
                 </div>
@@ -223,6 +224,17 @@ const ContractsManagement: React.FC = () => {
                     rowClassName="hover:bg-white transition-colors"
                 />
             </Card>
+
+            <Modal
+                title="发起新合同审批"
+                open={createModalOpen}
+                onCancel={() => setCreateModalOpen(false)}
+                onOk={() => setCreateModalOpen(false)}
+                okText="确定"
+                cancelText="取消"
+            >
+                <p className="g-text-secondary py-4">合同发起表单待对接审批流程与后端接口，当前为占位弹窗。</p>
+            </Modal>
         </motion.div>
     );
 };

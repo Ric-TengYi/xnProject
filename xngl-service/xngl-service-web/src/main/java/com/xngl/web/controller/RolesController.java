@@ -90,11 +90,11 @@ public class RolesController {
 
   @PutMapping("/{id}/permissions")
   public ApiResult<Void> updatePermissions(
-      @PathVariable Long id, @RequestBody java.util.Map<String, List<Long>> body) {
+      @PathVariable Long id, @RequestBody RolePermissionsDto body) {
     Role r = roleService.getById(id);
     if (r == null) return ApiResult.fail(404, "角色不存在");
-    List<Long> menuIds = body.get("menuIds");
-    List<Long> permissionIds = body.get("permissionIds");
+    List<Long> menuIds = body.getMenuIds() == null ? List.of() : body.getMenuIds().stream().map(s -> Long.parseLong(s.trim())).toList();
+    List<Long> permissionIds = body.getPermissionIds() == null ? List.of() : body.getPermissionIds().stream().map(s -> Long.parseLong(s.trim())).toList();
     roleService.updatePermissions(id, menuIds, permissionIds);
     return ApiResult.ok();
   }

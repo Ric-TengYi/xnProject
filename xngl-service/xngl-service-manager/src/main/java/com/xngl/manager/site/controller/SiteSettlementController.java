@@ -3,12 +3,14 @@ package com.xngl.manager.site.controller;
 import com.xngl.manager.site.entity.SiteSettlement;
 import com.xngl.manager.site.mapper.SiteSettlementMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@RestController
+@RestController("managerSiteSettlementController")
 @RequestMapping("/api/site-settlements")
+@ConditionalOnProperty(name = "app.manager-legacy.enabled", havingValue = "true")
 public class SiteSettlementController {
 
     @Autowired

@@ -3,12 +3,14 @@ package com.xngl.manager.statistics.controller;
 import com.xngl.manager.statistics.entity.StatisticsReport;
 import com.xngl.manager.statistics.mapper.StatisticsReportMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/statistics-reports")
+@ConditionalOnProperty(name = "app.statistics.enabled", havingValue = "true")
 public class StatisticsReportController {
 
     @Autowired

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Steps, Button, Table, Tag, Space, Avatar } from 'antd';
+import { Card, Steps, Button, Table, Tag, Space, Avatar, Modal } from 'antd';
 import { EditOutlined, UserOutlined, SettingOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import request from '../utils/request';
@@ -7,6 +7,7 @@ import request from '../utils/request';
 const ApprovalConfig: React.FC = () => {
     const [rules, setRules] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const [editFlowModalOpen, setEditFlowModalOpen] = useState(false);
 
     useEffect(() => {
         const fetchRules = async () => {
@@ -61,7 +62,7 @@ const ApprovalConfig: React.FC = () => {
                 </div>
             </div>
 
-            <Card title="消纳合同审批 - 当前流程预览" className="glass-panel g-border-panel border mb-6" extra={<Button type="primary" size="small">编辑流程</Button>}>
+            <Card title="消纳合同审批 - 当前流程预览" className="glass-panel g-border-panel border mb-6" extra={<Button type="primary" size="small" onClick={() => setEditFlowModalOpen(true)}>编辑流程</Button>}>
                 <div className="py-8 px-4 overflow-x-auto">
                     <Steps
                         current={-1}
@@ -90,6 +91,10 @@ const ApprovalConfig: React.FC = () => {
                     />
                 </div>
             </Card>
+
+            <Modal title="编辑审批流程" open={editFlowModalOpen} onCancel={() => setEditFlowModalOpen(false)} footer={[<Button key="cancel" onClick={() => setEditFlowModalOpen(false)}>取消</Button>, <Button key="ok" type="primary" onClick={() => setEditFlowModalOpen(false)}>确定</Button>]} width={640}>
+                <p className="g-text-secondary">此处可配置审批节点、审批人类型（指定人/角色/上级）、或签/会签等。当前为占位，后续对接审批流程配置接口。</p>
+            </Modal>
 
             <Card className="glass-panel g-border-panel border" bodyStyle={{ padding: 0 }}>
                 <Table 

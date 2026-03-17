@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
-import { Card, Input, Button, Tag, Progress, Row, Col, Dropdown, Tooltip } from 'antd';
+import { Card, Input, Button, Tag, Progress, Row, Col, Dropdown, Tooltip, Modal, Form, Select, InputNumber, Drawer, Space } from 'antd';
 import type { MenuProps } from 'antd';
 import { SearchOutlined, FilterOutlined, EnvironmentOutlined, MoreOutlined, PlusOutlined, VideoCameraOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
-// 模拟的消纳场地数据
-const sitesData = [
+const SITE_TYPES = [
+    { value: '国有场地', label: '国有场地' },
+    { value: '集体场地', label: '集体场地' },
+    { value: '工程场地', label: '工程场地' },
+    { value: '短驳场地', label: '短驳场地' },
+];
+
+// 模拟的消纳场地数据（可被新增扩展）
+const initialSitesData = [
     {
         id: 1,
         name: '东区临时消纳场',
@@ -66,7 +73,38 @@ const sitesData = [
 
 const SitesManagement: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
+    const [sitesData, setSitesData] = useState(initialSitesData);
+    const [addModalOpen, setAddModalOpen] = useState(false);
+    const [filterVisible, setFilterVisible] = useState(false);
+    const [form] = Form.useForm();
+    const [filterForm] = Form.useForm();
     const navigate = useNavigate();
+
+    const handleAddSite = () => setAddModalOpen(true);
+    const handleAddModalCancel = () => {
+        setAddModalOpen(false);
+        form.resetFields();
+    };
+    const handleAddModalOk = async () => {
+        try {
+            const values = await form.validateFields();
+            const newId = Math.max(...sitesData.map(s => s.id), 0) + 1;
+            setSitesData(prev => [...prev, {
+                id: newId,
+                name: values.name,
+                type: values.type,
+                capacity: Number(values.capacity) || 0,
+                used: 0,
+                status: '正常',
+                address: values.address || '',
+                cameras: 0,
+                waitCount: 0,
+            }]);
+            handleAddModalCancel();
+        } catch {
+            // 校验未通过
+        }
+    };
 
     const getItems = (id: number): MenuProps['items'] => [
         { key: '1', label: '查看详情', onClick: () => navigate(`/sites/${id}`) },
@@ -75,9 +113,20 @@ const SitesManagement: React.FC = () => {
         { key: '3', label: '临时停用', danger: true },
     ];
 
-    const filteredSites = sitesData.filter(site =>
-        site.name.includes(searchTerm) || site.address.includes(searchTerm)
-    );
+    const [filterType, setFilterType] = useState<string | null>(null);
+    const [filterStatus, setFilterStatus] = useState<string | null>(null);
+    const applyFilter = () => {
+        const v = filterForm.getFieldsValue();
+        setFilterType(v.type ?? null);
+        setFilterStatus(v.status ?? null);
+        setFilterVisible(false);
+    };
+    const filteredSites = sitesData.filter(site => {
+        const hitSearch = !searchTerm || site.name.includes(searchTerm) || site.address.includes(searchTerm);
+        const hitType = !filterType || site.type === filterType;
+        const hitStatus = !filterStatus || site.status === filterStatus;
+        return hitSearch && hitType && hitStatus;
+    });
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -113,14 +162,52 @@ const SitesManagement: React.FC = () => {
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
-                    <Button icon={<FilterOutlined />} className="bg-white g-text-secondary g-border-panel border hover:g-text-primary hover:border-slate-500">
+                    <Button icon={<FilterOutlined />} className="bg-white g-text-secondary g-border-panel border hover:g-text-primary hover:border-slate-500" onClick={() => setFilterVisible(true)}>
                         高级筛选
                     </Button>
-                    <Button type="primary" icon={<PlusOutlined />} className="g-btn-primary border-none shadow-[0_0_15px_rgba(37,99,235,0.4)]">
+                    <Button type="primary" icon={<PlusOutlined />} className="g-btn-primary border-none shadow-[0_0_15px_rgba(37,99,235,0.4)]" onClick={handleAddSite}>
                         新增场地
                     </Button>
                 </div>
             </div>
+
+            <Modal
+                title="新增场地"
+                open={addModalOpen}
+                onOk={handleAddModalOk}
+                onCancel={handleAddModalCancel}
+                destroyOnClose
+                okText="确定"
+                cancelText="取消"
+                width={520}
+            >
+                <Form form={form} layout="vertical" className="mt-4">
+                    <Form.Item name="name" label="场地名称" rules={[{ required: true, message: '请输入场地名称' }]}>
+                        <Input placeholder="请输入场地名称" maxLength={50} showCount />
+                    </Form.Item>
+                    <Form.Item name="type" label="场地类型" rules={[{ required: true, message: '请选择场地类型' }]}>
+                        <Select placeholder="请选择场地类型" options={SITE_TYPES} />
+                    </Form.Item>
+                    <Form.Item name="address" label="地址" rules={[{ required: true, message: '请输入地址' }]}>
+                        <Input placeholder="请输入地址" maxLength={200} showCount />
+                    </Form.Item>
+                    <Form.Item name="capacity" label="总容量（立方米）" rules={[{ required: true, message: '请输入总容量' }, { type: 'number', min: 1, message: '容量须大于 0' }]}>
+                        <InputNumber className="w-full" placeholder="请输入总容量" min={1} />
+                    </Form.Item>
+                </Form>
+            </Modal>
+
+            <Drawer title="高级筛选" placement="right" open={filterVisible} onClose={() => setFilterVisible(false)} width={360}
+                extra={<Space><Button onClick={() => filterForm.resetFields()}>重置</Button><Button type="primary" onClick={applyFilter}>查询</Button></Space>}>
+                <Form form={filterForm} layout="vertical">
+                    <Form.Item name="type" label="场地类型">
+                        <Select placeholder="请选择" allowClear options={SITE_TYPES} />
+                    </Form.Item>
+                    <Form.Item name="status" label="状态">
+                        <Select placeholder="请选择" allowClear options={[{ value: '正常', label: '正常' }, { value: '预警', label: '预警' }, { value: '满载', label: '满载' }]} />
+                    </Form.Item>
+                </Form>
+            </Drawer>
 
             <Row gutter={[24, 24]}>
                 {filteredSites.map((site, index) => {

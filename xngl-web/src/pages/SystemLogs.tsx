@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Tabs, Table, Input, DatePicker, Button, Tag } from 'antd';
+import { Card, Tabs, Table, Input, DatePicker, Button, Tag, message } from 'antd';
 import { SearchOutlined, ExportOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import request from '../utils/request';
@@ -107,11 +107,11 @@ const SystemLogs: React.FC = () => {
                             <Input placeholder="搜索操作人/模块/内容" prefix={<SearchOutlined className="g-text-secondary" />} className="w-64 bg-white g-border-panel border g-text-primary" value={searchText} onChange={e => setSearchText(e.target.value)} />
                             <RangePicker className="bg-white g-border-panel border g-text-primary" />
                             <div className="flex-1 flex justify-end">
-                                <Button icon={<ExportOutlined />} className="bg-transparent g-text-secondary g-border-panel border hover:g-text-primary">导出</Button>
+                                <Button icon={<ExportOutlined />} className="bg-transparent g-text-secondary g-border-panel border hover:g-text-primary" onClick={() => message.info('导出功能对接后端后将生成文件')}>导出</Button>
                             </div>
                         </div>
-                        <Table 
-                            columns={operateColumns} 
+                        <Table
+                            columns={operateColumns}
                             dataSource={operateLogs.filter((l: any) => !searchText || (l.operator && l.operator.includes(searchText)) || (l.content && l.content.includes(searchText)))} 
                             rowKey="id"
                             loading={operateLoading}
@@ -132,11 +132,11 @@ const SystemLogs: React.FC = () => {
                             <Input placeholder="搜索账号/IP" prefix={<SearchOutlined className="g-text-secondary" />} className="w-64 bg-white g-border-panel border g-text-primary" />
                             <RangePicker className="bg-white g-border-panel border g-text-primary" />
                             <div className="flex-1 flex justify-end">
-                                <Button icon={<ExportOutlined />} className="bg-transparent g-text-secondary g-border-panel border hover:g-text-primary">导出</Button>
+                                <Button icon={<ExportOutlined />} className="bg-transparent g-text-secondary g-border-panel border hover:g-text-primary" onClick={() => message.info('导出功能对接后端后将生成文件')}>导出</Button>
                             </div>
                         </div>
-                        <Table 
-                            columns={loginColumns} 
+                        <Table
+                            columns={loginColumns}
                             dataSource={loginLogs} 
                             rowKey="id"
                             loading={loginLoading}

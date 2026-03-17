@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Tree, Table, Input, Button, Tag, Space } from 'antd';
+import { Card, Tree, Table, Input, Button, Tag, Space, Modal, Form, Select, message } from 'antd';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import request from '../utils/request';
@@ -10,6 +10,10 @@ const Organization: React.FC = () => {
     const [usersData, setUsersData] = useState<any[]>([]);
     const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [addModalOpen, setAddModalOpen] = useState(false);
+    const [rolesOpts, setRolesOpts] = useState<{ value: string; label: string; roleCode?: string }[]>([]);
+    const [orgOpts, setOrgOpts] = useState<{ value: string; label: string }[]>([]);
+    const [form] = Form.useForm();
 
     useEffect(() => {
         fetchOrgs();
@@ -18,6 +22,37 @@ const Organization: React.FC = () => {
     useEffect(() => {
         fetchUsers();
     }, [selectedOrgId, searchText]);
+
+    useEffect(() => {
+        const loadOptions = async () => {
+            try {
+                const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                const tenantId = userInfo.tenantId || '1';
+                const [orgRes, roleRes] = await Promise.all([
+                    request.get('/orgs/tree', { params: { tenantId } }),
+                    request.get('/roles', { params: { tenantId, pageNo: 1, pageSize: 200 } }),
+                ]);
+                if (orgRes?.code === 200 && orgRes?.data) {
+                    const flatten = (nodes: any[], prefix = ''): { value: string; label: string }[] => {
+                        return (nodes || []).flatMap((n: any) => [
+                            { value: String(n.id), label: (prefix ? prefix + ' / ' : '') + (n.orgName || n.name || n.title || n.id) },
+                            ...flatten(n.children || [], (n.orgName || n.name || n.title || String(n.id))),
+                        ]);
+                    };
+                    const raw = Array.isArray(orgRes.data) ? orgRes.data : (orgRes.data as any)?.children || [];
+                    setOrgOpts(flatten(raw));
+                }
+                if (roleRes?.code === 200 && roleRes?.data?.records) {
+                    setRolesOpts((roleRes.data.records || []).map((r: any) => ({
+                        value: String(r.id),
+                        label: r.roleName || r.roleCode || String(r.id),
+                        roleCode: r.roleCode,
+                    })));
+                }
+            } catch (e) { console.error(e); }
+        };
+        if (addModalOpen) void loadOptions();
+    }, [addModalOpen]);
 
     const fetchOrgs = async () => {
         try {
@@ -131,7 +166,7 @@ const Organization: React.FC = () => {
                             onChange={e => setSearchText(e.target.value)}
                             onPressEnter={fetchUsers}
                         />
-                        <Button type="primary" icon={<PlusOutlined />} className="g-btn-primary border-none">
+                        <Button type="primary" icon={<PlusOutlined />} className="g-btn-primary border-none" onClick={() => setAddModalOpen(true)}>
                             新增人员
                         </Button>
                     </div>
@@ -148,6 +183,76 @@ const Organization: React.FC = () => {
                     </div>
                 </Card>
             </div>
+
+            <Modal
+                title="新增人员"
+                open={addModalOpen}
+                onCancel={() => { setAddModalOpen(false); form.resetFields(); }}
+                onOk={async () => {
+                    try {
+                        const values = await form.validateFields();
+                        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                        let roleIds: string[] = Array.isArray(values.roleIds) ? [...values.roleIds] : [];
+                        const userType = values.userType || 'TENANT_USER';
+                        if (userType === 'DRIVER') {
+                            const driverRoleId = rolesOpts.find((r) => r.roleCode === 'DRIVER')?.value;
+                            if (driverRoleId && !roleIds.includes(driverRoleId)) roleIds.push(driverRoleId);
+                        }
+                        await request.post('/users', {
+                            tenantId: userInfo.tenantId || '1',
+                            username: values.username,
+                            name: values.name,
+                            userType,
+                            mobile: values.mobile || undefined,
+                            email: values.email || undefined,
+                            mainOrgId: values.mainOrgId,
+                            roleIds,
+                            password: values.password || 'ChangeMe123',
+                        });
+                        message.success('新增成功');
+                        setAddModalOpen(false);
+                        form.resetFields();
+                        fetchUsers();
+                    } catch (err: any) {
+                        message.error(err?.response?.data?.message || err?.message || '新增失败');
+                    }
+                }}
+                okText="确定"
+                cancelText="取消"
+                destroyOnClose
+                width={520}
+            >
+                <Form form={form} layout="vertical" className="mt-4" initialValues={{ userType: 'TENANT_USER' }}>
+                    <Form.Item name="name" label="姓名" rules={[{ required: true, message: '请输入姓名' }]}>
+                        <Input placeholder="请输入姓名" maxLength={32} />
+                    </Form.Item>
+                    <Form.Item name="username" label="账号" rules={[{ required: true, message: '请输入账号' }]}>
+                        <Input placeholder="请输入登录账号" maxLength={64} />
+                    </Form.Item>
+                    <Form.Item name="password" label="初始密码">
+                        <Input.Password placeholder="不填则默认 ChangeMe123" />
+                    </Form.Item>
+                    <Form.Item name="userType" label="用户类型" rules={[{ required: true }]}>
+                        <Select placeholder="请选择" options={[
+                            { value: 'TENANT_USER', label: '平台用户' },
+                            { value: 'TENANT_ADMIN', label: '管理员' },
+                            { value: 'DRIVER', label: '司机端（仅小程序司机工作台）' },
+                        ]} />
+                    </Form.Item>
+                    <Form.Item name="mainOrgId" label="所属组织" rules={[{ required: true, message: '请选择所属组织' }]}>
+                        <Select placeholder="请选择组织" options={orgOpts} showSearch optionFilterProp="label" allowClear />
+                    </Form.Item>
+                    <Form.Item name="roleIds" label="角色" rules={[{ required: true, message: '请至少选择一个角色' }]}>
+                        <Select mode="multiple" placeholder="请选择角色" options={rolesOpts} />
+                    </Form.Item>
+                    <Form.Item name="mobile" label="手机号">
+                        <Input placeholder="请输入手机号" maxLength={11} />
+                    </Form.Item>
+                    <Form.Item name="email" label="邮箱">
+                        <Input placeholder="请输入邮箱" maxLength={128} />
+                    </Form.Item>
+                </Form>
+            </Modal>
         </motion.div>
     );
 };
