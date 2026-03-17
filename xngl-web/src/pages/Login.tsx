@@ -24,10 +24,12 @@ const Login: React.FC = () => {
         loginType: 'ACCOUNT',
         tenantId: '1', // default tenant
       });
-      if (res.code === 200) {
+      if (res.code === 200 && res.data) {
         message.success('登录成功');
-        localStorage.setItem('token', res.data.token);
-        localStorage.setItem('userInfo', JSON.stringify(res.data.user));
+        const token = res.data.token ?? res.data.accessToken;
+        const userInfo = res.data.user ?? res.data.userInfo;
+        if (token) localStorage.setItem('token', token);
+        if (userInfo) localStorage.setItem('userInfo', JSON.stringify(userInfo));
         navigate('/', { replace: true });
       }
     } catch (error) {

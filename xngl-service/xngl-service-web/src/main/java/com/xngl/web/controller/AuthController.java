@@ -61,10 +61,7 @@ public class AuthController {
       String userId = String.valueOf(user.getId());
       String token = jwtUtils.createToken(user.getUsername(), userId);
       long expiresIn = jwtUtils.parseToken(token).getExpiration().getTime() - System.currentTimeMillis();
-      User update = new User();
-      update.setId(user.getId());
-      update.setLastLoginTime(java.time.LocalDateTime.now());
-      userService.update(update);
+      userService.updateLastLoginTime(user.getId());
 
       saveLoginLogSafe(user, req.getUsername(), true, null, request);
       LoginResponse.UserInfo userInfo =

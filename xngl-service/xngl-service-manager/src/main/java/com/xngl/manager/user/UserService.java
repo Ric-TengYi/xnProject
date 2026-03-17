@@ -16,6 +16,9 @@ public interface UserService {
 
   void update(User user);
 
+  /** 仅更新最后登录时间，避免全量 update 将其他字段置空 */
+  void updateLastLoginTime(Long userId);
+
   void updateStatus(Long id, String status);
 
   void delete(Long id);
