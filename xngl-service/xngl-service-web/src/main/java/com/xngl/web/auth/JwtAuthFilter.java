@@ -39,6 +39,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     if (uri.startsWith("/api/mini/auth/login") || path.startsWith("/api/mini/auth/login")) return true;
     if (uri.contains("/mini/auth/login") || path.contains("/mini/auth/login")) return true;
     if ("POST".equalsIgnoreCase(request.getMethod()) && (uri.contains("login") || path.contains("login"))) return true;
+    if ("POST".equalsIgnoreCase(request.getMethod()) && uri.contains("mini")) return true;
     if (uri.startsWith("/api/health") || path.startsWith("/api/health")) return true;
     if (uri.contains("swagger") || path.contains("swagger") || uri.contains("api-docs") || path.contains("api-docs")) return true;
     return false;
