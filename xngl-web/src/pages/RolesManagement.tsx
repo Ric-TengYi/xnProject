@@ -11,6 +11,8 @@ const RolesManagement: React.FC = () => {
     const [menuTreeData, setMenuTreeData] = useState<any[]>([]);
     const [selectedRole, setSelectedRole] = useState<any>(null);
     const [checkedKeys, setCheckedKeys] = useState<React.Key[]>([]);
+    const [halfCheckedKeys, setHalfCheckedKeys] = useState<React.Key[]>([]);
+    const [checkedPermissionIds, setCheckedPermissionIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -66,6 +68,7 @@ const RolesManagement: React.FC = () => {
             const res = await request.get(`/roles/${roleId}/permissions`);
             if (res.code === 200) {
                 setCheckedKeys(res.data.menuIds || []);
+                setCheckedPermissionIds(res.data.permissionIds || []);
             }
         } catch (error) {
             console.error(error);
@@ -76,13 +79,13 @@ const RolesManagement: React.FC = () => {
         if (!selectedRole) return;
         setLoading(true);
         try {
-            const res = await request.put(`/roles/${selectedRole.id}/permissions`, {
-                menuIds: checkedKeys,
-                permissionIds: [] // TODO: Add permission handling if needed
+            const checked = Array.isArray(checkedKeys) ? checkedKeys : (checkedKeys as { checked?: React.Key[] })?.checked ?? [];
+            const menuIds = [...new Set([...checked, ...halfCheckedKeys])].map(String);
+            await request.put(`/roles/${selectedRole.id}/permissions`, {
+                menuIds,
+                permissionIds: checkedPermissionIds
             });
-            if (res.code === 200) {
-                message.success('保存成功');
-            }
+            message.success('保存成功');
         } catch (error) {
             console.error(error);
         } finally {
@@ -155,7 +158,11 @@ const RolesManagement: React.FC = () => {
                                         checkable
                                         defaultExpandAll
                                         checkedKeys={checkedKeys}
-                                        onCheck={(keys) => setCheckedKeys(keys as React.Key[])}
+                                        onCheck={(keys, info) => {
+                                            const next = Array.isArray(keys) ? keys : (keys as { checked: React.Key[] }).checked;
+                                            setCheckedKeys(next ?? []);
+                                            setHalfCheckedKeys(info.halfCheckedKeys ?? []);
+                                        }}
                                         treeData={menuTreeData}
                                         className="bg-transparent g-text-secondary custom-tree"
                                     />

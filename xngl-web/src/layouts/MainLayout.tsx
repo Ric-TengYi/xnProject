@@ -44,7 +44,17 @@ function getItem(
   } as MenuItem;
 }
 
-const items: MenuItem[] = [
+const ICON_MAP: Record<string, React.ReactNode> = {
+  PieChartOutlined: <PieChartOutlined />,
+  DesktopOutlined: <DesktopOutlined />,
+  EnvironmentOutlined: <EnvironmentOutlined />,
+  CarOutlined: <CarOutlined />,
+  ContainerOutlined: <ContainerOutlined />,
+  AlertOutlined: <AlertOutlined />,
+  SettingOutlined: <SettingOutlined />,
+};
+
+const STATIC_ITEMS: MenuItem[] = [
   getItem('数据看板', 'dashboard', <PieChartOutlined />, [
     getItem(<Link to="/">总体分析</Link>, '/'),
     getItem(<Link to="/dashboard/sites">消纳场数据</Link>, '/dashboard/sites'),
@@ -91,6 +101,18 @@ const items: MenuItem[] = [
   ]),
 ];
 
+function buildMenuItemsFromApi(nodes: any[]): MenuItem[] {
+  if (!nodes?.length) return STATIC_ITEMS;
+  return nodes.map((node: any) => {
+    const path = node.path || node.routePath || '';
+    const key = path || node.id || node.menuCode || '';
+    const label = path ? <Link to={path}>{node.menuName || node.title}</Link> : (node.menuName || node.title);
+    const icon = node.icon && ICON_MAP[node.icon] ? ICON_MAP[node.icon] : undefined;
+    const children = node.children?.length ? buildMenuItemsFromApi(node.children) : undefined;
+    return getItem(label, key, icon, children);
+  });
+}
+
 const SIDER_COLLAPSED_WIDTH = 80;
 const SIDER_DEFAULT_WIDTH = 176;
 const SIDER_MIN_WIDTH = 140;
@@ -104,6 +126,7 @@ const MainLayout: React.FC = () => {
   const [resizeStartX, setResizeStartX] = useState(0);
   const [resizeStartWidth, setResizeStartWidth] = useState(SIDER_DEFAULT_WIDTH);
   const [userInfo, setUserInfo] = useState<any>(null);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(STATIC_ITEMS);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -119,6 +142,20 @@ const MainLayout: React.FC = () => {
       }
     };
     fetchUserInfo();
+  }, []);
+
+  useEffect(() => {
+    const fetchMenus = async () => {
+      try {
+        const res = await request.get('/me/menus');
+        if (res.code === 200 && Array.isArray(res.data) && res.data.length > 0) {
+          setMenuItems(buildMenuItemsFromApi(res.data));
+        }
+      } catch {
+        setMenuItems(STATIC_ITEMS);
+      }
+    };
+    fetchMenus();
   }, []);
 
   const handleLogout = () => {
@@ -245,7 +282,7 @@ const MainLayout: React.FC = () => {
               (key) => location.pathname.includes(key) || (key === 'dashboard' && location.pathname === '/')
             )}
             mode="inline"
-            items={items}
+            items={menuItems}
             style={{
               background: 'transparent',
               borderRight: 0,

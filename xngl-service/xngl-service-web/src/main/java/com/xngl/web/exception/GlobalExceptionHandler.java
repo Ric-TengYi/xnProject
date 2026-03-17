@@ -10,10 +10,14 @@ import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+  private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
   @ExceptionHandler(BizException.class)
   @ResponseStatus(HttpStatus.OK)
@@ -63,6 +67,7 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(Exception.class)
   @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
   public ApiResult<?> handleOther(Exception e) {
+    log.error("Unhandled exception: " + e.getClass().getName() + " - " + e.getMessage(), e);
     return ApiResult.fail(500, e.getMessage() != null ? e.getMessage() : "internal error");
   }
 }

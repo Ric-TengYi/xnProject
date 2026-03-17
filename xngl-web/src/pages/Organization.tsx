@@ -11,9 +11,12 @@ const Organization: React.FC = () => {
     const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [addModalOpen, setAddModalOpen] = useState(false);
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editingUserId, setEditingUserId] = useState<string | null>(null);
     const [rolesOpts, setRolesOpts] = useState<{ value: string; label: string; roleCode?: string }[]>([]);
     const [orgOpts, setOrgOpts] = useState<{ value: string; label: string }[]>([]);
     const [form] = Form.useForm();
+    const [editForm] = Form.useForm();
 
     useEffect(() => {
         fetchOrgs();
@@ -51,8 +54,8 @@ const Organization: React.FC = () => {
                 }
             } catch (e) { console.error(e); }
         };
-        if (addModalOpen) void loadOptions();
-    }, [addModalOpen]);
+        if (addModalOpen || editModalOpen) void loadOptions();
+    }, [addModalOpen, editModalOpen]);
 
     const fetchOrgs = async () => {
         try {
@@ -121,14 +124,60 @@ const Organization: React.FC = () => {
         { 
             title: '操作', 
             key: 'action', 
-            render: () => (
+            width: 160,
+            render: (_: unknown, record: any) => (
                 <Space size="middle">
-                    <a className="g-text-primary-link hover:g-text-primary-link"><EditOutlined /> 编辑</a>
-                    <a className="g-text-error hover:g-text-error"><DeleteOutlined /> 停用</a>
+                    <a className="g-text-primary-link hover:g-text-primary-link" onClick={() => openEditModal(record.id)}><EditOutlined /> 编辑</a>
+                    {record.status === 'ENABLED' ? (
+                        <a className="g-text-error hover:g-text-error" onClick={() => handleStatusChange(record.id, 'DISABLED', record.name)}><DeleteOutlined /> 停用</a>
+                    ) : (
+                        <a className="g-text-primary-link hover:g-text-primary-link" onClick={() => handleStatusChange(record.id, 'ENABLED', record.name)}>启用</a>
+                    )}
                 </Space>
             )
         },
     ];
+
+    const openEditModal = async (userId: string) => {
+        setEditingUserId(userId);
+        setEditModalOpen(true);
+        try {
+            const res = await request.get(`/users/${userId}`);
+            if (res.code === 200 && res.data) {
+                const d = res.data;
+                editForm.setFieldsValue({
+                    name: d.name,
+                    username: d.username,
+                    mainOrgId: d.mainOrgId ? String(d.mainOrgId) : undefined,
+                    roleIds: (d.roles || []).map((r: any) => String(r.id)),
+                    mobile: d.mobile,
+                    email: d.email,
+                    userType: d.userType || 'TENANT_USER',
+                });
+            }
+        } catch (e) {
+            message.error('获取用户详情失败');
+        }
+    };
+
+    const handleStatusChange = (userId: string, status: string, name: string) => {
+        const action = status === 'DISABLED' ? '停用' : '启用';
+        Modal.confirm({
+            title: `确认${action}用户`,
+            content: `确定要${action}用户「${name}」吗？`,
+            okText: '确定',
+            cancelText: '取消',
+            onOk: async () => {
+                try {
+                    await request.put(`/users/${userId}/status`, { status });
+                    message.success(`${action}成功`);
+                    fetchUsers();
+                } catch (err: any) {
+                    message.error(err?.response?.data?.message || `${action}失败`);
+                }
+            },
+        });
+    };
 
     return (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="space-y-6 h-[calc(100vh-110px)] flex flex-col">
@@ -231,6 +280,74 @@ const Organization: React.FC = () => {
                     </Form.Item>
                     <Form.Item name="password" label="初始密码">
                         <Input.Password placeholder="不填则默认 ChangeMe123" />
+                    </Form.Item>
+                    <Form.Item name="userType" label="用户类型" rules={[{ required: true }]}>
+                        <Select placeholder="请选择" options={[
+                            { value: 'TENANT_USER', label: '平台用户' },
+                            { value: 'TENANT_ADMIN', label: '管理员' },
+                            { value: 'DRIVER', label: '司机端（仅小程序司机工作台）' },
+                        ]} />
+                    </Form.Item>
+                    <Form.Item name="mainOrgId" label="所属组织" rules={[{ required: true, message: '请选择所属组织' }]}>
+                        <Select placeholder="请选择组织" options={orgOpts} showSearch optionFilterProp="label" allowClear />
+                    </Form.Item>
+                    <Form.Item name="roleIds" label="角色" rules={[{ required: true, message: '请至少选择一个角色' }]}>
+                        <Select mode="multiple" placeholder="请选择角色" options={rolesOpts} />
+                    </Form.Item>
+                    <Form.Item name="mobile" label="手机号">
+                        <Input placeholder="请输入手机号" maxLength={11} />
+                    </Form.Item>
+                    <Form.Item name="email" label="邮箱">
+                        <Input placeholder="请输入邮箱" maxLength={128} />
+                    </Form.Item>
+                </Form>
+            </Modal>
+
+            <Modal
+                title="编辑人员"
+                open={editModalOpen}
+                onCancel={() => { setEditModalOpen(false); setEditingUserId(null); editForm.resetFields(); }}
+                onOk={async () => {
+                    if (!editingUserId) return;
+                    try {
+                        const values = await editForm.validateFields();
+                        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                        let roleIds: string[] = Array.isArray(values.roleIds) ? [...values.roleIds] : [];
+                        const userType = values.userType || 'TENANT_USER';
+                        if (userType === 'DRIVER') {
+                            const driverRoleId = rolesOpts.find((r) => r.roleCode === 'DRIVER')?.value;
+                            if (driverRoleId && !roleIds.includes(driverRoleId)) roleIds.push(driverRoleId);
+                        }
+                        await request.put(`/users/${editingUserId}`, {
+                            tenantId: userInfo.tenantId || '1',
+                            username: values.username,
+                            name: values.name,
+                            userType,
+                            mobile: values.mobile || undefined,
+                            email: values.email || undefined,
+                            mainOrgId: values.mainOrgId,
+                            roleIds,
+                        });
+                        message.success('保存成功');
+                        setEditModalOpen(false);
+                        setEditingUserId(null);
+                        editForm.resetFields();
+                        fetchUsers();
+                    } catch (err: any) {
+                        message.error(err?.response?.data?.message || err?.message || '保存失败');
+                    }
+                }}
+                okText="保存"
+                cancelText="取消"
+                destroyOnClose
+                width={520}
+            >
+                <Form form={editForm} layout="vertical" className="mt-4">
+                    <Form.Item name="name" label="姓名" rules={[{ required: true, message: '请输入姓名' }]}>
+                        <Input placeholder="请输入姓名" maxLength={32} />
+                    </Form.Item>
+                    <Form.Item name="username" label="账号" rules={[{ required: true, message: '请输入账号' }]}>
+                        <Input placeholder="请输入登录账号" maxLength={64} disabled />
                     </Form.Item>
                     <Form.Item name="userType" label="用户类型" rules={[{ required: true }]}>
                         <Select placeholder="请选择" options={[
