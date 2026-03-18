@@ -1,5 +1,6 @@
 package com.xngl.web.auth;
 
+import com.xngl.infrastructure.config.TenantContextHolder;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -65,7 +66,25 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     var claims = jwtUtils.parseToken(token);
     request.setAttribute(ATTR_USER_ID, claims.get("userId", String.class));
     request.setAttribute(ATTR_USERNAME, claims.getSubject());
-    chain.doFilter(request, response);
+
+    // 设置租户上下文
+    Long tenantId = claims.get("tenantId", Long.class);
+    if (tenantId != null) {
+      TenantContextHolder.setTenantId(tenantId);
+    }
+
+    // 设置角色上下文（用于超级管理员判断）
+    String role = claims.get("role", String.class);
+    if (role != null) {
+      TenantContextHolder.setRole(role);
+    }
+
+    try {
+      chain.doFilter(request, response);
+    } finally {
+      // 请求结束后清除租户上下文
+      TenantContextHolder.clear();
+    }
   }
 
   private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
