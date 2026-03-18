@@ -13,7 +13,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.stereotype.Service;
@@ -291,5 +293,183 @@ public class ContractServiceImpl implements ContractService {
       return base;
     }
     return base + "，原因：" + cancelRemark.trim();
+  }
+
+  @Override
+  public IPage<Contract> pageContracts(Long tenantId, String contractType, String contractStatus,
+      String keyword, Long projectId, Long siteId, LocalDate startDate, LocalDate endDate,
+      int pageNo, int pageSize) {
+    LambdaQueryWrapper<Contract> query = new LambdaQueryWrapper<>();
+    if (tenantId != null) {
+      query.eq(Contract::getTenantId, tenantId);
+    }
+    if (StringUtils.hasText(contractType)) {
+      query.eq(Contract::getContractType, contractType.trim());
+    }
+    if (StringUtils.hasText(contractStatus)) {
+      query.eq(Contract::getContractStatus, contractStatus.trim());
+    }
+    if (StringUtils.hasText(keyword)) {
+      query.and(wrapper -> wrapper
+          .like(Contract::getName, keyword)
+          .or()
+          .like(Contract::getContractNo, keyword)
+          .or()
+          .like(Contract::getCode, keyword));
+    }
+    if (projectId != null) {
+      query.eq(Contract::getProjectId, projectId);
+    }
+    if (siteId != null) {
+      query.eq(Contract::getSiteId, siteId);
+    }
+    if (startDate != null) {
+      query.ge(Contract::getSignDate, startDate);
+    }
+    if (endDate != null) {
+      query.le(Contract::getSignDate, endDate);
+    }
+    query.orderByDesc(Contract::getCreateTime);
+    return contractMapper.selectPage(new Page<>(pageNo, pageSize), query);
+  }
+
+  @Override
+  @Transactional(rollbackFor = Exception.class)
+  public long createContract(Long tenantId, Long applicantId, Contract contract) {
+    if (contract.getContractNo() == null || contract.getContractNo().isBlank()) {
+      contract.setContractNo(generateContractNo());
+    }
+    contract.setTenantId(tenantId);
+    contract.setApplicantId(applicantId);
+    contract.setContractStatus("DRAFT");
+    contract.setApprovalStatus("DRAFT");
+    contract.setChangeVersion(0);
+    contract.setReceivedAmount(ZERO);
+    contract.setSettledAmount(ZERO);
+    if (contract.getSourceType() == null || contract.getSourceType().isBlank()) {
+      contract.setSourceType("ONLINE");
+    }
+    if (contract.getIsThreeParty() == null) {
+      contract.setIsThreeParty(false);
+    }
+    contractMapper.insert(contract);
+    return contract.getId();
+  }
+
+  @Override
+  @Transactional(rollbackFor = Exception.class)
+  public void updateContract(Long contractId, Long tenantId, Contract updates) {
+    Contract existing = getContract(contractId, tenantId);
+    if (!"DRAFT".equalsIgnoreCase(existing.getContractStatus())) {
+      throw new ContractServiceException(409, "仅草稿状态的合同允许编辑");
+    }
+    updates.setId(contractId);
+    updates.setTenantId(null);
+    updates.setContractStatus(null);
+    updates.setApprovalStatus(null);
+    updates.setChangeVersion(null);
+    updates.setReceivedAmount(null);
+    updates.setSettledAmount(null);
+    contractMapper.updateById(updates);
+  }
+
+  @Override
+  @Transactional(rollbackFor = Exception.class)
+  public void submitContract(Long contractId, Long tenantId) {
+    Contract existing = getContract(contractId, tenantId);
+    if (!"DRAFT".equalsIgnoreCase(existing.getContractStatus())
+        && !"REJECTED".equalsIgnoreCase(existing.getContractStatus())) {
+      throw new ContractServiceException(409, "仅草稿或被驳回的合同允许提交审批");
+    }
+    Contract update = new Contract();
+    update.setId(contractId);
+    update.setContractStatus("APPROVING");
+    update.setApprovalStatus("APPROVING");
+    update.setRejectReason(null);
+    contractMapper.updateById(update);
+  }
+
+  @Override
+  @Transactional(rollbackFor = Exception.class)
+  public void approveContract(Long contractId, Long tenantId) {
+    Contract existing = getContract(contractId, tenantId);
+    if (!"APPROVING".equalsIgnoreCase(existing.getContractStatus())) {
+      throw new ContractServiceException(409, "仅审批中的合同允许通过");
+    }
+    Contract update = new Contract();
+    update.setId(contractId);
+    update.setContractStatus("EFFECTIVE");
+    update.setApprovalStatus("APPROVED");
+    contractMapper.updateById(update);
+  }
+
+  @Override
+  @Transactional(rollbackFor = Exception.class)
+  public void rejectContract(Long contractId, Long tenantId, String reason) {
+    Contract existing = getContract(contractId, tenantId);
+    if (!"APPROVING".equalsIgnoreCase(existing.getContractStatus())) {
+      throw new ContractServiceException(409, "仅审批中的合同允许驳回");
+    }
+    Contract update = new Contract();
+    update.setId(contractId);
+    update.setContractStatus("REJECTED");
+    update.setApprovalStatus("REJECTED");
+    update.setRejectReason(StringUtils.hasText(reason) ? reason.trim() : null);
+    contractMapper.updateById(update);
+  }
+
+  @Override
+  public Map<String, Object> getContractStats(Long tenantId) {
+    Map<String, Object> stats = new HashMap<>();
+
+    LambdaQueryWrapper<Contract> totalQuery = new LambdaQueryWrapper<>();
+    if (tenantId != null) {
+      totalQuery.eq(Contract::getTenantId, tenantId);
+    }
+    stats.put("totalContracts", contractMapper.selectCount(totalQuery));
+
+    LambdaQueryWrapper<Contract> effectiveQuery = new LambdaQueryWrapper<>();
+    if (tenantId != null) {
+      effectiveQuery.eq(Contract::getTenantId, tenantId);
+    }
+    effectiveQuery.in(Contract::getContractStatus, ACTIVE_CONTRACT_STATUSES);
+    stats.put("effectiveContracts", contractMapper.selectCount(effectiveQuery));
+
+    LocalDate monthStart = LocalDate.now().withDayOfMonth(1);
+    LambdaQueryWrapper<ContractReceipt> receiptQuery = new LambdaQueryWrapper<>();
+    if (tenantId != null) {
+      receiptQuery.eq(ContractReceipt::getTenantId, tenantId);
+    }
+    receiptQuery.ge(ContractReceipt::getReceiptDate, monthStart);
+    receiptQuery.eq(ContractReceipt::getStatus, RECEIPT_STATUS_NORMAL);
+    List<ContractReceipt> monthlyReceipts = contractReceiptMapper.selectList(receiptQuery);
+    BigDecimal monthlyAmount = monthlyReceipts.stream()
+        .map(r -> safeAmount(r.getAmount()))
+        .reduce(ZERO, BigDecimal::add);
+    stats.put("monthlyReceiptAmount", monthlyAmount);
+    stats.put("monthlyReceiptCount", (long) monthlyReceipts.size());
+
+    LambdaQueryWrapper<Contract> pendingQuery = new LambdaQueryWrapper<>();
+    if (tenantId != null) {
+      pendingQuery.eq(Contract::getTenantId, tenantId);
+    }
+    pendingQuery.in(Contract::getContractStatus, ACTIVE_CONTRACT_STATUSES);
+    List<Contract> activeContracts = contractMapper.selectList(pendingQuery);
+    BigDecimal pendingAmount = activeContracts.stream()
+        .map(c -> safeAmount(resolveContractAmount(c)).subtract(safeAmount(c.getReceivedAmount())))
+        .filter(diff -> diff.compareTo(ZERO) > 0)
+        .reduce(ZERO, BigDecimal::add);
+    stats.put("pendingReceiptAmount", pendingAmount);
+
+    stats.put("totalSettlementOrders", 0L);
+    stats.put("pendingSettlementOrders", 0L);
+
+    return stats;
+  }
+
+  private String generateContractNo() {
+    String timePart = LocalDateTime.now().format(RECEIPT_NO_TIME);
+    int random = ThreadLocalRandom.current().nextInt(1000, 10000);
+    return "HT" + timePart + random;
   }
 }
