@@ -1,5 +1,6 @@
 package com.xngl.web.controller;
 
+import com.xngl.infrastructure.config.TenantContextHolder;
 import com.xngl.infrastructure.persistence.entity.organization.Org;
 import com.xngl.manager.org.OrgService;
 import com.xngl.web.dto.ApiResult;
@@ -13,6 +14,9 @@ import org.springframework.web.bind.annotation.*;
 public class OrgsController {
 
   private final OrgService orgService;
+  
+  /** 超级管理员角色 */
+  private static final String SUPER_ADMIN = "SUPER_ADMIN";
 
   public OrgsController(OrgService orgService) {
     this.orgService = orgService;
@@ -23,6 +27,25 @@ public class OrgsController {
       @RequestParam(required = false) Long tenantId,
       @RequestParam(required = false) String keyword,
       @RequestParam(required = false) String status) {
+    
+    // 获取当前用户租户ID
+    Long currentTenantId = TenantContextHolder.getTenantId();
+    String currentRole = TenantContextHolder.getRole();
+    
+    // 如果传了 tenantId，校验权限
+    if (tenantId != null) {
+      // 租户ID 与当前用户不符
+      if (!tenantId.equals(currentTenantId)) {
+        // 非超级管理员，禁止访问其他租户数据
+        if (!SUPER_ADMIN.equals(currentRole)) {
+          return ApiResult.fail(403, "无权限访问其他租户数据");
+        }
+      }
+    } else {
+      // 未传 tenantId，使用当前用户所属租户
+      tenantId = currentTenantId;
+    }
+    
     if (tenantId == null) return ApiResult.ok(Collections.emptyList());
     List<Org> list = orgService.listTree(tenantId, keyword, status);
     List<OrgTreeNodeDto> tree = buildTree(list, 0L);
