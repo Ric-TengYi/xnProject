@@ -27,6 +27,8 @@ public class ContractItemDto {
   private BigDecimal settledAmount;
   private BigDecimal agreedVolume;
   private BigDecimal unitPrice;
+  private BigDecimal unitPriceInside;
+  private BigDecimal unitPriceOutside;
   private String contractStatus;
   private String approvalStatus;
   private String signDate;
@@ -34,5 +36,8 @@ public class ContractItemDto {
   private String expireDate;
   private Boolean isThreeParty;
   private String sourceType;
+  private String applicantId;
+  private String rejectReason;
+  private Integer changeVersion;
   private String createTime;
 }

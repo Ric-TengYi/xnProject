@@ -3,7 +3,13 @@ package com.xngl.web.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.xngl.infrastructure.persistence.entity.contract.Contract;
 import com.xngl.infrastructure.persistence.entity.organization.User;
+import com.xngl.manager.contract.ContractApprovalRecordVo;
+import com.xngl.manager.contract.ContractDetailVo;
+import com.xngl.manager.contract.ContractInvoiceVo;
+import com.xngl.manager.contract.ContractMaterialVo;
+import com.xngl.manager.contract.ContractQueryParams;
 import com.xngl.manager.contract.ContractService;
+import com.xngl.manager.contract.ContractTicketVo;
 import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
@@ -130,6 +136,93 @@ public class ContractsController {
     dto.setTotalSettlementOrders(toLong(raw.get("totalSettlementOrders")));
     dto.setPendingSettlementOrders(toLong(raw.get("pendingSettlementOrders")));
     return ApiResult.ok(dto);
+  }
+
+  @GetMapping("/search")
+  public ApiResult<PageResult<ContractItemDto>> advancedSearch(
+      @RequestParam(required = false) String contractType,
+      @RequestParam(required = false) String contractStatus,
+      @RequestParam(required = false) String approvalStatus,
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) Long projectId,
+      @RequestParam(required = false) Long siteId,
+      @RequestParam(required = false) Long constructionOrgId,
+      @RequestParam(required = false) Long transportOrgId,
+      @RequestParam(required = false) Boolean isThreeParty,
+      @RequestParam(required = false) String sourceType,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate effectiveStartDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate effectiveEndDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expireStartDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expireEndDate,
+      @RequestParam(defaultValue = "1") int pageNo,
+      @RequestParam(defaultValue = "20") int pageSize,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    ContractQueryParams params = new ContractQueryParams();
+    params.setContractType(contractType);
+    params.setContractStatus(contractStatus);
+    params.setApprovalStatus(approvalStatus);
+    params.setKeyword(keyword);
+    params.setProjectId(projectId);
+    params.setSiteId(siteId);
+    params.setConstructionOrgId(constructionOrgId);
+    params.setTransportOrgId(transportOrgId);
+    params.setIsThreeParty(isThreeParty);
+    params.setSourceType(sourceType);
+    params.setStartDate(startDate);
+    params.setEndDate(endDate);
+    params.setEffectiveStartDate(effectiveStartDate);
+    params.setEffectiveEndDate(effectiveEndDate);
+    params.setExpireStartDate(expireStartDate);
+    params.setExpireEndDate(expireEndDate);
+    params.setPageNo(pageNo);
+    params.setPageSize(pageSize);
+    IPage<Contract> page = contractService.pageContractsAdvanced(currentUser.getTenantId(), params);
+    List<ContractItemDto> records = page.getRecords().stream()
+        .map(this::toItemDto)
+        .toList();
+    return ApiResult.ok(new PageResult<>(page.getCurrent(), page.getSize(), page.getTotal(), records));
+  }
+
+  @GetMapping("/{id}/detail")
+  public ApiResult<ContractDetailVo> getDetail(@PathVariable Long id, HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    ContractDetailVo detail = contractService.getContractDetail(id, currentUser.getTenantId());
+    return ApiResult.ok(detail);
+  }
+
+  @GetMapping("/{id}/approval-records")
+  public ApiResult<List<ContractApprovalRecordVo>> getApprovalRecords(
+      @PathVariable Long id, HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<ContractApprovalRecordVo> records = contractService.getContractApprovalRecords(id, currentUser.getTenantId());
+    return ApiResult.ok(records);
+  }
+
+  @GetMapping("/{id}/materials")
+  public ApiResult<List<ContractMaterialVo>> getMaterials(
+      @PathVariable Long id, HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<ContractMaterialVo> materials = contractService.getContractMaterials(id, currentUser.getTenantId());
+    return ApiResult.ok(materials);
+  }
+
+  @GetMapping("/{id}/invoices")
+  public ApiResult<List<ContractInvoiceVo>> getInvoices(
+      @PathVariable Long id, HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<ContractInvoiceVo> invoices = contractService.getContractInvoices(id, currentUser.getTenantId());
+    return ApiResult.ok(invoices);
+  }
+
+  @GetMapping("/{id}/tickets")
+  public ApiResult<List<ContractTicketVo>> getTickets(
+      @PathVariable Long id, HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<ContractTicketVo> tickets = contractService.getContractTickets(id, currentUser.getTenantId());
+    return ApiResult.ok(tickets);
   }
 
   private ContractItemDto toItemDto(Contract c) {

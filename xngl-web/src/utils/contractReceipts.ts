@@ -1,68 +1,66 @@
-import axios from 'axios';
+import http from './request';
 
-const contractReceiptRequest = axios.create({
-  baseURL: '/api',
-  timeout: 10000,
-});
-
-contractReceiptRequest.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-interface WrappedResponse<T> {
-  code?: number;
-  message?: string;
-  data?: T;
+export interface WrappedPageResult<T> {
+  pageNo: number;
+  pageSize: number;
+  total: number;
+  records: T[];
 }
 
 export interface ContractReceipt {
   id: number | string;
   contractId?: number | string;
-  amount?: number;
+  contractNo?: string;
+  contractName?: string;
+  receiptNo?: string;
   receiptDate?: string;
+  amount?: number;
+  receiptType?: string;
   voucherNo?: string;
+  bankFlowNo?: string;
   remark?: string;
   status?: string;
+  operatorId?: string;
   createTime?: string;
-  updateTime?: string;
+}
+
+export interface ContractReceiptQueryParams {
+  contractId?: number | string;
+  keyword?: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+  pageNo?: number;
+  pageSize?: number;
 }
 
 export interface CreateContractReceiptPayload {
-  contractId: number;
+  contractId: number | string;
   amount: number;
   receiptDate: string;
+  receiptType?: string;
   voucherNo?: string;
+  bankFlowNo?: string;
   remark?: string;
-  status?: string;
 }
 
-function unwrapResponse<T>(payload: WrappedResponse<T> | T): T {
-  if (
-    payload &&
-    typeof payload === 'object' &&
-    'code' in payload &&
-    'data' in payload
-  ) {
-    const wrapped = payload as WrappedResponse<T>;
-    if (wrapped.code !== undefined && wrapped.code !== 0 && wrapped.code !== 200) {
-      throw new Error(wrapped.message || '请求失败');
-    }
-    return wrapped.data as T;
-  }
-  return payload as T;
+export async function listContractReceipts(params: ContractReceiptQueryParams = {}) {
+  const res = await http.get<WrappedPageResult<ContractReceipt>>('/contracts/receipts', { params });
+  return res.data;
 }
 
-export async function listContractReceipts(): Promise<ContractReceipt[]> {
-  const response = await contractReceiptRequest.get('/contract-receipts');
-  const data = unwrapResponse<ContractReceipt[]>(response.data);
-  return Array.isArray(data) ? data : [];
+export async function listContractReceiptsByContract(contractId: number | string) {
+  const res = await http.get<ContractReceipt[]>(`/contracts/${contractId}/receipts`);
+  return Array.isArray(res.data) ? res.data : [];
 }
 
-export async function createContractReceipt(payload: CreateContractReceiptPayload): Promise<void> {
-  const response = await contractReceiptRequest.post('/contract-receipts', payload);
-  unwrapResponse(response.data);
+export async function createContractReceipt(payload: CreateContractReceiptPayload) {
+  const { contractId, ...body } = payload;
+  const res = await http.post<string>(`/contracts/${contractId}/receipts`, body);
+  return res.data;
+}
+
+export async function cancelContractReceipt(receiptId: number | string, remark?: string) {
+  const res = await http.put<string>(`/contracts/receipts/${receiptId}/cancel`, { remark });
+  return res.data;
 }

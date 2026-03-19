@@ -37,6 +37,18 @@ public interface ContractService {
       String keyword, Long projectId, Long siteId, LocalDate startDate, LocalDate endDate,
       int pageNo, int pageSize);
 
+  IPage<Contract> pageContractsAdvanced(Long tenantId, ContractQueryParams params);
+
+  ContractDetailVo getContractDetail(Long contractId, Long tenantId);
+
+  List<ContractApprovalRecordVo> getContractApprovalRecords(Long contractId, Long tenantId);
+
+  List<ContractMaterialVo> getContractMaterials(Long contractId, Long tenantId);
+
+  List<ContractInvoiceVo> getContractInvoices(Long contractId, Long tenantId);
+
+  List<ContractTicketVo> getContractTickets(Long contractId, Long tenantId);
+
   long createContract(Long tenantId, Long applicantId, Contract contract);
 
   void updateContract(Long contractId, Long tenantId, Contract updates);

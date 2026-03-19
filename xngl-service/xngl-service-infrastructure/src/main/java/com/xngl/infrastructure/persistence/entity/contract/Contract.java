@@ -39,9 +39,9 @@ public class Contract extends BaseEntity {
   private String contractStatus;
   private String remark;
   private Boolean isThreeParty;
-  private BigDecimal unitPriceInside;
-  private BigDecimal unitPriceOutside;
+  private String rejectReason;
   private String sourceType;
   private Long applicantId;
-  private String rejectReason;
+  private BigDecimal unitPriceInside;
+  private BigDecimal unitPriceOutside;
 }

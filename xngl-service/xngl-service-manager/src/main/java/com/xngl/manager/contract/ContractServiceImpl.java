@@ -4,9 +4,17 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xngl.infrastructure.persistence.entity.contract.Contract;
+import com.xngl.infrastructure.persistence.entity.contract.ContractApprovalRecord;
+import com.xngl.infrastructure.persistence.entity.contract.ContractInvoice;
+import com.xngl.infrastructure.persistence.entity.contract.ContractMaterial;
 import com.xngl.infrastructure.persistence.entity.contract.ContractReceipt;
+import com.xngl.infrastructure.persistence.entity.contract.ContractTicket;
+import com.xngl.infrastructure.persistence.mapper.ContractApprovalRecordMapper;
+import com.xngl.infrastructure.persistence.mapper.ContractInvoiceMapper;
 import com.xngl.infrastructure.persistence.mapper.ContractMapper;
+import com.xngl.infrastructure.persistence.mapper.ContractMaterialMapper;
 import com.xngl.infrastructure.persistence.mapper.ContractReceiptMapper;
+import com.xngl.infrastructure.persistence.mapper.ContractTicketMapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -38,11 +46,24 @@ public class ContractServiceImpl implements ContractService {
 
   private final ContractMapper contractMapper;
   private final ContractReceiptMapper contractReceiptMapper;
+  private final ContractApprovalRecordMapper approvalRecordMapper;
+  private final ContractMaterialMapper materialMapper;
+  private final ContractInvoiceMapper invoiceMapper;
+  private final ContractTicketMapper ticketMapper;
 
   public ContractServiceImpl(
-      ContractMapper contractMapper, ContractReceiptMapper contractReceiptMapper) {
+      ContractMapper contractMapper,
+      ContractReceiptMapper contractReceiptMapper,
+      ContractApprovalRecordMapper approvalRecordMapper,
+      ContractMaterialMapper materialMapper,
+      ContractInvoiceMapper invoiceMapper,
+      ContractTicketMapper ticketMapper) {
     this.contractMapper = contractMapper;
     this.contractReceiptMapper = contractReceiptMapper;
+    this.approvalRecordMapper = approvalRecordMapper;
+    this.materialMapper = materialMapper;
+    this.invoiceMapper = invoiceMapper;
+    this.ticketMapper = ticketMapper;
   }
 
   @Override
@@ -191,20 +212,6 @@ public class ContractServiceImpl implements ContractService {
     contractReceiptMapper.updateById(cancelled);
 
     Long effectiveTenantId = resolveTenantId(original.getTenantId(), operatorTenantId);
-    ContractReceipt reversal = new ContractReceipt();
-    reversal.setTenantId(effectiveTenantId);
-    reversal.setContractId(original.getContractId());
-    reversal.setReceiptNo(generateReceiptNo());
-    reversal.setReceiptDate(LocalDate.now());
-    reversal.setAmount(original.getAmount().negate());
-    reversal.setReceiptType(RECEIPT_TYPE_REVERSAL);
-    reversal.setVoucherNo(original.getVoucherNo());
-    reversal.setBankFlowNo(original.getBankFlowNo());
-    reversal.setStatus(RECEIPT_STATUS_NORMAL);
-    reversal.setOperatorId(operatorId);
-    reversal.setRemark(buildReversalRemark(original.getReceiptNo(), cancelRemark));
-    contractReceiptMapper.insert(reversal);
-
     Contract update = new Contract();
     update.setId(contract.getId());
     update.setReceivedAmount(currentReceivedAmount.subtract(original.getAmount()));
@@ -212,7 +219,7 @@ public class ContractServiceImpl implements ContractService {
       update.setTenantId(effectiveTenantId);
     }
     contractMapper.updateById(update);
-    return reversal.getId();
+    return original.getId();
   }
 
   private void validateCreateCommand(CreateContractReceiptCommand command) {
@@ -338,6 +345,13 @@ public class ContractServiceImpl implements ContractService {
   public long createContract(Long tenantId, Long applicantId, Contract contract) {
     if (contract.getContractNo() == null || contract.getContractNo().isBlank()) {
       contract.setContractNo(generateContractNo());
+    }
+    Long existing = contractMapper.selectCount(
+        new LambdaQueryWrapper<Contract>()
+            .eq(Contract::getContractNo, contract.getContractNo())
+            .eq(Contract::getTenantId, tenantId));
+    if (existing > 0) {
+      throw new ContractServiceException(409, "合同编号已存在: " + contract.getContractNo());
     }
     contract.setTenantId(tenantId);
     contract.setApplicantId(applicantId);
@@ -471,5 +485,234 @@ public class ContractServiceImpl implements ContractService {
     String timePart = LocalDateTime.now().format(RECEIPT_NO_TIME);
     int random = ThreadLocalRandom.current().nextInt(1000, 10000);
     return "HT" + timePart + random;
+  }
+
+  @Override
+  public IPage<Contract> pageContractsAdvanced(Long tenantId, ContractQueryParams params) {
+    LambdaQueryWrapper<Contract> query = new LambdaQueryWrapper<>();
+    if (tenantId != null) {
+      query.eq(Contract::getTenantId, tenantId);
+    }
+    if (StringUtils.hasText(params.getContractType())) {
+      query.eq(Contract::getContractType, params.getContractType().trim());
+    }
+    if (StringUtils.hasText(params.getContractStatus())) {
+      query.eq(Contract::getContractStatus, params.getContractStatus().trim());
+    }
+    if (StringUtils.hasText(params.getApprovalStatus())) {
+      query.eq(Contract::getApprovalStatus, params.getApprovalStatus().trim());
+    }
+    if (StringUtils.hasText(params.getKeyword())) {
+      String kw = params.getKeyword().trim();
+      query.and(wrapper -> wrapper
+          .like(Contract::getName, kw)
+          .or()
+          .like(Contract::getContractNo, kw)
+          .or()
+          .like(Contract::getCode, kw));
+    }
+    if (params.getProjectId() != null) {
+      query.eq(Contract::getProjectId, params.getProjectId());
+    }
+    if (params.getSiteId() != null) {
+      query.eq(Contract::getSiteId, params.getSiteId());
+    }
+    if (params.getConstructionOrgId() != null) {
+      query.eq(Contract::getConstructionOrgId, params.getConstructionOrgId());
+    }
+    if (params.getTransportOrgId() != null) {
+      query.eq(Contract::getTransportOrgId, params.getTransportOrgId());
+    }
+    if (params.getIsThreeParty() != null) {
+      query.eq(Contract::getIsThreeParty, params.getIsThreeParty());
+    }
+    if (StringUtils.hasText(params.getSourceType())) {
+      query.eq(Contract::getSourceType, params.getSourceType().trim());
+    }
+    if (params.getStartDate() != null) {
+      query.ge(Contract::getSignDate, params.getStartDate());
+    }
+    if (params.getEndDate() != null) {
+      query.le(Contract::getSignDate, params.getEndDate());
+    }
+    if (params.getEffectiveStartDate() != null) {
+      query.ge(Contract::getEffectiveDate, params.getEffectiveStartDate());
+    }
+    if (params.getEffectiveEndDate() != null) {
+      query.le(Contract::getEffectiveDate, params.getEffectiveEndDate());
+    }
+    if (params.getExpireStartDate() != null) {
+      query.ge(Contract::getExpireDate, params.getExpireStartDate());
+    }
+    if (params.getExpireEndDate() != null) {
+      query.le(Contract::getExpireDate, params.getExpireEndDate());
+    }
+    query.orderByDesc(Contract::getCreateTime);
+    return contractMapper.selectPage(new Page<>(params.getPageNo(), params.getPageSize()), query);
+  }
+
+  @Override
+  public ContractDetailVo getContractDetail(Long contractId, Long tenantId) {
+    Contract contract = getContract(contractId, tenantId);
+    ContractDetailVo vo = new ContractDetailVo();
+    vo.setId(contract.getId());
+    vo.setTenantId(contract.getTenantId());
+    vo.setContractNo(resolveContractNo(contract));
+    vo.setCode(contract.getCode());
+    vo.setName(contract.getName());
+    vo.setContractType(contract.getContractType());
+    vo.setProjectId(contract.getProjectId());
+    vo.setSiteId(contract.getSiteId());
+    vo.setPartyId(contract.getPartyId());
+    vo.setConstructionOrgId(contract.getConstructionOrgId());
+    vo.setTransportOrgId(contract.getTransportOrgId());
+    vo.setSiteOperatorOrgId(contract.getSiteOperatorOrgId());
+    vo.setSignDate(contract.getSignDate());
+    vo.setEffectiveDate(contract.getEffectiveDate());
+    vo.setExpireDate(contract.getExpireDate());
+    vo.setAgreedVolume(contract.getAgreedVolume());
+    vo.setUnitPrice(contract.getUnitPrice());
+    vo.setUnitPriceInside(contract.getUnitPriceInside());
+    vo.setUnitPriceOutside(contract.getUnitPriceOutside());
+    vo.setContractAmount(resolveContractAmount(contract));
+    vo.setReceivedAmount(safeAmount(contract.getReceivedAmount()));
+    vo.setSettledAmount(safeAmount(contract.getSettledAmount()));
+    vo.setPendingAmount(vo.getContractAmount().subtract(vo.getReceivedAmount()));
+    vo.setChangeVersion(contract.getChangeVersion());
+    vo.setContractStatus(contract.getContractStatus());
+    vo.setApprovalStatus(contract.getApprovalStatus());
+    vo.setRejectReason(contract.getRejectReason());
+    vo.setIsThreeParty(contract.getIsThreeParty());
+    vo.setSourceType(contract.getSourceType());
+    vo.setApplicantId(contract.getApplicantId());
+    vo.setRemark(contract.getRemark());
+    return vo;
+  }
+
+  @Override
+  public List<ContractApprovalRecordVo> getContractApprovalRecords(Long contractId, Long tenantId) {
+    getContract(contractId, tenantId);
+    LambdaQueryWrapper<ContractApprovalRecord> query = new LambdaQueryWrapper<>();
+    query.eq(ContractApprovalRecord::getContractId, contractId);
+    if (tenantId != null) {
+      query.eq(ContractApprovalRecord::getTenantId, tenantId);
+    }
+    query.orderByDesc(ContractApprovalRecord::getOperateTime);
+    List<ContractApprovalRecord> records = approvalRecordMapper.selectList(query);
+    return records.stream().map(this::toApprovalRecordVo).toList();
+  }
+
+  @Override
+  public List<ContractMaterialVo> getContractMaterials(Long contractId, Long tenantId) {
+    getContract(contractId, tenantId);
+    LambdaQueryWrapper<ContractMaterial> query = new LambdaQueryWrapper<>();
+    query.eq(ContractMaterial::getContractId, contractId);
+    if (tenantId != null) {
+      query.eq(ContractMaterial::getTenantId, tenantId);
+    }
+    query.orderByDesc(ContractMaterial::getCreateTime);
+    List<ContractMaterial> materials = materialMapper.selectList(query);
+    return materials.stream().map(this::toMaterialVo).toList();
+  }
+
+  @Override
+  public List<ContractInvoiceVo> getContractInvoices(Long contractId, Long tenantId) {
+    getContract(contractId, tenantId);
+    LambdaQueryWrapper<ContractInvoice> query = new LambdaQueryWrapper<>();
+    query.eq(ContractInvoice::getContractId, contractId);
+    if (tenantId != null) {
+      query.eq(ContractInvoice::getTenantId, tenantId);
+    }
+    query.orderByDesc(ContractInvoice::getInvoiceDate);
+    List<ContractInvoice> invoices = invoiceMapper.selectList(query);
+    return invoices.stream().map(this::toInvoiceVo).toList();
+  }
+
+  @Override
+  public List<ContractTicketVo> getContractTickets(Long contractId, Long tenantId) {
+    getContract(contractId, tenantId);
+    LambdaQueryWrapper<ContractTicket> query = new LambdaQueryWrapper<>();
+    query.eq(ContractTicket::getContractId, contractId);
+    if (tenantId != null) {
+      query.eq(ContractTicket::getTenantId, tenantId);
+    }
+    query.orderByDesc(ContractTicket::getTicketDate);
+    List<ContractTicket> tickets = ticketMapper.selectList(query);
+    return tickets.stream().map(this::toTicketVo).toList();
+  }
+
+  private String resolveContractNo(Contract contract) {
+    return StringUtils.hasText(contract.getContractNo()) ? contract.getContractNo() : contract.getCode();
+  }
+
+  private ContractApprovalRecordVo toApprovalRecordVo(ContractApprovalRecord record) {
+    ContractApprovalRecordVo vo = new ContractApprovalRecordVo();
+    vo.setId(record.getId());
+    vo.setContractId(record.getContractId());
+    vo.setActionType(record.getActionType());
+    vo.setActionName(resolveActionName(record.getActionType()));
+    vo.setOperatorId(record.getOperatorId());
+    vo.setFromStatus(record.getFromStatus());
+    vo.setToStatus(record.getToStatus());
+    vo.setRemark(record.getRemark());
+    vo.setOperateTime(record.getOperateTime());
+    return vo;
+  }
+
+  private String resolveActionName(String actionType) {
+    if (actionType == null) return null;
+    return switch (actionType) {
+      case "SUBMIT" -> "提交审批";
+      case "APPROVE" -> "审批通过";
+      case "REJECT" -> "审批驳回";
+      case "CANCEL" -> "撤销审批";
+      default -> actionType;
+    };
+  }
+
+  private ContractMaterialVo toMaterialVo(ContractMaterial material) {
+    ContractMaterialVo vo = new ContractMaterialVo();
+    vo.setId(material.getId());
+    vo.setContractId(material.getContractId());
+    vo.setMaterialName(material.getMaterialName());
+    vo.setMaterialType(material.getMaterialType());
+    vo.setFileUrl(material.getFileUrl());
+    vo.setFileSize(material.getFileSize());
+    vo.setUploaderId(material.getUploaderId());
+    vo.setUploadTime(material.getCreateTime());
+    vo.setRemark(material.getRemark());
+    return vo;
+  }
+
+  private ContractInvoiceVo toInvoiceVo(ContractInvoice invoice) {
+    ContractInvoiceVo vo = new ContractInvoiceVo();
+    vo.setId(invoice.getId());
+    vo.setContractId(invoice.getContractId());
+    vo.setInvoiceNo(invoice.getInvoiceNo());
+    vo.setInvoiceType(invoice.getInvoiceType());
+    vo.setInvoiceDate(invoice.getInvoiceDate());
+    vo.setAmount(invoice.getAmount());
+    vo.setTaxRate(invoice.getTaxRate());
+    vo.setTaxAmount(invoice.getTaxAmount());
+    vo.setStatus(invoice.getStatus());
+    vo.setRemark(invoice.getRemark());
+    vo.setCreateTime(invoice.getCreateTime());
+    return vo;
+  }
+
+  private ContractTicketVo toTicketVo(ContractTicket ticket) {
+    ContractTicketVo vo = new ContractTicketVo();
+    vo.setId(ticket.getId());
+    vo.setContractId(ticket.getContractId());
+    vo.setTicketNo(ticket.getTicketNo());
+    vo.setTicketType(ticket.getTicketType());
+    vo.setTicketDate(ticket.getTicketDate());
+    vo.setAmount(ticket.getAmount());
+    vo.setVolume(ticket.getVolume());
+    vo.setStatus(ticket.getStatus());
+    vo.setRemark(ticket.getRemark());
+    vo.setCreatorId(ticket.getCreatorId());
+    vo.setCreateTime(ticket.getCreateTime());
+    return vo;
   }
 }

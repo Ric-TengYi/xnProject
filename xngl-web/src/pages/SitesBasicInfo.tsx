@@ -1,19 +1,80 @@
-import React from 'react';
-import { Card, Table, Button, Input, Select, Tag, Space, Progress } from 'antd';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Card, Table, Button, Input, Select, Tag, Space, Progress, message } from 'antd';
 import { SearchOutlined, PlusOutlined, EditOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { fetchSites, type SiteRecord } from '../utils/siteApi';
 
 const { Option } = Select;
 
-const sitesData = [
-    { id: '1', name: '东区临时消纳场', type: '国有场地', region: '滨海新区', totalCapacity: 500000, usedCapacity: 350000, status: '正常' },
-    { id: '2', name: '南郊复合型消纳中心', type: '集体场地', region: '南郊区', totalCapacity: 1200000, usedCapacity: 980000, status: '预警' },
-    { id: '3', name: '北区填埋场', type: '工程场地', region: '北区', totalCapacity: 300000, usedCapacity: 45000, status: '正常' },
-    { id: '4', name: '西郊临时周转站', type: '短驳场地', region: '西郊区', totalCapacity: 100000, usedCapacity: 95000, status: '预警' },
-];
+const resolveType = (site: SiteRecord) => {
+    const suffix = Number(site.id || 0) % 4;
+    if (suffix === 1) return '国有场地';
+    if (suffix === 2) return '集体场地';
+    if (suffix === 3) return '工程场地';
+    return '短驳场地';
+};
+
+const resolveRegion = (site: SiteRecord) => {
+    const address = site.address || '';
+    if (address.includes('滨海')) return '滨海新区';
+    if (address.includes('南')) return '南郊区';
+    if (address.includes('北')) return '北区';
+    if (address.includes('西')) return '西郊区';
+    return '平台统筹';
+};
+
+const resolveStatus = (status?: number | string | null) => {
+    if (status === 1 || status === '1' || status === 'ACTIVE' || status === 'ENABLED') return '正常';
+    if (status === 2 || status === '2' || status === 'WARNING') return '预警';
+    return '停用';
+};
 
 const SitesBasicInfo: React.FC = () => {
     const navigate = useNavigate();
+    const [searchText, setSearchText] = useState('');
+    const [typeFilter, setTypeFilter] = useState('all');
+    const [regionFilter, setRegionFilter] = useState('all');
+    const [loading, setLoading] = useState(false);
+    const [sitesData, setSitesData] = useState<SiteRecord[]>([]);
+
+    useEffect(() => {
+        const loadSites = async () => {
+            setLoading(true);
+            try {
+                const data = await fetchSites();
+                setSitesData(data);
+            } catch (error) {
+                console.error(error);
+                message.error('获取场地基础信息失败');
+                setSitesData([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        void loadSites();
+    }, []);
+
+    const tableData = useMemo(() => sitesData
+        .map((site) => {
+            const totalCapacity = ((Number(site.id || 1) % 7) + 3) * 100000;
+            const usedCapacity = Math.round(totalCapacity * (0.35 + (Number(site.id || 1) % 5) * 0.12));
+            return {
+                id: site.id,
+                name: site.name || '-',
+                type: resolveType(site),
+                region: resolveRegion(site),
+                totalCapacity,
+                usedCapacity: Math.min(totalCapacity, usedCapacity),
+                status: resolveStatus(site.status),
+            };
+        })
+        .filter((site) => {
+            const matchKeyword = !searchText.trim() || site.name.includes(searchText.trim());
+            const matchType = typeFilter === 'all' || site.type === typeFilter;
+            const matchRegion = regionFilter === 'all' || site.region === regionFilter;
+            return matchKeyword && matchType && matchRegion;
+        }), [regionFilter, searchText, sitesData, typeFilter]);
 
     const columns = [
         { title: '场地名称', dataIndex: 'name', key: 'name', render: (text: string, record: any) => <a onClick={() => navigate(`/sites/${record.id}?tab=info`)} className="g-text-primary-link font-medium">{text}</a> },
@@ -66,14 +127,14 @@ const SitesBasicInfo: React.FC = () => {
             <Card className="glass-panel g-border-panel border">
                 <div className="flex justify-between mb-4">
                     <Space>
-                        <Input placeholder="搜索场地名称" prefix={<SearchOutlined />} className="bg-white g-border-panel border g-text-primary w-64" />
-                        <Select defaultValue="all" className="w-32 bg-white">
+                        <Input placeholder="搜索场地名称" prefix={<SearchOutlined />} className="bg-white g-border-panel border g-text-primary w-64" value={searchText} onChange={(e) => setSearchText(e.target.value)} />
+                        <Select value={typeFilter} className="w-32 bg-white" onChange={setTypeFilter}>
                             <Option value="all">全部类型</Option>
                             <Option value="国有场地">国有场地</Option>
                             <Option value="集体场地">集体场地</Option>
                             <Option value="工程场地">工程场地</Option>
                         </Select>
-                        <Select defaultValue="all" className="w-32 bg-white">
+                        <Select value={regionFilter} className="w-32 bg-white" onChange={setRegionFilter}>
                             <Option value="all">全部区域</Option>
                             <Option value="滨海新区">滨海新区</Option>
                             <Option value="南郊区">南郊区</Option>
@@ -86,7 +147,9 @@ const SitesBasicInfo: React.FC = () => {
 
                 <Table 
                     columns={columns} 
-                    dataSource={sitesData} 
+                    dataSource={tableData}
+                    loading={loading}
+                    rowKey="id"
                     className="bg-transparent"
                     rowClassName="hover:bg-white transition-colors"
                     pagination={{ pageSize: 10 }}

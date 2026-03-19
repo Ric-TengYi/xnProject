@@ -15,6 +15,7 @@ import com.xngl.web.dto.contract.ContractChangeItemDto;
 import com.xngl.web.exception.BizException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashSet;
@@ -58,6 +59,30 @@ public class ContractChangeController {
     long applyId = contractApplyService.createChangeApply(
         user.getTenantId(), user.getId(), contractId,
         dto.getChangeType(), dto.getAfterSnapshotJson(), dto.getReason());
+    return ApiResult.ok(String.valueOf(applyId));
+  }
+
+  @PostMapping("/{contractId}/site-change")
+  public ApiResult<String> createSiteChange(
+      @PathVariable Long contractId,
+      @RequestParam Long newSiteId,
+      @RequestParam(required = false) String reason,
+      HttpServletRequest request) {
+    User user = requireCurrentUser(request);
+    long applyId = contractApplyService.createSiteChangeApply(
+        user.getTenantId(), user.getId(), contractId, newSiteId, reason);
+    return ApiResult.ok(String.valueOf(applyId));
+  }
+
+  @PostMapping("/{contractId}/volume-change")
+  public ApiResult<String> createVolumeChange(
+      @PathVariable Long contractId,
+      @RequestParam BigDecimal newVolume,
+      @RequestParam(required = false) String reason,
+      HttpServletRequest request) {
+    User user = requireCurrentUser(request);
+    long applyId = contractApplyService.createVolumeChangeApply(
+        user.getTenantId(), user.getId(), contractId, newVolume, reason);
     return ApiResult.ok(String.valueOf(applyId));
   }
 

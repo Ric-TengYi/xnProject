@@ -14,13 +14,8 @@ public class ContractDetailDto extends ContractItemDto {
 
   private String siteOperatorOrgId;
   private String siteOperatorOrgName;
-  private BigDecimal unitPriceInside;
-  private BigDecimal unitPriceOutside;
   private String partyId;
-  private Integer changeVersion;
   private String remark;
-  private String applicantId;
-  private String rejectReason;
   private String code;
   private BigDecimal amount;
 }

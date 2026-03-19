@@ -1,65 +1,155 @@
-import React from 'react';
-import { Card, Table, Button, DatePicker, Space, Progress } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Button, Card, DatePicker, Empty, Progress, Space, Table, message } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { DownloadOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
-
-const reportData = [
-    { id: '1', project: '市中心地铁延长线三期工程', date: '2024-03-05', vehicles: 45, trips: 180, todayVolume: 3600, totalVolume: 1250000, projectTotal: 3800000 },
-    { id: '2', project: '滨海新区基础建设B标段', date: '2024-03-05', vehicles: 32, trips: 125, todayVolume: 2500, totalVolume: 850000, projectTotal: 1500000 },
-    { id: '3', project: '老旧小区改造工程综合包', date: '2024-03-05', vehicles: 12, trips: 48, todayVolume: 960, totalVolume: 45000, projectTotal: 200000 },
-];
+import dayjs, { Dayjs } from 'dayjs';
+import {
+  exportProjectDailyReport,
+  fetchProjectDailyReport,
+  type ProjectDailyReportItem,
+} from '../utils/reportApi';
 
 const ProjectsDailyReport: React.FC = () => {
-    const columns = [
-        { title: '项目名称', dataIndex: 'project', key: 'project', render: (text: string) => <span className="g-text-primary-link font-medium">{text}</span> },
-        { title: '日期', dataIndex: 'date', key: 'date' },
-        { title: '投入车辆数', dataIndex: 'vehicles', key: 'vehicles' },
-        { title: '消纳趟次', dataIndex: 'trips', key: 'trips' },
-        { title: '当日消纳量 (方)', dataIndex: 'todayVolume', key: 'todayVolume', render: (val: number) => <span className="g-text-success font-bold">{val.toLocaleString()}</span> },
-        { title: '累计消纳量 (方)', dataIndex: 'totalVolume', key: 'totalVolume', render: (val: number) => val.toLocaleString() },
-        { title: '工程总量 (方)', dataIndex: 'projectTotal', key: 'projectTotal', render: (val: number) => val.toLocaleString() },
-        { 
-            title: '完成进度', 
-            key: 'progress',
-            render: (_: any, record: any) => {
-                const percent = Math.round((record.totalVolume / record.projectTotal) * 100);
-                return (
-                    <Progress 
-                        percent={percent} 
-                        size="small" 
-                        strokeColor={percent > 80 ? 'var(--success)' : percent > 50 ? 'var(--warning)' : 'var(--error)'} 
-                        trailColor="rgba(0,0,0,0.06)"
-                    />
-                );
-            }
-        },
-    ];
+  const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
+  const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [records, setRecords] = useState<ProjectDailyReportItem[]>([]);
 
-    return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center mb-4">
-                <h1 className="text-2xl font-bold g-text-primary m-0">项目日报</h1>
-            </div>
+  const loadReport = async (dateValue: Dayjs) => {
+    setLoading(true);
+    try {
+      const page = await fetchProjectDailyReport({
+        date: dateValue.format('YYYY-MM-DD'),
+        pageNo: 1,
+        pageSize: 100,
+      });
+      setRecords(page.records || []);
+    } catch (error) {
+      console.error(error);
+      message.error('获取项目日报失败');
+      setRecords([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            <Card className="glass-panel g-border-panel border">
-                <div className="flex justify-between mb-4">
-                    <Space>
-                        <DatePicker defaultValue={dayjs()} className="bg-white g-border-panel border" />
-                        <Button type="primary">生成报表</Button>
-                    </Space>
-                    <Button icon={<DownloadOutlined />} className="bg-white g-border-panel border g-text-primary hover:g-text-primary-link hover:border-blue-400">导出 Excel</Button>
-                </div>
+  useEffect(() => {
+    void loadReport(selectedDate);
+  }, [selectedDate]);
 
-                <Table 
-                    columns={columns} 
-                    dataSource={reportData} 
-                    className="bg-transparent"
-                    rowClassName="hover:bg-white transition-colors"
-                    pagination={false}
-                />
-            </Card>
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const result = await exportProjectDailyReport({
+        date: selectedDate.format('YYYY-MM-DD'),
+      });
+      message.success('已生成导出任务 #' + result.taskId);
+    } catch (error) {
+      console.error(error);
+      message.error('导出任务创建失败');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const columns: ColumnsType<ProjectDailyReportItem> = [
+    {
+      title: '项目名称',
+      dataIndex: 'projectName',
+      key: 'projectName',
+      render: (text: string, record) => (
+        <div className="flex flex-col">
+          <span className="g-text-primary-link font-medium">{text}</span>
+          <span className="text-xs g-text-secondary">
+            {(record.projectCode || '-') + ' / ' + (record.orgName || '-')}
+          </span>
         </div>
-    );
+      ),
+    },
+    { title: '日期', dataIndex: 'reportDate', key: 'reportDate' },
+    { title: '投入车辆数', dataIndex: 'vehicles', key: 'vehicles' },
+    { title: '消纳趟次', dataIndex: 'trips', key: 'trips' },
+    {
+      title: '当日消纳量 (方)',
+      dataIndex: 'todayVolume',
+      key: 'todayVolume',
+      render: (val: number) => (
+        <span className="g-text-success font-bold">{Number(val || 0).toLocaleString()}</span>
+      ),
+    },
+    {
+      title: '累计消纳量 (方)',
+      dataIndex: 'totalVolume',
+      key: 'totalVolume',
+      render: (val: number) => Number(val || 0).toLocaleString(),
+    },
+    {
+      title: '工程总量 (方)',
+      dataIndex: 'projectTotal',
+      key: 'projectTotal',
+      render: (val: number) => Number(val || 0).toLocaleString(),
+    },
+    {
+      title: '完成进度',
+      key: 'progress',
+      render: (_, record) => (
+        <Progress
+          percent={record.progressPercent || 0}
+          size="small"
+          strokeColor={
+            (record.progressPercent || 0) > 80
+              ? 'var(--success)'
+              : (record.progressPercent || 0) > 50
+              ? 'var(--warning)'
+              : 'var(--error)'
+          }
+          trailColor="rgba(0,0,0,0.06)"
+        />
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold g-text-primary m-0">项目日报</h1>
+      </div>
+
+      <Card className="glass-panel g-border-panel border">
+        <div className="flex justify-between mb-4">
+          <Space>
+            <DatePicker
+              value={selectedDate}
+              onChange={(value) => setSelectedDate(value || dayjs())}
+              className="bg-white g-border-panel border"
+            />
+            <Button type="primary" onClick={() => void loadReport(selectedDate)}>
+              生成报表
+            </Button>
+          </Space>
+          <Button
+            icon={<DownloadOutlined />}
+            loading={exporting}
+            onClick={() => void handleExport()}
+            className="bg-white g-border-panel border g-text-primary hover:g-text-primary-link hover:border-blue-400"
+          >
+            导出 Excel
+          </Button>
+        </div>
+
+        <Table
+          columns={columns}
+          dataSource={records}
+          rowKey="projectId"
+          loading={loading}
+          locale={{ emptyText: <Empty description="当前日期暂无项目日报数据" /> }}
+          className="bg-transparent"
+          rowClassName="hover:bg-white transition-colors"
+          pagination={false}
+        />
+      </Card>
+    </div>
+  );
 };
 
 export default ProjectsDailyReport;

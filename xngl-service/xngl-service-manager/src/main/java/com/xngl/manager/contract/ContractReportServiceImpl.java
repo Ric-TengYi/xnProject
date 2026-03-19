@@ -308,4 +308,255 @@ public class ContractReportServiceImpl implements ContractReportService {
     if (value instanceof Number n) return n.intValue();
     return Integer.parseInt(value.toString());
   }
+
+  // ==================== Daily Report ====================
+
+  @Override
+  public Map<String, Object> getDailySummary(Long tenantId, LocalDate date) {
+    LocalDate effectiveDate = date != null ? date : LocalDate.now();
+
+    long contractCount = contractMapper.selectCount(
+        new LambdaQueryWrapper<Contract>()
+            .eq(Contract::getTenantId, tenantId)
+            .eq(Contract::getSignDate, effectiveDate));
+
+    QueryWrapper<Contract> amountQuery = new QueryWrapper<>();
+    amountQuery.select("COALESCE(sum(contract_amount), 0) as contractAmount",
+            "COALESCE(sum(agreed_volume), 0) as agreedVolume")
+        .eq("tenant_id", tenantId)
+        .eq("sign_date", effectiveDate);
+    List<Map<String, Object>> amountMaps = contractMapper.selectMaps(amountQuery);
+    BigDecimal contractAmount = ZERO;
+    BigDecimal agreedVolume = ZERO;
+    if (!amountMaps.isEmpty() && amountMaps.get(0) != null) {
+      contractAmount = toBigDecimal(amountMaps.get(0).get("contractAmount"));
+      agreedVolume = toBigDecimal(amountMaps.get(0).get("agreedVolume"));
+    }
+
+    BigDecimal receiptAmount = aggregateReceiptAmount(tenantId, effectiveDate, effectiveDate);
+    BigDecimal settlementAmount = aggregateSettlementAmount(tenantId, effectiveDate, effectiveDate);
+
+    Map<String, Object> result = new LinkedHashMap<>();
+    result.put("date", effectiveDate.toString());
+    result.put("contractCount", contractCount);
+    result.put("contractAmount", contractAmount);
+    result.put("agreedVolume", agreedVolume);
+    result.put("receiptAmount", receiptAmount);
+    result.put("settlementAmount", settlementAmount);
+    return result;
+  }
+
+  @Override
+  public List<Map<String, Object>> getDailyTrend(Long tenantId, LocalDate startDate, LocalDate endDate) {
+    LocalDate start = startDate != null ? startDate : LocalDate.now().minusDays(6);
+    LocalDate end = endDate != null ? endDate : LocalDate.now();
+    List<Map<String, Object>> result = new ArrayList<>();
+
+    for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
+      Map<String, Object> item = new LinkedHashMap<>();
+      item.put("date", date.toString());
+
+      QueryWrapper<Contract> query = new QueryWrapper<>();
+      query.select("COALESCE(sum(contract_amount), 0) as amount",
+              "COALESCE(sum(agreed_volume), 0) as volume")
+          .eq("tenant_id", tenantId)
+          .eq("sign_date", date);
+      List<Map<String, Object>> maps = contractMapper.selectMaps(query);
+      if (!maps.isEmpty() && maps.get(0) != null) {
+        item.put("amount", toBigDecimal(maps.get(0).get("amount")));
+        item.put("volume", toBigDecimal(maps.get(0).get("volume")));
+      } else {
+        item.put("amount", ZERO);
+        item.put("volume", ZERO);
+      }
+      item.put("receiptAmount", aggregateReceiptAmount(tenantId, date, date));
+      result.add(item);
+    }
+    return result;
+  }
+
+  // ==================== Yearly Report ====================
+
+  @Override
+  public Map<String, Object> getYearlySummary(Long tenantId, int year) {
+    int effectiveYear = year > 0 ? year : LocalDate.now().getYear();
+    LocalDate start = LocalDate.of(effectiveYear, 1, 1);
+    LocalDate end = LocalDate.of(effectiveYear, 12, 31);
+
+    long contractCount = contractMapper.selectCount(
+        new LambdaQueryWrapper<Contract>()
+            .eq(Contract::getTenantId, tenantId)
+            .ge(Contract::getSignDate, start)
+            .le(Contract::getSignDate, end));
+
+    QueryWrapper<Contract> amountQuery = new QueryWrapper<>();
+    amountQuery.select("COALESCE(sum(contract_amount), 0) as contractAmount",
+            "COALESCE(sum(agreed_volume), 0) as agreedVolume")
+        .eq("tenant_id", tenantId)
+        .ge("sign_date", start)
+        .le("sign_date", end);
+    List<Map<String, Object>> amountMaps = contractMapper.selectMaps(amountQuery);
+    BigDecimal contractAmount = ZERO;
+    BigDecimal agreedVolume = ZERO;
+    if (!amountMaps.isEmpty() && amountMaps.get(0) != null) {
+      contractAmount = toBigDecimal(amountMaps.get(0).get("contractAmount"));
+      agreedVolume = toBigDecimal(amountMaps.get(0).get("agreedVolume"));
+    }
+
+    BigDecimal receiptAmount = aggregateReceiptAmount(tenantId, start, end);
+    BigDecimal settlementAmount = aggregateSettlementAmount(tenantId, start, end);
+
+    Map<String, Object> result = new LinkedHashMap<>();
+    result.put("year", effectiveYear);
+    result.put("contractCount", contractCount);
+    result.put("contractAmount", contractAmount);
+    result.put("agreedVolume", agreedVolume);
+    result.put("receiptAmount", receiptAmount);
+    result.put("settlementAmount", settlementAmount);
+    return result;
+  }
+
+  @Override
+  public List<Map<String, Object>> getYearlyTrend(Long tenantId, int years) {
+    int effectiveYears = years > 0 ? years : 5;
+    int currentYear = LocalDate.now().getYear();
+    List<Map<String, Object>> result = new ArrayList<>();
+
+    for (int i = effectiveYears - 1; i >= 0; i--) {
+      int year = currentYear - i;
+      LocalDate start = LocalDate.of(year, 1, 1);
+      LocalDate end = LocalDate.of(year, 12, 31);
+
+      Map<String, Object> item = new LinkedHashMap<>();
+      item.put("year", year);
+
+      QueryWrapper<Contract> query = new QueryWrapper<>();
+      query.select("COALESCE(sum(contract_amount), 0) as amount",
+              "COALESCE(sum(agreed_volume), 0) as volume")
+          .eq("tenant_id", tenantId)
+          .ge("sign_date", start)
+          .le("sign_date", end);
+      List<Map<String, Object>> maps = contractMapper.selectMaps(query);
+      if (!maps.isEmpty() && maps.get(0) != null) {
+        item.put("amount", toBigDecimal(maps.get(0).get("amount")));
+        item.put("volume", toBigDecimal(maps.get(0).get("volume")));
+      } else {
+        item.put("amount", ZERO);
+        item.put("volume", ZERO);
+      }
+      item.put("receiptAmount", aggregateReceiptAmount(tenantId, start, end));
+      result.add(item);
+    }
+    return result;
+  }
+
+  // ==================== Custom Period Report ====================
+
+  @Override
+  public Map<String, Object> getCustomPeriodSummary(Long tenantId, LocalDate startDate, LocalDate endDate) {
+    if (startDate == null || endDate == null) {
+      throw new ContractServiceException(400, "自定义周期必须提供开始和结束日期");
+    }
+    if (startDate.isAfter(endDate)) {
+      throw new ContractServiceException(400, "开始日期不能晚于结束日期");
+    }
+
+    long contractCount = contractMapper.selectCount(
+        new LambdaQueryWrapper<Contract>()
+            .eq(Contract::getTenantId, tenantId)
+            .ge(Contract::getSignDate, startDate)
+            .le(Contract::getSignDate, endDate));
+
+    QueryWrapper<Contract> amountQuery = new QueryWrapper<>();
+    amountQuery.select("COALESCE(sum(contract_amount), 0) as contractAmount",
+            "COALESCE(sum(agreed_volume), 0) as agreedVolume")
+        .eq("tenant_id", tenantId)
+        .ge("sign_date", startDate)
+        .le("sign_date", endDate);
+    List<Map<String, Object>> amountMaps = contractMapper.selectMaps(amountQuery);
+    BigDecimal contractAmount = ZERO;
+    BigDecimal agreedVolume = ZERO;
+    if (!amountMaps.isEmpty() && amountMaps.get(0) != null) {
+      contractAmount = toBigDecimal(amountMaps.get(0).get("contractAmount"));
+      agreedVolume = toBigDecimal(amountMaps.get(0).get("agreedVolume"));
+    }
+
+    BigDecimal receiptAmount = aggregateReceiptAmount(tenantId, startDate, endDate);
+    BigDecimal settlementAmount = aggregateSettlementAmount(tenantId, startDate, endDate);
+
+    Map<String, Object> result = new LinkedHashMap<>();
+    result.put("startDate", startDate.toString());
+    result.put("endDate", endDate.toString());
+    result.put("contractCount", contractCount);
+    result.put("contractAmount", contractAmount);
+    result.put("agreedVolume", agreedVolume);
+    result.put("receiptAmount", receiptAmount);
+    result.put("settlementAmount", settlementAmount);
+    return result;
+  }
+
+  @Override
+  public List<Map<String, Object>> getCustomPeriodTrend(Long tenantId, LocalDate startDate, LocalDate endDate, String groupBy) {
+    if (startDate == null || endDate == null) {
+      throw new ContractServiceException(400, "自定义周期必须提供开始和结束日期");
+    }
+    if (startDate.isAfter(endDate)) {
+      throw new ContractServiceException(400, "开始日期不能晚于结束日期");
+    }
+
+    String effectiveGroupBy = StringUtils.hasText(groupBy) ? groupBy.toLowerCase() : "day";
+    return switch (effectiveGroupBy) {
+      case "month" -> getCustomPeriodTrendByMonth(tenantId, startDate, endDate);
+      case "year" -> getCustomPeriodTrendByYear(tenantId, startDate, endDate);
+      default -> getCustomPeriodTrendByDay(tenantId, startDate, endDate);
+    };
+  }
+
+  private List<Map<String, Object>> getCustomPeriodTrendByDay(Long tenantId, LocalDate startDate, LocalDate endDate) {
+    List<Map<String, Object>> result = new ArrayList<>();
+    for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+      Map<String, Object> item = new LinkedHashMap<>();
+      item.put("date", date.toString());
+      item.put("receiptAmount", aggregateReceiptAmount(tenantId, date, date));
+      item.put("settlementAmount", aggregateSettlementAmount(tenantId, date, date));
+      result.add(item);
+    }
+    return result;
+  }
+
+  private List<Map<String, Object>> getCustomPeriodTrendByMonth(Long tenantId, LocalDate startDate, LocalDate endDate) {
+    List<Map<String, Object>> result = new ArrayList<>();
+    YearMonth startMonth = YearMonth.from(startDate);
+    YearMonth endMonth = YearMonth.from(endDate);
+
+    for (YearMonth ym = startMonth; !ym.isAfter(endMonth); ym = ym.plusMonths(1)) {
+      LocalDate monthStart = ym.atDay(1);
+      LocalDate monthEnd = ym.atEndOfMonth();
+
+      Map<String, Object> item = new LinkedHashMap<>();
+      item.put("month", ym.format(MONTH_FMT));
+      item.put("receiptAmount", aggregateReceiptAmount(tenantId, monthStart, monthEnd));
+      item.put("settlementAmount", aggregateSettlementAmount(tenantId, monthStart, monthEnd));
+      result.add(item);
+    }
+    return result;
+  }
+
+  private List<Map<String, Object>> getCustomPeriodTrendByYear(Long tenantId, LocalDate startDate, LocalDate endDate) {
+    List<Map<String, Object>> result = new ArrayList<>();
+    int startYear = startDate.getYear();
+    int endYear = endDate.getYear();
+
+    for (int year = startYear; year <= endYear; year++) {
+      LocalDate yearStart = LocalDate.of(year, 1, 1);
+      LocalDate yearEnd = LocalDate.of(year, 12, 31);
+
+      Map<String, Object> item = new LinkedHashMap<>();
+      item.put("year", year);
+      item.put("receiptAmount", aggregateReceiptAmount(tenantId, yearStart, yearEnd));
+      item.put("settlementAmount", aggregateSettlementAmount(tenantId, yearStart, yearEnd));
+      result.add(item);
+    }
+    return result;
+  }
 }

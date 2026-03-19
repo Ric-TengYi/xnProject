@@ -13,6 +13,12 @@ public interface ContractApplyService {
   long createChangeApply(Long tenantId, Long applicantId, Long contractId,
       String changeType, String afterSnapshotJson, String reason);
 
+  long createSiteChangeApply(Long tenantId, Long applicantId, Long contractId,
+      Long newSiteId, String reason);
+
+  long createVolumeChangeApply(Long tenantId, Long applicantId, Long contractId,
+      BigDecimal newVolume, String reason);
+
   IPage<ContractChangeApply> pageChangeApplies(Long tenantId, Long contractId,
       String approvalStatus, int pageNo, int pageSize);
 

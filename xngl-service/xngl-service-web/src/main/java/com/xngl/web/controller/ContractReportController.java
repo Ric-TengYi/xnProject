@@ -16,10 +16,12 @@ import com.xngl.web.dto.contract.UnitStatItemDto;
 import com.xngl.web.exception.BizException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -124,6 +126,71 @@ public class ContractReportController {
     long taskId = exportTaskService.createExportTask(
         user.getTenantId(), user.getId(), "MONTHLY_REPORT", "EXCEL", queryJson);
     return ApiResult.ok(Map.of("taskId", String.valueOf(taskId)));
+  }
+
+  // ==================== Daily Report ====================
+
+  @GetMapping("/daily/summary")
+  public ApiResult<Map<String, Object>> dailySummary(
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+      HttpServletRequest request) {
+    User user = requireCurrentUser(request);
+    Map<String, Object> data = reportService.getDailySummary(user.getTenantId(), date);
+    return ApiResult.ok(data);
+  }
+
+  @GetMapping("/daily/trend")
+  public ApiResult<List<Map<String, Object>>> dailyTrend(
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+      HttpServletRequest request) {
+    User user = requireCurrentUser(request);
+    List<Map<String, Object>> data = reportService.getDailyTrend(user.getTenantId(), startDate, endDate);
+    return ApiResult.ok(data);
+  }
+
+  // ==================== Yearly Report ====================
+
+  @GetMapping("/yearly/summary")
+  public ApiResult<Map<String, Object>> yearlySummary(
+      @RequestParam(required = false) Integer year,
+      HttpServletRequest request) {
+    User user = requireCurrentUser(request);
+    int effectiveYear = year != null ? year : LocalDate.now().getYear();
+    Map<String, Object> data = reportService.getYearlySummary(user.getTenantId(), effectiveYear);
+    return ApiResult.ok(data);
+  }
+
+  @GetMapping("/yearly/trend")
+  public ApiResult<List<Map<String, Object>>> yearlyTrend(
+      @RequestParam(defaultValue = "5") int years,
+      HttpServletRequest request) {
+    User user = requireCurrentUser(request);
+    List<Map<String, Object>> data = reportService.getYearlyTrend(user.getTenantId(), years);
+    return ApiResult.ok(data);
+  }
+
+  // ==================== Custom Period Report ====================
+
+  @GetMapping("/custom/summary")
+  public ApiResult<Map<String, Object>> customPeriodSummary(
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+      HttpServletRequest request) {
+    User user = requireCurrentUser(request);
+    Map<String, Object> data = reportService.getCustomPeriodSummary(user.getTenantId(), startDate, endDate);
+    return ApiResult.ok(data);
+  }
+
+  @GetMapping("/custom/trend")
+  public ApiResult<List<Map<String, Object>>> customPeriodTrend(
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+      @RequestParam(defaultValue = "day") String groupBy,
+      HttpServletRequest request) {
+    User user = requireCurrentUser(request);
+    List<Map<String, Object>> data = reportService.getCustomPeriodTrend(user.getTenantId(), startDate, endDate, groupBy);
+    return ApiResult.ok(data);
   }
 
   private MonthlySummaryDto toSummaryDto(Map<String, Object> data) {

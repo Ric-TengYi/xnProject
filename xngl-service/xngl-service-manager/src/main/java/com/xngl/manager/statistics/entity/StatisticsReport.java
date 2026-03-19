@@ -1,9 +1,9 @@
 package com.xngl.manager.statistics.entity;
 
-import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.Data;
 
 @Data
 public class StatisticsReport {
@@ -18,4 +18,8 @@ public class StatisticsReport {
     private String status;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+
+    public void setId(Long id) {
+        this.id = id;
+    }
 }

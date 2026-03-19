@@ -78,6 +78,51 @@ public class ContractApplyServiceImpl implements ContractApplyService {
   }
 
   @Override
+  @Transactional(rollbackFor = Exception.class)
+  public long createSiteChangeApply(Long tenantId, Long applicantId, Long contractId,
+      Long newSiteId, String reason) {
+    Contract contract = requireEffectiveContract(contractId, tenantId);
+
+    ContractChangeApply apply = new ContractChangeApply();
+    apply.setTenantId(tenantId);
+    apply.setChangeNo(generateNo("BG"));
+    apply.setContractId(contractId);
+    apply.setChangeType("SITE_CHANGE");
+    apply.setBeforeSnapshotJson(serializeContract(contract));
+    apply.setOriginalSiteId(contract.getSiteId());
+    apply.setNewSiteId(newSiteId);
+    apply.setReason(reason);
+    apply.setApprovalStatus(DRAFT);
+    apply.setApplicantId(applicantId);
+    changeApplyMapper.insert(apply);
+    return apply.getId();
+  }
+
+  @Override
+  @Transactional(rollbackFor = Exception.class)
+  public long createVolumeChangeApply(Long tenantId, Long applicantId, Long contractId,
+      BigDecimal newVolume, String reason) {
+    Contract contract = requireEffectiveContract(contractId, tenantId);
+    BigDecimal originalVolume = contract.getAgreedVolume() != null ? contract.getAgreedVolume() : ZERO;
+    BigDecimal volumeDelta = newVolume.subtract(originalVolume);
+
+    ContractChangeApply apply = new ContractChangeApply();
+    apply.setTenantId(tenantId);
+    apply.setChangeNo(generateNo("BG"));
+    apply.setContractId(contractId);
+    apply.setChangeType("VOLUME_CHANGE");
+    apply.setBeforeSnapshotJson(serializeContract(contract));
+    apply.setOriginalVolume(originalVolume);
+    apply.setNewVolume(newVolume);
+    apply.setVolumeDelta(volumeDelta);
+    apply.setReason(reason);
+    apply.setApprovalStatus(DRAFT);
+    apply.setApplicantId(applicantId);
+    changeApplyMapper.insert(apply);
+    return apply.getId();
+  }
+
+  @Override
   public IPage<ContractChangeApply> pageChangeApplies(Long tenantId, Long contractId,
       String approvalStatus, int pageNo, int pageSize) {
     LambdaQueryWrapper<ContractChangeApply> query = new LambdaQueryWrapper<>();
@@ -377,41 +422,50 @@ public class ContractApplyServiceImpl implements ContractApplyService {
 
   @SuppressWarnings("unchecked")
   private void applyChangeToContract(ContractChangeApply apply) {
-    String json = apply.getAfterSnapshotJson();
-    if (!StringUtils.hasText(json)) {
-      return;
+    Contract update = new Contract();
+    update.setId(apply.getContractId());
+
+    String changeType = apply.getChangeType();
+    if ("SITE_CHANGE".equals(changeType) && apply.getNewSiteId() != null) {
+      update.setSiteId(apply.getNewSiteId());
+    } else if ("VOLUME_CHANGE".equals(changeType) && apply.getNewVolume() != null) {
+      update.setAgreedVolume(apply.getNewVolume());
+    } else {
+      String json = apply.getAfterSnapshotJson();
+      if (StringUtils.hasText(json)) {
+        try {
+          Map<String, Object> snapshot = objectMapper.readValue(json, Map.class);
+          if (snapshot.containsKey("agreedVolume")) {
+            update.setAgreedVolume(new BigDecimal(String.valueOf(snapshot.get("agreedVolume"))));
+          }
+          if (snapshot.containsKey("unitPrice")) {
+            update.setUnitPrice(new BigDecimal(String.valueOf(snapshot.get("unitPrice"))));
+          }
+          if (snapshot.containsKey("contractAmount")) {
+            update.setContractAmount(new BigDecimal(String.valueOf(snapshot.get("contractAmount"))));
+          }
+          if (snapshot.containsKey("siteId")) {
+            update.setSiteId(Long.parseLong(String.valueOf(snapshot.get("siteId"))));
+          }
+          if (snapshot.containsKey("expireDate")) {
+            update.setExpireDate(LocalDate.parse(String.valueOf(snapshot.get("expireDate"))));
+          }
+          if (snapshot.containsKey("remark")) {
+            update.setRemark(String.valueOf(snapshot.get("remark")));
+          }
+        } catch (ContractServiceException e) {
+          throw e;
+        } catch (Exception e) {
+          throw new ContractServiceException(500, "解析变更快照失败: " + e.getMessage());
+        }
+      }
     }
-    try {
-      Map<String, Object> snapshot = objectMapper.readValue(json, Map.class);
-      Contract update = new Contract();
-      update.setId(apply.getContractId());
 
-      if (snapshot.containsKey("agreedVolume")) {
-        update.setAgreedVolume(new BigDecimal(String.valueOf(snapshot.get("agreedVolume"))));
-      }
-      if (snapshot.containsKey("unitPrice")) {
-        update.setUnitPrice(new BigDecimal(String.valueOf(snapshot.get("unitPrice"))));
-      }
-      if (snapshot.containsKey("contractAmount")) {
-        update.setContractAmount(new BigDecimal(String.valueOf(snapshot.get("contractAmount"))));
-      }
-      if (snapshot.containsKey("expireDate")) {
-        update.setExpireDate(LocalDate.parse(String.valueOf(snapshot.get("expireDate"))));
-      }
-      if (snapshot.containsKey("remark")) {
-        update.setRemark(String.valueOf(snapshot.get("remark")));
-      }
+    Contract current = contractMapper.selectById(apply.getContractId());
+    Integer version = current.getChangeVersion() != null ? current.getChangeVersion() : 0;
+    update.setChangeVersion(version + 1);
 
-      Contract current = contractMapper.selectById(apply.getContractId());
-      Integer version = current.getChangeVersion() != null ? current.getChangeVersion() : 0;
-      update.setChangeVersion(version + 1);
-
-      contractMapper.updateById(update);
-    } catch (ContractServiceException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new ContractServiceException(500, "解析变更快照失败: " + e.getMessage());
-    }
+    contractMapper.updateById(update);
   }
 
   private String serializeContract(Contract contract) {

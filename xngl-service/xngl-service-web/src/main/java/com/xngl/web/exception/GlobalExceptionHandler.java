@@ -6,8 +6,10 @@ import com.xngl.web.dto.ApiResult;
 import jakarta.validation.ConstraintViolationException;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -58,6 +60,18 @@ public class GlobalExceptionHandler {
         .map(v -> v.getPropertyPath() + ": " + v.getMessage())
         .collect(Collectors.joining("; "));
     return ApiResult.fail(400, message);
+  }
+
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  public ApiResult<?> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
+    return ApiResult.fail(400, "请求体格式错误");
+  }
+
+  @ExceptionHandler(MissingServletRequestParameterException.class)
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  public ApiResult<?> handleMissingParam(MissingServletRequestParameterException e) {
+    return ApiResult.fail(400, "缺少请求参数: " + e.getParameterName());
   }
 
   @ExceptionHandler(Exception.class)
