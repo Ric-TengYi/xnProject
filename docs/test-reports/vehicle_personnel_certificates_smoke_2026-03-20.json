@@ -1,0 +1,63 @@
+{
+  "generated_at": "2026-03-20",
+  "base_api": "http://127.0.0.1:8090/api",
+  "base_web": "http://127.0.0.1:5173",
+  "passed": 9,
+  "failed": 0,
+  "results": [
+    {
+      "module": "api",
+      "test_case": "login",
+      "passed": true,
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "module": "api",
+      "test_case": "seed_vehicle",
+      "passed": true,
+      "detail": "vehicleId=8 orgId=6"
+    },
+    {
+      "module": "personnel",
+      "test_case": "summary",
+      "passed": true,
+      "detail": "totalPersons=2"
+    },
+    {
+      "module": "personnel",
+      "test_case": "create",
+      "passed": true,
+      "detail": "id=3"
+    },
+    {
+      "module": "personnel",
+      "test_case": "update",
+      "passed": true,
+      "detail": "CAPTAIN"
+    },
+    {
+      "module": "personnel",
+      "test_case": "query",
+      "passed": true,
+      "detail": "records=1"
+    },
+    {
+      "module": "frontend",
+      "test_case": "index",
+      "passed": true,
+      "detail": "dev server 可访问"
+    },
+    {
+      "module": "frontend",
+      "test_case": "route_registration",
+      "passed": true,
+      "detail": "App.tsx 已注册人证路由"
+    },
+    {
+      "module": "frontend",
+      "test_case": "menu_registration",
+      "passed": true,
+      "detail": "MainLayout 已注册人证菜单"
+    }
+  ]
+}

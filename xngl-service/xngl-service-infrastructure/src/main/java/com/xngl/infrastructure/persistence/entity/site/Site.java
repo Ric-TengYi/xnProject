@@ -2,6 +2,7 @@ package com.xngl.infrastructure.persistence.entity.site;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.xngl.infrastructure.persistence.entity.BaseEntity;
+import java.math.BigDecimal;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -16,4 +17,10 @@ public class Site extends BaseEntity {
   private Long projectId;
   private Integer status;
   private Long orgId;
+  private String siteType;
+  private BigDecimal capacity;
+  private String settlementMode;
+  private BigDecimal disposalUnitPrice;
+  private BigDecimal disposalFeeRate;
+  private BigDecimal serviceFeeUnitPrice;
 }

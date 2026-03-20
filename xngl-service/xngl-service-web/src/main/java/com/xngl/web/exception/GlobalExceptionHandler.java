@@ -5,6 +5,8 @@ import com.xngl.manager.project.ProjectPaymentException;
 import com.xngl.web.dto.ApiResult;
 import jakarta.validation.ConstraintViolationException;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
@@ -16,6 +18,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+  private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
   @ExceptionHandler(BizException.class)
   @ResponseStatus(HttpStatus.OK)
@@ -77,6 +81,7 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(Exception.class)
   @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
   public ApiResult<?> handleOther(Exception e) {
+    log.error("Unhandled exception", e);
     return ApiResult.fail(500, e.getMessage() != null ? e.getMessage() : "internal error");
   }
 }

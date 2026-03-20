@@ -1,116 +1,306 @@
-import React from 'react';
-import { Button, Tag, Select, Collapse, Switch, InputNumber, Space, Form } from 'antd';
-import { SaveOutlined, BellOutlined, EnvironmentOutlined, CarOutlined } from '@ant-design/icons';
-import { motion } from 'framer-motion';
+import React, { useEffect, useState } from 'react';
+import { Button, Card, Form, Input, Modal, Select, Switch, Table, Tabs, Tag, message } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { PlusOutlined } from '@ant-design/icons';
+import {
+  createAlertFence,
+  createAlertPushRule,
+  createAlertRule,
+  fetchAlertFences,
+  fetchAlertPushRules,
+  fetchAlertRules,
+  updateAlertFence,
+  updateAlertFenceStatus,
+  updateAlertPushRule,
+  updateAlertPushRuleStatus,
+  updateAlertRule,
+  updateAlertRuleStatus,
+  type AlertFenceRecord,
+  type AlertPushRuleRecord,
+  type AlertRuleRecord,
+} from '../utils/alertConfigApi';
 
-const { Panel } = Collapse;
-const { Option } = Select;
+type EditingKind = 'rule' | 'fence' | 'push' | null;
+
+const sceneOptions = [
+  { label: '场地', value: 'SITE' },
+  { label: '项目', value: 'PROJECT' },
+  { label: '车辆', value: 'VEHICLE' },
+  { label: '人员', value: 'USER' },
+  { label: '合同', value: 'CONTRACT' },
+];
+
+const levelOptions = [
+  { label: 'L1', value: 'L1' },
+  { label: 'L2', value: 'L2' },
+  { label: 'L3', value: 'L3' },
+];
 
 const AlertConfig: React.FC = () => {
+  const [loading, setLoading] = useState(false);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [rules, setRules] = useState<AlertRuleRecord[]>([]);
+  const [fences, setFences] = useState<AlertFenceRecord[]>([]);
+  const [pushRules, setPushRules] = useState<AlertPushRuleRecord[]>([]);
+  const [editingKind, setEditingKind] = useState<EditingKind>(null);
+  const [editingRecord, setEditingRecord] = useState<any>(null);
+  const [ruleForm] = Form.useForm();
+  const [fenceForm] = Form.useForm();
+  const [pushForm] = Form.useForm();
 
-    return (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="space-y-6">
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold g-text-primary m-0">预警配置</h1>
-                    <p className="g-text-secondary mt-1">配置各类预警的触发阈值、电子围栏及推送规则</p>
-                </div>
-                <Button type="primary" icon={<SaveOutlined />} className="g-btn-primary border-none">
-                    保存全部配置
-                </Button>
-            </div>
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [ruleList, fenceList, pushList] = await Promise.all([
+        fetchAlertRules(),
+        fetchAlertFences(),
+        fetchAlertPushRules(),
+      ]);
+      setRules(ruleList);
+      setFences(fenceList);
+      setPushRules(pushList);
+    } catch (error) {
+      console.error(error);
+      message.error('获取预警配置失败');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            <Collapse defaultActiveKey={['1', '2', '3']} className="bg-transparent border-none" expandIconPosition="end">
-                <Panel 
-                    header={<span className="text-lg g-text-primary font-bold flex items-center gap-2"><EnvironmentOutlined className="g-text-primary-link" /> 场地预警规则</span>} 
-                    key="1" 
-                    className="glass-panel g-border-panel border mb-4 rounded-lg overflow-hidden"
-                >
-                    <Form layout="vertical" className="grid grid-cols-3 gap-6">
-                        <Form.Item label={<span className="g-text-secondary">容量超限预警阈值 (%)</span>}>
-                            <InputNumber min={50} max={100} defaultValue={80} className="w-full" />
-                        </Form.Item>
-                        <Form.Item label={<span className="g-text-secondary">凭证到期提前预警 (天)</span>}>
-                            <InputNumber min={1} max={90} defaultValue={30} className="w-full" />
-                        </Form.Item>
-                        <Form.Item label={<span className="g-text-secondary">林地占用超限开关</span>}>
-                            <Switch defaultChecked />
-                        </Form.Item>
-                    </Form>
-                </Panel>
+  useEffect(() => {
+    void loadData();
+  }, []);
 
-                <Panel 
-                    header={<span className="text-lg g-text-primary font-bold flex items-center gap-2"><CarOutlined className="g-text-warning" /> 车辆与人员预警规则</span>} 
-                    key="2" 
-                    className="glass-panel g-border-panel border mb-4 rounded-lg overflow-hidden"
-                >
-                    <Form layout="vertical" className="grid grid-cols-3 gap-6">
-                        <Form.Item label={<span className="g-text-secondary">偏航距离阈值 (米)</span>}>
-                            <InputNumber min={50} max={1000} defaultValue={200} className="w-full" />
-                        </Form.Item>
-                        <Form.Item label={<span className="g-text-secondary">未打卡容忍次数 (次/月)</span>}>
-                            <InputNumber min={0} max={10} defaultValue={3} className="w-full" />
-                        </Form.Item>
-                        <Form.Item label={<span className="g-text-secondary">司机准驾年龄上限 (岁)</span>}>
-                            <InputNumber min={50} max={65} defaultValue={55} className="w-full" />
-                        </Form.Item>
-                        <Form.Item label={<span className="g-text-secondary">证件到期提前预警 (天)</span>}>
-                            <InputNumber min={1} max={90} defaultValue={30} className="w-full" />
-                        </Form.Item>
-                    </Form>
-                </Panel>
+  const openRuleModal = (record?: AlertRuleRecord) => {
+    setEditingKind('rule');
+    setEditingRecord(record || null);
+    ruleForm.setFieldsValue(record || { ruleScene: 'VEHICLE', level: 'L2', scopeType: 'GLOBAL', status: 'ENABLED' });
+  };
 
-                <Panel 
-                    header={<span className="text-lg g-text-primary font-bold flex items-center gap-2"><BellOutlined className="g-text-success" /> 推送规则配置</span>} 
-                    key="3" 
-                    className="glass-panel g-border-panel border mb-4 rounded-lg overflow-hidden"
-                >
-                    <Form layout="vertical">
-                        <div className="grid grid-cols-4 gap-4 mb-4 pb-4 border-b g-border-panel border">
-                            <div className="g-text-secondary">预警等级</div>
-                            <div className="g-text-secondary">推送方式</div>
-                            <div className="g-text-secondary col-span-2">推送对象 (角色)</div>
-                        </div>
-                        
-                        <div className="grid grid-cols-4 gap-4 mb-4 items-center">
-                            <div><Tag color="red" className="border-none">L3 高风险</Tag></div>
-                            <div>
-                                <Space>
-                                    <Tag color="blue">站内信</Tag>
-                                    <Tag color="blue">短信</Tag>
-                                    <Tag color="blue">钉钉</Tag>
-                                </Space>
-                            </div>
-                            <div className="col-span-2">
-                                <Select mode="multiple" defaultValue={['admin', 'leader']} className="w-full" popupClassName="bg-white">
-                                    <Option value="admin">系统管理员</Option>
-                                    <Option value="leader">执法领导</Option>
-                                    <Option value="manager">车队管理员</Option>
-                                </Select>
-                            </div>
-                        </div>
+  const openFenceModal = (record?: AlertFenceRecord) => {
+    setEditingKind('fence');
+    setEditingRecord(record || null);
+    fenceForm.setFieldsValue(record || { fenceType: 'ENTRY', status: 'ENABLED', bufferMeters: 0 });
+  };
 
-                        <div className="grid grid-cols-4 gap-4 mb-4 items-center">
-                            <div><Tag color="orange" className="border-none">L2 中风险</Tag></div>
-                            <div>
-                                <Space>
-                                    <Tag color="blue">站内信</Tag>
-                                    <Tag color="blue">短信</Tag>
-                                </Space>
-                            </div>
-                            <div className="col-span-2">
-                                <Select mode="multiple" defaultValue={['manager']} className="w-full" popupClassName="bg-white">
-                                    <Option value="admin">系统管理员</Option>
-                                    <Option value="leader">执法领导</Option>
-                                    <Option value="manager">车队管理员</Option>
-                                </Select>
-                            </div>
-                        </div>
-                    </Form>
-                </Panel>
-            </Collapse>
-        </motion.div>
-    );
+  const openPushModal = (record?: AlertPushRuleRecord) => {
+    setEditingKind('push');
+    setEditingRecord(record || null);
+    pushForm.setFieldsValue(record || { level: 'L2', receiverType: 'ROLE', status: 'ENABLED', escalationMinutes: 0 });
+  };
+
+  const closeModal = () => {
+    setEditingKind(null);
+    setEditingRecord(null);
+    ruleForm.resetFields();
+    fenceForm.resetFields();
+    pushForm.resetFields();
+  };
+
+  const handleSubmit = async () => {
+    try {
+      setSubmitLoading(true);
+      if (editingKind === 'rule') {
+        const values = await ruleForm.validateFields();
+        if (editingRecord) {
+          await updateAlertRule(editingRecord.id, values);
+          message.success('阈值规则已更新');
+        } else {
+          await createAlertRule(values);
+          message.success('阈值规则已新增');
+        }
+      }
+      if (editingKind === 'fence') {
+        const values = await fenceForm.validateFields();
+        if (editingRecord) {
+          await updateAlertFence(editingRecord.id, values);
+          message.success('围栏配置已更新');
+        } else {
+          await createAlertFence(values);
+          message.success('围栏配置已新增');
+        }
+      }
+      if (editingKind === 'push') {
+        const values = await pushForm.validateFields();
+        if (editingRecord) {
+          await updateAlertPushRule(editingRecord.id, values);
+          message.success('推送规则已更新');
+        } else {
+          await createAlertPushRule(values);
+          message.success('推送规则已新增');
+        }
+      }
+      closeModal();
+      await loadData();
+    } catch (error) {
+      if ((error as { errorFields?: unknown[] })?.errorFields) return;
+      console.error(error);
+      message.error('保存预警配置失败');
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const ruleColumns: ColumnsType<AlertRuleRecord> = [
+    { title: '规则编码', dataIndex: 'ruleCode', key: 'ruleCode', render: (value) => <span className="font-mono">{value}</span> },
+    { title: '规则名称', dataIndex: 'ruleName', key: 'ruleName' },
+    { title: '场景', dataIndex: 'ruleScene', key: 'ruleScene', render: (value) => <Tag color="blue">{value}</Tag> },
+    { title: '阈值配置', dataIndex: 'thresholdJson', key: 'thresholdJson', render: (value) => value || '-' },
+    { title: '等级', dataIndex: 'level', key: 'level', render: (value) => <Tag color={value === 'L3' ? 'red' : value === 'L2' ? 'orange' : 'default'}>{value}</Tag> },
+    {
+      title: '启用',
+      key: 'status',
+      render: (_, record) => <Switch checked={record.status === 'ENABLED'} onChange={(checked) => void updateAlertRuleStatus(record.id, checked ? 'ENABLED' : 'DISABLED').then(loadData)} />,
+    },
+    { title: '操作', key: 'action', render: (_, record) => <Button type="link" onClick={() => openRuleModal(record)}>编辑</Button> },
+  ];
+
+  const fenceColumns: ColumnsType<AlertFenceRecord> = [
+    { title: '围栏编码', dataIndex: 'fenceCode', key: 'fenceCode', render: (value) => <span className="font-mono">{value}</span> },
+    { title: '围栏名称', dataIndex: 'fenceName', key: 'fenceName' },
+    { title: '类型', dataIndex: 'fenceType', key: 'fenceType', render: (value) => <Tag color="green">{value}</Tag> },
+    { title: '作用范围', dataIndex: 'bizScope', key: 'bizScope', render: (value) => value || '-' },
+    {
+      title: '启用',
+      key: 'status',
+      render: (_, record) => <Switch checked={record.status === 'ENABLED'} onChange={(checked) => void updateAlertFenceStatus(record.id, checked ? 'ENABLED' : 'DISABLED').then(loadData)} />,
+    },
+    { title: '操作', key: 'action', render: (_, record) => <Button type="link" onClick={() => openFenceModal(record)}>编辑</Button> },
+  ];
+
+  const pushColumns: ColumnsType<AlertPushRuleRecord> = [
+    { title: '规则编码', dataIndex: 'ruleCode', key: 'ruleCode', render: (value) => <span className="font-mono">{value}</span> },
+    { title: '等级', dataIndex: 'level', key: 'level', render: (value) => <Tag color={value === 'L3' ? 'red' : value === 'L2' ? 'orange' : 'default'}>{value}</Tag> },
+    { title: '推送方式', dataIndex: 'channelTypes', key: 'channelTypes' },
+    { title: '推送对象', dataIndex: 'receiverExpr', key: 'receiverExpr' },
+    {
+      title: '启用',
+      key: 'status',
+      render: (_, record) => <Switch checked={record.status === 'ENABLED'} onChange={(checked) => void updateAlertPushRuleStatus(record.id, checked ? 'ENABLED' : 'DISABLED').then(loadData)} />,
+    },
+    { title: '操作', key: 'action', render: (_, record) => <Button type="link" onClick={() => openPushModal(record)}>编辑</Button> },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold g-text-primary m-0">预警配置</h1>
+        <p className="g-text-secondary mt-1">统一维护阈值规则、电子围栏与推送对象</p>
+      </div>
+
+      <Tabs
+        items={[
+          {
+            key: 'rules',
+            label: '阈值规则',
+            children: (
+              <Card className="glass-panel g-border-panel border" extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => openRuleModal()}>新增规则</Button>}>
+                <Table rowKey="id" loading={loading} columns={ruleColumns} dataSource={rules} pagination={false} />
+              </Card>
+            ),
+          },
+          {
+            key: 'fences',
+            label: '预警围栏',
+            children: (
+              <Card className="glass-panel g-border-panel border" extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => openFenceModal()}>新增围栏</Button>}>
+                <Table rowKey="id" loading={loading} columns={fenceColumns} dataSource={fences} pagination={false} />
+              </Card>
+            ),
+          },
+          {
+            key: 'push',
+            label: '推送规则',
+            children: (
+              <Card className="glass-panel g-border-panel border" extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => openPushModal()}>新增推送规则</Button>}>
+                <Table rowKey="id" loading={loading} columns={pushColumns} dataSource={pushRules} pagination={false} />
+              </Card>
+            ),
+          },
+        ]}
+      />
+
+      <Modal title={editingRecord ? '编辑阈值规则' : '新增阈值规则'} open={editingKind === 'rule'} onCancel={closeModal} onOk={() => void handleSubmit()} confirmLoading={submitLoading}>
+        <Form form={ruleForm} layout="vertical">
+          <Form.Item name="ruleCode" label="规则编码" rules={[{ required: true, message: '请输入规则编码' }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="ruleName" label="规则名称" rules={[{ required: true, message: '请输入规则名称' }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="ruleScene" label="场景" rules={[{ required: true, message: '请选择场景' }]}>
+            <Select options={sceneOptions} />
+          </Form.Item>
+          <Form.Item name="metricCode" label="指标编码">
+            <Input />
+          </Form.Item>
+          <Form.Item name="thresholdJson" label="阈值配置(JSON)">
+            <Input.TextArea rows={3} placeholder='如 {"threshold":80,"unit":"%"}' />
+          </Form.Item>
+          <div className="grid grid-cols-2 gap-4">
+            <Form.Item name="level" label="等级">
+              <Select options={levelOptions} />
+            </Form.Item>
+            <Form.Item name="scopeType" label="作用域">
+              <Select options={[{ label: '全局', value: 'GLOBAL' }, { label: '局部', value: 'PARTIAL' }]} />
+            </Form.Item>
+          </div>
+          <Form.Item name="remark" label="备注">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal title={editingRecord ? '编辑预警围栏' : '新增预警围栏'} open={editingKind === 'fence'} onCancel={closeModal} onOk={() => void handleSubmit()} confirmLoading={submitLoading}>
+        <Form form={fenceForm} layout="vertical">
+          <Form.Item name="ruleCode" label="关联规则编码">
+            <Select allowClear showSearch options={rules.map((item) => ({ label: item.ruleCode, value: item.ruleCode }))} />
+          </Form.Item>
+          <Form.Item name="fenceCode" label="围栏编码" rules={[{ required: true, message: '请输入围栏编码' }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="fenceName" label="围栏名称" rules={[{ required: true, message: '请输入围栏名称' }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="fenceType" label="围栏类型">
+            <Select options={[{ label: '入场', value: 'ENTRY' }, { label: '禁行', value: 'FORBIDDEN' }, { label: '停留', value: 'STAY' }]} />
+          </Form.Item>
+          <Form.Item name="bizScope" label="作用范围">
+            <Input placeholder="如 SITE:1 / ROAD:RING_SOUTH" />
+          </Form.Item>
+          <Form.Item name="activeTimeRange" label="生效时间">
+            <Input placeholder="如 06:00-22:00" />
+          </Form.Item>
+          <Form.Item name="geoJson" label="GeoJSON / 圆形描述">
+            <Input.TextArea rows={3} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal title={editingRecord ? '编辑推送规则' : '新增推送规则'} open={editingKind === 'push'} onCancel={closeModal} onOk={() => void handleSubmit()} confirmLoading={submitLoading}>
+        <Form form={pushForm} layout="vertical">
+          <Form.Item name="ruleCode" label="关联规则编码" rules={[{ required: true, message: '请选择规则编码' }]}>
+            <Select showSearch options={rules.map((item) => ({ label: item.ruleCode, value: item.ruleCode }))} />
+          </Form.Item>
+          <Form.Item name="level" label="预警等级">
+            <Select options={levelOptions} />
+          </Form.Item>
+          <Form.Item name="channelTypes" label="推送方式" rules={[{ required: true, message: '请输入推送方式' }]}>
+            <Input placeholder="如 INBOX,SMS,WEBHOOK" />
+          </Form.Item>
+          <Form.Item name="receiverExpr" label="推送对象" rules={[{ required: true, message: '请输入推送对象' }]}>
+            <Input placeholder="如 admin,leader" />
+          </Form.Item>
+          <Form.Item name="pushTimeRule" label="推送时机">
+            <Input placeholder="如 IMMEDIATE" />
+          </Form.Item>
+          <Form.Item name="escalationMinutes" label="升级提醒分钟">
+            <Input type="number" />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
 };
 
 export default AlertConfig;

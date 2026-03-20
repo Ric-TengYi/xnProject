@@ -1,9 +1,13 @@
 package com.xngl.web.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.xngl.infrastructure.persistence.entity.project.Project;
 import com.xngl.infrastructure.persistence.entity.contract.SettlementItem;
 import com.xngl.infrastructure.persistence.entity.contract.SettlementOrder;
+import com.xngl.infrastructure.persistence.entity.site.Site;
 import com.xngl.infrastructure.persistence.entity.organization.User;
+import com.xngl.infrastructure.persistence.mapper.ProjectMapper;
+import com.xngl.infrastructure.persistence.mapper.SiteMapper;
 import com.xngl.manager.contract.SettlementService;
 import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
@@ -21,8 +25,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,10 +47,18 @@ public class SettlementController {
 
   private final SettlementService settlementService;
   private final UserService userService;
+  private final ProjectMapper projectMapper;
+  private final SiteMapper siteMapper;
 
-  public SettlementController(SettlementService settlementService, UserService userService) {
+  public SettlementController(
+      SettlementService settlementService,
+      UserService userService,
+      ProjectMapper projectMapper,
+      SiteMapper siteMapper) {
     this.settlementService = settlementService;
     this.userService = userService;
+    this.projectMapper = projectMapper;
+    this.siteMapper = siteMapper;
   }
 
   @PostMapping("/project/generate")
@@ -89,7 +104,10 @@ public class SettlementController {
     IPage<SettlementOrder> page =
         settlementService.pageSettlements(
             user.getTenantId(), settlementType, status, projectId, siteId, pageNo, pageSize);
-    List<SettlementItemDto> records = page.getRecords().stream().map(this::toItemDto).toList();
+    Map<Long, Project> projectMap = loadProjectMap(page.getRecords());
+    Map<Long, Site> siteMap = loadSiteMap(page.getRecords());
+    List<SettlementItemDto> records =
+        page.getRecords().stream().map(order -> toItemDto(order, projectMap, siteMap)).toList();
     return ApiResult.ok(
         new PageResult<>(page.getCurrent(), page.getSize(), page.getTotal(), records));
   }
@@ -100,7 +118,10 @@ public class SettlementController {
     SettlementOrder order = settlementService.getSettlement(id, user.getTenantId());
     List<SettlementItem> items =
         settlementService.listSettlementItems(id, user.getTenantId());
-    return ApiResult.ok(toDetailDto(order, items));
+    Project project =
+        order.getTargetProjectId() != null ? projectMapper.selectById(order.getTargetProjectId()) : null;
+    Site site = order.getTargetSiteId() != null ? siteMapper.selectById(order.getTargetSiteId()) : null;
+    return ApiResult.ok(toDetailDto(order, items, project, site));
   }
 
   @PostMapping("/{id}/submit")
@@ -142,13 +163,22 @@ public class SettlementController {
     return ApiResult.ok(stats);
   }
 
-  private SettlementItemDto toItemDto(SettlementOrder order) {
+  private SettlementItemDto toItemDto(
+      SettlementOrder order, Map<Long, Project> projectMap, Map<Long, Site> siteMap) {
     SettlementItemDto dto = new SettlementItemDto();
     dto.setId(stringValue(order.getId()));
     dto.setSettlementNo(order.getSettlementNo());
     dto.setSettlementType(order.getSettlementType());
     dto.setTargetProjectId(stringValue(order.getTargetProjectId()));
+    dto.setTargetProjectName(
+        order.getTargetProjectId() != null && projectMap.containsKey(order.getTargetProjectId())
+            ? projectMap.get(order.getTargetProjectId()).getName()
+            : null);
     dto.setTargetSiteId(stringValue(order.getTargetSiteId()));
+    dto.setTargetSiteName(
+        order.getTargetSiteId() != null && siteMap.containsKey(order.getTargetSiteId())
+            ? siteMap.get(order.getTargetSiteId()).getName()
+            : null);
     dto.setPeriodStart(formatDate(order.getPeriodStart()));
     dto.setPeriodEnd(formatDate(order.getPeriodEnd()));
     dto.setTotalVolume(order.getTotalVolume());
@@ -162,13 +192,16 @@ public class SettlementController {
     return dto;
   }
 
-  private SettlementDetailDto toDetailDto(SettlementOrder order, List<SettlementItem> items) {
+  private SettlementDetailDto toDetailDto(
+      SettlementOrder order, List<SettlementItem> items, Project project, Site site) {
     SettlementDetailDto dto = new SettlementDetailDto();
     dto.setId(stringValue(order.getId()));
     dto.setSettlementNo(order.getSettlementNo());
     dto.setSettlementType(order.getSettlementType());
     dto.setTargetProjectId(stringValue(order.getTargetProjectId()));
+    dto.setTargetProjectName(project != null ? project.getName() : null);
     dto.setTargetSiteId(stringValue(order.getTargetSiteId()));
+    dto.setTargetSiteName(site != null ? site.getName() : null);
     dto.setPeriodStart(formatDate(order.getPeriodStart()));
     dto.setPeriodEnd(formatDate(order.getPeriodEnd()));
     dto.setTotalVolume(order.getTotalVolume());
@@ -232,5 +265,33 @@ public class SettlementController {
 
   private String stringValue(Long value) {
     return value != null ? String.valueOf(value) : null;
+  }
+
+  private Map<Long, Project> loadProjectMap(List<SettlementOrder> orders) {
+    LinkedHashSet<Long> ids =
+        orders.stream()
+            .map(SettlementOrder::getTargetProjectId)
+            .filter(Objects::nonNull)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+    if (ids.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    return projectMapper.selectBatchIds(ids).stream()
+        .filter(project -> project.getId() != null)
+        .collect(java.util.stream.Collectors.toMap(Project::getId, project -> project, (left, right) -> left));
+  }
+
+  private Map<Long, Site> loadSiteMap(List<SettlementOrder> orders) {
+    LinkedHashSet<Long> ids =
+        orders.stream()
+            .map(SettlementOrder::getTargetSiteId)
+            .filter(Objects::nonNull)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+    if (ids.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    return siteMapper.selectBatchIds(ids).stream()
+        .filter(site -> site.getId() != null)
+        .collect(java.util.stream.Collectors.toMap(Site::getId, site -> site, (left, right) -> left));
   }
 }

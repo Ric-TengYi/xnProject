@@ -19,6 +19,10 @@ interface SiteViewModel {
 }
 
 const resolveSiteType = (site: SiteRecord) => {
+  if (site.siteType === 'STATE_OWNED') return '国有场地';
+  if (site.siteType === 'COLLECTIVE') return '集体场地';
+  if (site.siteType === 'ENGINEERING') return '工程场地';
+  if (site.siteType === 'SHORT_BARGE') return '短驳场地';
   const code = site.code ?? '';
   const suffix = Number(site.id || 0) % 4;
   if (code.startsWith('GY') || suffix === 1) return '国有场地';
@@ -35,6 +39,9 @@ const resolveStatus = (status?: number | string | null) => {
 };
 
 const buildCapacity = (site: SiteRecord) => {
+  if (Number(site.capacity || 0) > 0) {
+    return Number(site.capacity);
+  }
   const base = (Number(site.id || 1) % 7) + 3;
   return base * 100000;
 };

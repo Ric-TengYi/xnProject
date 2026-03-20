@@ -7,6 +7,7 @@ import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
 import com.xngl.web.dto.user.*;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -82,33 +83,43 @@ public class ApprovalActorRulesController {
   private ApprovalActorRuleListItemDto toListItem(ApprovalActorRule r) {
     return new ApprovalActorRuleListItemDto(
         String.valueOf(r.getId()),
-        r.getProcessKey(),
-        r.getRuleName(),
-        r.getRuleType(),
+        StringUtils.hasText(r.getProcessKey()) ? r.getProcessKey() : r.getBizType(),
+        StringUtils.hasText(r.getRuleName()) ? r.getRuleName() : r.getBizType(),
+        StringUtils.hasText(r.getRuleType()) ? r.getRuleType() : r.getActorType(),
         r.getPriority(),
-        r.getStatus());
+        StringUtils.hasText(r.getStatus()) ? r.getStatus() : "ENABLED");
   }
 
   private ApprovalActorRuleDetailDto toDetail(ApprovalActorRule r) {
     return new ApprovalActorRuleDetailDto(
         String.valueOf(r.getId()),
         String.valueOf(r.getTenantId()),
-        r.getProcessKey(),
-        r.getRuleName(),
-        r.getRuleType(),
-        r.getRuleExpression(),
+        StringUtils.hasText(r.getProcessKey()) ? r.getProcessKey() : r.getBizType(),
+        StringUtils.hasText(r.getRuleName()) ? r.getRuleName() : r.getBizType(),
+        StringUtils.hasText(r.getRuleType()) ? r.getRuleType() : r.getActorType(),
+        StringUtils.hasText(r.getRuleExpression()) ? r.getRuleExpression() : r.getActorRefId(),
         r.getPriority(),
-        r.getStatus());
+        StringUtils.hasText(r.getStatus()) ? r.getStatus() : "ENABLED");
   }
 
   private void mapToEntity(ApprovalActorRuleCreateUpdateDto dto, ApprovalActorRule r) {
     if (dto.getTenantId() != null && !dto.getTenantId().isEmpty()) {
       r.setTenantId(Long.parseLong(dto.getTenantId()));
     }
+    r.setBizType(dto.getProcessKey());
+    r.setNodeCode("DEFAULT");
     r.setProcessKey(dto.getProcessKey());
     r.setRuleName(dto.getRuleName());
     r.setRuleType(dto.getRuleType());
     r.setRuleExpression(dto.getRuleExpression());
+    r.setActorType(StringUtils.hasText(dto.getRuleType()) ? dto.getRuleType() : "ROLE");
+    r.setActorRefId(dto.getRuleExpression());
+    if (!StringUtils.hasText(r.getMatchMode())) {
+      r.setMatchMode("OR");
+    }
+    if (r.getActorSnapshotFlag() == null) {
+      r.setActorSnapshotFlag(0);
+    }
     r.setPriority(dto.getPriority() != null ? dto.getPriority() : 0);
   }
 }

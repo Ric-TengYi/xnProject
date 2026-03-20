@@ -7,6 +7,10 @@ import { fetchSites, type SiteRecord } from '../utils/siteApi';
 const { Option } = Select;
 
 const resolveType = (site: SiteRecord) => {
+    if (site.siteType === 'STATE_OWNED') return '国有场地';
+    if (site.siteType === 'COLLECTIVE') return '集体场地';
+    if (site.siteType === 'ENGINEERING') return '工程场地';
+    if (site.siteType === 'SHORT_BARGE') return '短驳场地';
     const suffix = Number(site.id || 0) % 4;
     if (suffix === 1) return '国有场地';
     if (suffix === 2) return '集体场地';
@@ -57,7 +61,7 @@ const SitesBasicInfo: React.FC = () => {
 
     const tableData = useMemo(() => sitesData
         .map((site) => {
-            const totalCapacity = ((Number(site.id || 1) % 7) + 3) * 100000;
+            const totalCapacity = Number(site.capacity || 0) > 0 ? Number(site.capacity) : ((Number(site.id || 1) % 7) + 3) * 100000;
             const usedCapacity = Math.round(totalCapacity * (0.35 + (Number(site.id || 1) % 5) * 0.12));
             return {
                 id: site.id,

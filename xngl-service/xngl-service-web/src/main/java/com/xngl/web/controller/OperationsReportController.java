@@ -404,6 +404,9 @@ public class OperationsReportController {
   }
 
   private BigDecimal deriveSiteCapacity(Site site, BigDecimal used) {
+    if (site != null && site.getCapacity() != null && site.getCapacity().compareTo(ZERO) > 0) {
+      return site.getCapacity();
+    }
     BigDecimal base = BigDecimal.valueOf(((site.getId() != null ? site.getId() : 1L) % 7) + 3L)
         .multiply(BigDecimal.valueOf(100000L));
     BigDecimal dynamic = used.multiply(BigDecimal.valueOf(1.2));
@@ -424,6 +427,15 @@ public class OperationsReportController {
   }
 
   private String resolveSiteType(Site site) {
+    if (site != null && StringUtils.hasText(site.getSiteType())) {
+      return switch (site.getSiteType().trim().toUpperCase()) {
+        case "STATE_OWNED" -> "国有场地";
+        case "COLLECTIVE" -> "集体场地";
+        case "ENGINEERING" -> "工程场地";
+        case "SHORT_BARGE" -> "短驳场地";
+        default -> site.getSiteType();
+      };
+    }
     String code = site.getCode();
     long suffix = site.getId() != null ? site.getId() % 4L : 0L;
     if (StringUtils.hasText(code) && code.startsWith("GY") || suffix == 1L) {

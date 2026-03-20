@@ -33,3 +33,16 @@ Recent history mixes `daily backup YYYY-MM-DD` commits with conventional message
 ## Security & Configuration Tips
 
 Treat `xngl-service-starter/src/main/resources/application.yml` as a local default. Override `MYSQL_*`, `REDIS_*`, `SERVER_PORT`, and JWT settings with environment variables, and never commit production credentials or secrets.
+
+## Local Test Execution Policy
+
+- The user has explicitly authorized running local Python-based test and verification scripts for this repository during development and testing.
+- When the work requires local test automation or validation, prefer executing it directly with `python3` without pausing for confirmation.
+- This instruction applies to local repository testing/verification only. It does not authorize destructive actions or unrelated system changes.
+
+## Local DB and Restart Execution Policy
+
+- The user has explicitly authorized direct execution of local MySQL commands for this repository, including running schema patch scripts, seed scripts, query verification, and other repository-scoped database maintenance against the local development database.
+- When repository work requires applying a local SQL file or running local MySQL verification commands, execute them directly without pausing for confirmation.
+- The user has also explicitly authorized direct execution of local project restart commands needed for development, including stopping and restarting the frontend/backend local dev processes for this repository.
+- This instruction is limited to local repository development, schema/data patching, service restart, and verification flows. It does not authorize destructive system-wide actions unrelated to the project.

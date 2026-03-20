@@ -7,6 +7,10 @@ import { fetchSiteDetail, fetchSiteDisposals, type DisposalRecord, type SiteReco
 
 const resolveSiteType = (site?: SiteRecord | null) => {
     if (!site) return '-';
+    if (site.siteType === 'STATE_OWNED') return '国有场地';
+    if (site.siteType === 'COLLECTIVE') return '集体场地';
+    if (site.siteType === 'ENGINEERING') return '工程场地';
+    if (site.siteType === 'SHORT_BARGE') return '短驳场地';
     const code = site.code ?? '';
     const suffix = Number(site.id || 0) % 4;
     if (code.startsWith('GY') || suffix === 1) return '国有场地';
@@ -24,7 +28,25 @@ const resolveStatus = (status?: number | string | null) => {
 
 const buildCapacity = (site?: SiteRecord | null) => {
     if (!site) return 0;
+    if (Number(site.capacity || 0) > 0) {
+        return Number(site.capacity);
+    }
     return ((Number(site.id || 1) % 7) + 3) * 100000;
+};
+
+const resolveSettlementMode = (site?: SiteRecord | null) => {
+    switch (site?.settlementMode) {
+        case 'MONTHLY_APPLY':
+            return '按月结算申请';
+        case 'RATIO_SERVICE_FEE':
+            return '按消纳费比例 + 平台服务费';
+        case 'UNIT_PRICE':
+            return '按单价结算';
+        case 'SERVICE_FEE':
+            return '按平台服务费结算';
+        default:
+            return '按配置规则结算';
+    }
 };
 
 const SiteDetail: React.FC = () => {
@@ -95,8 +117,10 @@ const SiteDetail: React.FC = () => {
                     </Card>
                     <Card title="结算规则配置" className="glass-panel g-border-panel border">
                         <Descriptions column={2} className="g-text-secondary">
-                            <Descriptions.Item label="结算方式">{typeText === '国有场地' ? '按月结算申请' : '按实际消纳量结算'}</Descriptions.Item>
-                            <Descriptions.Item label="计费规则">金额 = 消纳量 × 单价(政府定价或合同单价)</Descriptions.Item>
+                            <Descriptions.Item label="结算方式">{resolveSettlementMode(siteInfo)}</Descriptions.Item>
+                            <Descriptions.Item label="消纳费单价">{Number(siteInfo?.disposalUnitPrice || 0).toLocaleString()} 元/方</Descriptions.Item>
+                            <Descriptions.Item label="消纳费比例">{Number(siteInfo?.disposalFeeRate || 0) > 0 ? `${Math.round(Number(siteInfo?.disposalFeeRate || 0) * 100)}%` : '-'}</Descriptions.Item>
+                            <Descriptions.Item label="平台服务费单价">{Number(siteInfo?.serviceFeeUnitPrice || 0).toLocaleString()} 元/方</Descriptions.Item>
                         </Descriptions>
                     </Card>
                 </div>

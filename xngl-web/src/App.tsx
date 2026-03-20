@@ -10,14 +10,20 @@ import ProjectsDailyReport from './pages/ProjectsDailyReport';
 import DashboardSites from './pages/DashboardSites';
 import DashboardProjects from './pages/DashboardProjects';
 import DashboardMap from './pages/DashboardMap';
+import VehicleCapacityAnalysis from './pages/VehicleCapacityAnalysis';
 import SitesManagement from './pages/SitesManagement';
 import SiteDetail from './pages/SiteDetail';
 import SitesDisposals from './pages/SitesDisposals';
 import SitesDocuments from './pages/SitesDocuments';
 import SitesBasicInfo from './pages/SitesBasicInfo';
+import SitesReports from './pages/SitesReports';
 import VehiclesManagement from './pages/VehiclesManagement';
 import FleetManagement from './pages/FleetManagement';
 import VehiclesCards from './pages/VehiclesCards';
+import VehicleInsurances from './pages/VehicleInsurances';
+import VehicleMaintenancePlans from './pages/VehicleMaintenancePlans';
+import VehiclePersonnelCertificates from './pages/VehiclePersonnelCertificates';
+import VehicleRepairs from './pages/VehicleRepairs';
 import VehicleTracking from './pages/VehicleTracking';
 import ViolationsList from './pages/ViolationsList';
 import ContractsManagement from './pages/ContractsManagement';
@@ -30,9 +36,11 @@ import AlertConfig from './pages/AlertConfig';
 import EventsManagement from './pages/EventsManagement';
 import SecurityLedger from './pages/SecurityLedger';
 import Organization from './pages/Organization';
+import UnitsManagement from './pages/UnitsManagement';
 import RolesManagement from './pages/RolesManagement';
 import Dictionary from './pages/Dictionary';
 import ApprovalConfig from './pages/ApprovalConfig';
+import SystemParams from './pages/SystemParams';
 import SystemLogs from './pages/SystemLogs';
 
 function App() {
@@ -45,6 +53,7 @@ function App() {
           <Route path="dashboard/sites" element={<DashboardSites />} />
           <Route path="dashboard/projects" element={<DashboardProjects />} />
           <Route path="dashboard/map" element={<DashboardMap />} />
+          <Route path="dashboard/capacity-analysis" element={<VehicleCapacityAnalysis />} />
 
           <Route path="projects" element={<ProjectsManagement />} />
           <Route path="projects/:id" element={<ProjectDetail />} />
@@ -57,10 +66,15 @@ function App() {
           <Route path="sites/disposals" element={<SitesDisposals />} />
           <Route path="sites/documents" element={<SitesDocuments />} />
           <Route path="sites/basic-info" element={<SitesBasicInfo />} />
+          <Route path="sites/reports" element={<SitesReports />} />
 
           <Route path="vehicles" element={<VehiclesManagement />} />
           <Route path="vehicles/fleet" element={<FleetManagement />} />
           <Route path="vehicles/cards" element={<VehiclesCards />} />
+          <Route path="vehicles/insurances" element={<VehicleInsurances />} />
+          <Route path="vehicles/maintenance" element={<VehicleMaintenancePlans />} />
+          <Route path="vehicles/personnel-certificates" element={<VehiclePersonnelCertificates />} />
+          <Route path="vehicles/repairs" element={<VehicleRepairs />} />
           <Route path="vehicles/tracking" element={<VehicleTracking />} />
           <Route path="vehicles/violations" element={<ViolationsList />} />
 
@@ -76,9 +90,11 @@ function App() {
           <Route path="alerts/security" element={<SecurityLedger />} />
 
           <Route path="settings/organization" element={<Organization />} />
+          <Route path="settings/units" element={<UnitsManagement />} />
           <Route path="settings/roles" element={<RolesManagement />} />
           <Route path="settings/dictionary" element={<Dictionary />} />
           <Route path="settings/approvals" element={<ApprovalConfig />} />
+          <Route path="settings/system-params" element={<SystemParams />} />
           <Route path="settings/logs" element={<SystemLogs />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

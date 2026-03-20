@@ -1,0 +1,99 @@
+{
+  "generated_at": "2026-03-20",
+  "base_api": "http://127.0.0.1:8090/api",
+  "base_web": "http://127.0.0.1:5173",
+  "passed": 15,
+  "failed": 0,
+  "results": [
+    {
+      "module": "api",
+      "test_case": "login",
+      "passed": true,
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "module": "fleet",
+      "test_case": "summary",
+      "passed": true,
+      "detail": "totalFleets=7"
+    },
+    {
+      "module": "fleet",
+      "test_case": "profile_create",
+      "passed": true,
+      "detail": "id=8 name=自动化车队01065143"
+    },
+    {
+      "module": "fleet",
+      "test_case": "profile_update",
+      "passed": true,
+      "detail": "attendanceMode=AUTO"
+    },
+    {
+      "module": "fleet",
+      "test_case": "profile_query",
+      "passed": true,
+      "detail": "total=1"
+    },
+    {
+      "module": "fleet",
+      "test_case": "plan_create",
+      "passed": true,
+      "detail": "id=2 planNo=FTP-SMOKE-01065143"
+    },
+    {
+      "module": "fleet",
+      "test_case": "plan_update",
+      "passed": true,
+      "detail": "status=COMPLETED"
+    },
+    {
+      "module": "fleet",
+      "test_case": "dispatch_create",
+      "passed": true,
+      "detail": "id=2 orderNo=FDO-1774001065330"
+    },
+    {
+      "module": "fleet",
+      "test_case": "dispatch_approve",
+      "passed": true,
+      "detail": "status=APPROVED"
+    },
+    {
+      "module": "fleet",
+      "test_case": "finance_create",
+      "passed": true,
+      "detail": "id=2 recordNo=FFR-1774001065357"
+    },
+    {
+      "module": "fleet",
+      "test_case": "finance_update",
+      "passed": true,
+      "detail": "status=SETTLED"
+    },
+    {
+      "module": "fleet",
+      "test_case": "report",
+      "passed": true,
+      "detail": "matchedFleet=自动化车队01065143"
+    },
+    {
+      "module": "frontend",
+      "test_case": "index",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "module": "frontend",
+      "test_case": "route_registration",
+      "passed": true,
+      "detail": "App.tsx 已注册车队管理路由"
+    },
+    {
+      "module": "frontend",
+      "test_case": "menu_registration",
+      "passed": true,
+      "detail": "MainLayout 已注册车队管理菜单"
+    }
+  ]
+}

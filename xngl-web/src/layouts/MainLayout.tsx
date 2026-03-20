@@ -49,6 +49,7 @@ const items: MenuItem[] = [
     getItem(<Link to="/">总体分析</Link>, '/'),
     getItem(<Link to="/dashboard/sites">消纳场数据</Link>, '/dashboard/sites'),
     getItem(<Link to="/dashboard/projects">项目数据</Link>, '/dashboard/projects'),
+    getItem(<Link to="/dashboard/capacity-analysis">运力分析</Link>, '/dashboard/capacity-analysis'),
     getItem(<Link to="/dashboard/map">地图展示</Link>, '/dashboard/map'),
   ]),
   getItem('项目管理', 'projects', <DesktopOutlined />, [
@@ -60,6 +61,7 @@ const items: MenuItem[] = [
   getItem('消纳场地', 'sites', <EnvironmentOutlined />, [
     getItem(<Link to="/sites">场地列表</Link>, '/sites'),
     getItem(<Link to="/sites/disposals">消纳清单</Link>, '/sites/disposals'),
+    getItem(<Link to="/sites/reports">消纳报表</Link>, '/sites/reports'),
     getItem(<Link to="/sites/documents">场地资料</Link>, '/sites/documents'),
     getItem(<Link to="/sites/basic-info">基础信息</Link>, '/sites/basic-info'),
   ]),
@@ -67,6 +69,10 @@ const items: MenuItem[] = [
     getItem(<Link to="/vehicles">车辆信息</Link>, '/vehicles'),
     getItem(<Link to="/vehicles/fleet">车队管理</Link>, '/vehicles/fleet'),
     getItem(<Link to="/vehicles/cards">油电卡管理</Link>, '/vehicles/cards'),
+    getItem(<Link to="/vehicles/insurances">保险管理</Link>, '/vehicles/insurances'),
+    getItem(<Link to="/vehicles/maintenance">维保计划</Link>, '/vehicles/maintenance'),
+    getItem(<Link to="/vehicles/personnel-certificates">人证管理</Link>, '/vehicles/personnel-certificates'),
+    getItem(<Link to="/vehicles/repairs">维修管理</Link>, '/vehicles/repairs'),
     getItem(<Link to="/vehicles/tracking">送货跟踪</Link>, '/vehicles/tracking'),
     getItem(<Link to="/vehicles/violations">违规车辆清单</Link>, '/vehicles/violations'),
   ]),
@@ -83,10 +89,12 @@ const items: MenuItem[] = [
     getItem(<Link to="/alerts/security">安全台账</Link>, '/alerts/security'),
   ]),
   getItem('系统设置', 'settings', <SettingOutlined />, [
+    getItem(<Link to="/settings/units">单位管理</Link>, '/settings/units'),
     getItem(<Link to="/settings/organization">组织人员</Link>, '/settings/organization'),
     getItem(<Link to="/settings/roles">角色管理</Link>, '/settings/roles'),
     getItem(<Link to="/settings/dictionary">数据字典</Link>, '/settings/dictionary'),
     getItem(<Link to="/settings/approvals">审批配置</Link>, '/settings/approvals'),
+    getItem(<Link to="/settings/system-params">系统参数</Link>, '/settings/system-params'),
     getItem(<Link to="/settings/logs">系统日志</Link>, '/settings/logs'),
   ]),
 ];

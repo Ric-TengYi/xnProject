@@ -78,23 +78,21 @@ CREATE TABLE IF NOT EXISTS biz_contract_ticket (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='合同领票记录';
 
 -- 5. 合同入账表增强 - 添加分次入账字段
-ALTER TABLE biz_contract_receipt
-  ADD COLUMN IF NOT EXISTS installment_no INT NULL COMMENT '分次入账序号',
-  ADD COLUMN IF NOT EXISTS installment_total INT NULL COMMENT '分次入账总数';
+ALTER TABLE biz_contract_receipt ADD COLUMN installment_no INT NULL COMMENT '分次入账序号';
+ALTER TABLE biz_contract_receipt ADD COLUMN installment_total INT NULL COMMENT '分次入账总数';
 
 -- 6. 合同变更申请表增强 - 添加场地变更、方量变更字段
-ALTER TABLE biz_contract_change_apply
-  ADD COLUMN IF NOT EXISTS original_site_id BIGINT NULL COMMENT '原场地ID',
-  ADD COLUMN IF NOT EXISTS new_site_id BIGINT NULL COMMENT '新场地ID',
-  ADD COLUMN IF NOT EXISTS original_volume DECIMAL(18,2) NULL COMMENT '原方量',
-  ADD COLUMN IF NOT EXISTS new_volume DECIMAL(18,2) NULL COMMENT '新方量',
-  ADD COLUMN IF NOT EXISTS volume_delta DECIMAL(18,2) NULL COMMENT '方量变更值',
-  ADD COLUMN IF NOT EXISTS original_amount DECIMAL(18,2) NULL COMMENT '原金额',
-  ADD COLUMN IF NOT EXISTS new_amount DECIMAL(18,2) NULL COMMENT '新金额',
-  ADD COLUMN IF NOT EXISTS original_unit_price DECIMAL(18,2) NULL COMMENT '原单价',
-  ADD COLUMN IF NOT EXISTS new_unit_price DECIMAL(18,2) NULL COMMENT '新单价',
-  ADD COLUMN IF NOT EXISTS original_expire_date DATE NULL COMMENT '原到期日期',
-  ADD COLUMN IF NOT EXISTS new_expire_date DATE NULL COMMENT '新到期日期';
+ALTER TABLE biz_contract_change_apply ADD COLUMN original_site_id BIGINT NULL COMMENT '原场地ID';
+ALTER TABLE biz_contract_change_apply ADD COLUMN new_site_id BIGINT NULL COMMENT '新场地ID';
+ALTER TABLE biz_contract_change_apply ADD COLUMN original_volume DECIMAL(18,2) NULL COMMENT '原方量';
+ALTER TABLE biz_contract_change_apply ADD COLUMN new_volume DECIMAL(18,2) NULL COMMENT '新方量';
+ALTER TABLE biz_contract_change_apply ADD COLUMN volume_delta DECIMAL(18,2) NULL COMMENT '方量变更值';
+ALTER TABLE biz_contract_change_apply ADD COLUMN original_amount DECIMAL(18,2) NULL COMMENT '原金额';
+ALTER TABLE biz_contract_change_apply ADD COLUMN new_amount DECIMAL(18,2) NULL COMMENT '新金额';
+ALTER TABLE biz_contract_change_apply ADD COLUMN original_unit_price DECIMAL(18,2) NULL COMMENT '原单价';
+ALTER TABLE biz_contract_change_apply ADD COLUMN new_unit_price DECIMAL(18,2) NULL COMMENT '新单价';
+ALTER TABLE biz_contract_change_apply ADD COLUMN original_expire_date DATE NULL COMMENT '原到期日期';
+ALTER TABLE biz_contract_change_apply ADD COLUMN new_expire_date DATE NULL COMMENT '新到期日期';
 
 -- 7. 索引优化
 CREATE INDEX IF NOT EXISTS idx_contract_approval_status ON biz_contract(tenant_id, approval_status, contract_status);

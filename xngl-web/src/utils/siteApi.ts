@@ -8,6 +8,12 @@ export interface SiteRecord {
   projectId?: number | null;
   status?: number | string | null;
   orgId?: number | null;
+  siteType?: string | null;
+  capacity?: number | null;
+  settlementMode?: string | null;
+  disposalUnitPrice?: number | null;
+  disposalFeeRate?: number | null;
+  serviceFeeUnitPrice?: number | null;
   createTime?: string | null;
   updateTime?: string | null;
 }
@@ -53,4 +59,3 @@ export async function fetchSiteDisposals(params: SiteDisposalParams = {}) {
   const res = await http.get<PageResult<DisposalRecord>>('/sites/disposals', { params });
   return res.data;
 }
-

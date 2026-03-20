@@ -178,6 +178,9 @@ public class SitesController {
     dto.setCode(s.getCode());
     dto.setAddress(s.getAddress());
     dto.setStatus(s.getStatus());
+    dto.setSiteType(s.getSiteType());
+    dto.setCapacity(s.getCapacity());
+    dto.setSettlementMode(s.getSettlementMode());
     return dto;
   }
 
@@ -190,6 +193,12 @@ public class SitesController {
     dto.setProjectId(s.getProjectId());
     dto.setStatus(s.getStatus());
     dto.setOrgId(s.getOrgId());
+    dto.setSiteType(s.getSiteType());
+    dto.setCapacity(s.getCapacity());
+    dto.setSettlementMode(s.getSettlementMode());
+    dto.setDisposalUnitPrice(s.getDisposalUnitPrice());
+    dto.setDisposalFeeRate(s.getDisposalFeeRate());
+    dto.setServiceFeeUnitPrice(s.getServiceFeeUnitPrice());
     dto.setCreateTime(s.getCreateTime() != null ? s.getCreateTime().format(ISO) : null);
     dto.setUpdateTime(s.getUpdateTime() != null ? s.getUpdateTime().format(ISO) : null);
     return dto;

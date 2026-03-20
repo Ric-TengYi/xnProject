@@ -1,0 +1,110 @@
+{
+  "meta": {
+    "generatedAt": "2026-03-20T09:36:35",
+    "frontend": "http://127.0.0.1:5173",
+    "backend": "http://127.0.0.1:8090/api"
+  },
+  "summary": {
+    "total": 16,
+    "passed": 16,
+    "failed": 0
+  },
+  "results": [
+    {
+      "kind": "ui",
+      "name": "/",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "kind": "ui",
+      "name": "/projects",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "kind": "ui",
+      "name": "/sites",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "kind": "ui",
+      "name": "/contracts/settlements",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "kind": "api",
+      "name": "health",
+      "passed": true,
+      "detail": "{\"code\": 200, \"message\": \"OK\", \"data\": {\"status\": \"UP\", \"service\": \"xngl-service\"}}"
+    },
+    {
+      "kind": "api",
+      "name": "login",
+      "passed": true,
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "kind": "api",
+      "name": "projects.list",
+      "passed": true,
+      "detail": "records=1"
+    },
+    {
+      "kind": "api",
+      "name": "sites.list",
+      "passed": true,
+      "detail": "records=1"
+    },
+    {
+      "kind": "api",
+      "name": "reports.projects.daily",
+      "passed": true,
+      "detail": "records=1"
+    },
+    {
+      "kind": "api",
+      "name": "reports.projects.ranking",
+      "passed": true,
+      "detail": "records=1"
+    },
+    {
+      "kind": "api",
+      "name": "reports.sites.ranking",
+      "passed": true,
+      "detail": "records=1"
+    },
+    {
+      "kind": "api",
+      "name": "settlements.stats",
+      "passed": true,
+      "detail": "{\"pendingAmount\": 0, \"settledAmount\": 0.0, \"totalOrders\": 4, \"draftOrders\": 0, \"pendingOrders\": 0, \"settledOrders\": 2}"
+    },
+    {
+      "kind": "api",
+      "name": "settlements.list",
+      "passed": true,
+      "detail": "records=4"
+    },
+    {
+      "kind": "api",
+      "name": "settlements.detail",
+      "passed": true,
+      "detail": "id=18, status=SETTLED"
+    },
+    {
+      "kind": "api",
+      "name": "settlements.site.rejectFlow",
+      "passed": true,
+      "detail": "approvalStatus=REJECTED, settlementStatus=REJECTED"
+    },
+    {
+      "kind": "api",
+      "name": "settlements.project.approveFlow",
+      "passed": true,
+      "detail": "approvalStatus=APPROVED, settlementStatus=SETTLED"
+    }
+  ]
+}

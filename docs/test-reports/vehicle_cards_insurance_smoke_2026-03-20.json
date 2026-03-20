@@ -1,0 +1,106 @@
+{
+  "generatedAt": "2026-03-20 14:04:41",
+  "baseApi": "http://127.0.0.1:8090/api",
+  "baseWeb": "http://127.0.0.1:5173",
+  "note": "Playwright 浏览器缺失时自动退化为 HTTP 页面可达性检查",
+  "passed": 16,
+  "failed": 0,
+  "results": [
+    {
+      "category": "api",
+      "name": "API login",
+      "passed": true,
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "category": "api",
+      "name": "vehicle-cards summary",
+      "passed": true,
+      "detail": "{\"totalCards\": 4, \"fuelCards\": 2, \"electricCards\": 2, \"boundCards\": 3, \"lowBalanceCards\": 1, \"totalBalance\": 8750.5, \"fuelBalance\": 5200.5, \"electricBalance\": 3550.0}"
+    },
+    {
+      "category": "api",
+      "name": "vehicle-cards list",
+      "passed": true,
+      "detail": "total=4"
+    },
+    {
+      "category": "api",
+      "name": "vehicle-insurances summary",
+      "passed": true,
+      "detail": "{\"totalPolicies\": 3, \"activePolicies\": 1, \"expiringPolicies\": 1, \"expiredPolicies\": 1, \"totalCoverageAmount\": 6720000.0, \"totalPremiumAmount\": 31000.0, \"totalClaimAmount\": 23200.0}"
+    },
+    {
+      "category": "api",
+      "name": "vehicle-insurances list",
+      "passed": true,
+      "detail": "total=3"
+    },
+    {
+      "category": "api",
+      "name": "vehicles list for bind",
+      "passed": true,
+      "detail": "total=8"
+    },
+    {
+      "category": "api",
+      "name": "vehicle-cards bind",
+      "passed": true,
+      "detail": "card=CARD-FUEL-0003 -> vehicle=浙A97610"
+    },
+    {
+      "category": "api",
+      "name": "vehicle-cards unbind restore",
+      "passed": true,
+      "detail": "card=CARD-FUEL-0003 已恢复未绑定"
+    },
+    {
+      "category": "api",
+      "name": "vehicle-cards recharge",
+      "passed": true,
+      "detail": "card=CARD-ELEC-0002 amount=50"
+    },
+    {
+      "category": "api",
+      "name": "vehicle-cards recharge restore",
+      "passed": true,
+      "detail": "card=CARD-ELEC-0002 已恢复原始余额"
+    },
+    {
+      "category": "api",
+      "name": "vehicle-insurances update",
+      "passed": true,
+      "detail": "policy=POL-2025-0003 remark updated"
+    },
+    {
+      "category": "api",
+      "name": "vehicle-insurances restore",
+      "passed": true,
+      "detail": "policy=POL-2025-0003 已恢复原始备注"
+    },
+    {
+      "category": "ui",
+      "name": "ui browser fallback",
+      "passed": true,
+      "detail": "Playwright 浏览器不可用，改用 HTTP 路由检查: BrowserType.launch: Executable doesn't exist at /Users/tengyi/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-x64/chrome-headless-shell\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     playwright install                                     ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+    },
+    {
+      "category": "ui",
+      "name": "route /login",
+      "passed": true,
+      "detail": "前端路由可访问并返回应用壳 HTML"
+    },
+    {
+      "category": "ui",
+      "name": "route /vehicles/cards",
+      "passed": true,
+      "detail": "前端路由可访问并返回应用壳 HTML"
+    },
+    {
+      "category": "ui",
+      "name": "route /vehicles/insurances",
+      "passed": true,
+      "detail": "前端路由可访问并返回应用壳 HTML"
+    }
+  ]
+}

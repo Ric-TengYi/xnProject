@@ -3,28 +3,27 @@
 -- ============================================================
 
 -- 1. biz_contract 补字段
-ALTER TABLE biz_contract
-  ADD COLUMN IF NOT EXISTS contract_no VARCHAR(64) NULL COMMENT '合同编号',
-  ADD COLUMN IF NOT EXISTS contract_type VARCHAR(32) NULL COMMENT '合同类型: DISPOSAL/VEHICLE_LEASE/LABOR/OTHER',
-  ADD COLUMN IF NOT EXISTS site_id BIGINT NULL COMMENT '约定场地ID',
-  ADD COLUMN IF NOT EXISTS construction_org_id BIGINT NULL COMMENT '建设单位ID',
-  ADD COLUMN IF NOT EXISTS transport_org_id BIGINT NULL COMMENT '运输单位ID',
-  ADD COLUMN IF NOT EXISTS site_operator_org_id BIGINT NULL COMMENT '场地运营单位ID',
-  ADD COLUMN IF NOT EXISTS sign_date DATE NULL COMMENT '签订日期',
-  ADD COLUMN IF NOT EXISTS effective_date DATE NULL COMMENT '生效日期',
-  ADD COLUMN IF NOT EXISTS expire_date DATE NULL COMMENT '到期日期',
-  ADD COLUMN IF NOT EXISTS agreed_volume DECIMAL(18,2) NULL DEFAULT 0 COMMENT '约定方量',
-  ADD COLUMN IF NOT EXISTS unit_price DECIMAL(18,2) NULL COMMENT '单价',
-  ADD COLUMN IF NOT EXISTS contract_amount DECIMAL(18,2) NULL DEFAULT 0 COMMENT '合同总金额',
-  ADD COLUMN IF NOT EXISTS settled_amount DECIMAL(18,2) NOT NULL DEFAULT 0 COMMENT '累计已结算金额',
-  ADD COLUMN IF NOT EXISTS change_version INT NOT NULL DEFAULT 0 COMMENT '变更版本号',
-  ADD COLUMN IF NOT EXISTS remark VARCHAR(500) NULL COMMENT '备注',
-  ADD COLUMN IF NOT EXISTS is_three_party TINYINT NOT NULL DEFAULT 0 COMMENT '是否三方合同',
-  ADD COLUMN IF NOT EXISTS unit_price_inside DECIMAL(18,2) NULL COMMENT '区内单价',
-  ADD COLUMN IF NOT EXISTS unit_price_outside DECIMAL(18,2) NULL COMMENT '区外单价',
-  ADD COLUMN IF NOT EXISTS source_type VARCHAR(32) NOT NULL DEFAULT 'ONLINE' COMMENT '来源: ONLINE/OFFLINE/IMPORT',
-  ADD COLUMN IF NOT EXISTS applicant_id BIGINT NULL COMMENT '申请人ID',
-  ADD COLUMN IF NOT EXISTS reject_reason VARCHAR(500) NULL COMMENT '退回原因';
+ALTER TABLE biz_contract ADD COLUMN contract_no VARCHAR(64) NULL COMMENT '合同编号';
+ALTER TABLE biz_contract ADD COLUMN contract_type VARCHAR(32) NULL COMMENT '合同类型: DISPOSAL/VEHICLE_LEASE/LABOR/OTHER';
+ALTER TABLE biz_contract ADD COLUMN site_id BIGINT NULL COMMENT '约定场地ID';
+ALTER TABLE biz_contract ADD COLUMN construction_org_id BIGINT NULL COMMENT '建设单位ID';
+ALTER TABLE biz_contract ADD COLUMN transport_org_id BIGINT NULL COMMENT '运输单位ID';
+ALTER TABLE biz_contract ADD COLUMN site_operator_org_id BIGINT NULL COMMENT '场地运营单位ID';
+ALTER TABLE biz_contract ADD COLUMN sign_date DATE NULL COMMENT '签订日期';
+ALTER TABLE biz_contract ADD COLUMN effective_date DATE NULL COMMENT '生效日期';
+ALTER TABLE biz_contract ADD COLUMN expire_date DATE NULL COMMENT '到期日期';
+ALTER TABLE biz_contract ADD COLUMN agreed_volume DECIMAL(18,2) NULL DEFAULT 0 COMMENT '约定方量';
+ALTER TABLE biz_contract ADD COLUMN unit_price DECIMAL(18,2) NULL COMMENT '单价';
+ALTER TABLE biz_contract ADD COLUMN contract_amount DECIMAL(18,2) NULL DEFAULT 0 COMMENT '合同总金额';
+ALTER TABLE biz_contract ADD COLUMN settled_amount DECIMAL(18,2) NOT NULL DEFAULT 0 COMMENT '累计已结算金额';
+ALTER TABLE biz_contract ADD COLUMN change_version INT NOT NULL DEFAULT 0 COMMENT '变更版本号';
+ALTER TABLE biz_contract ADD COLUMN remark VARCHAR(500) NULL COMMENT '备注';
+ALTER TABLE biz_contract ADD COLUMN is_three_party TINYINT NOT NULL DEFAULT 0 COMMENT '是否三方合同';
+ALTER TABLE biz_contract ADD COLUMN unit_price_inside DECIMAL(18,2) NULL COMMENT '区内单价';
+ALTER TABLE biz_contract ADD COLUMN unit_price_outside DECIMAL(18,2) NULL COMMENT '区外单价';
+ALTER TABLE biz_contract ADD COLUMN source_type VARCHAR(32) NOT NULL DEFAULT 'ONLINE' COMMENT '来源: ONLINE/OFFLINE/IMPORT';
+ALTER TABLE biz_contract ADD COLUMN applicant_id BIGINT NULL COMMENT '申请人ID';
+ALTER TABLE biz_contract ADD COLUMN reject_reason VARCHAR(500) NULL COMMENT '退回原因';
 
 CREATE UNIQUE INDEX IF NOT EXISTS uk_contract_no ON biz_contract(tenant_id, contract_no);
 CREATE INDEX IF NOT EXISTS idx_contract_project_status ON biz_contract(tenant_id, project_id, contract_status);

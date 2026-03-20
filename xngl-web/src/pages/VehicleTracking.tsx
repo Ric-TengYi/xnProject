@@ -1,126 +1,333 @@
-import React, { useState } from 'react';
-import { Card, Input, Button, Tag, Select, List, Badge, Space, Slider } from 'antd';
-import { SearchOutlined, EnvironmentOutlined, PlayCircleOutlined, PauseCircleOutlined, FastForwardOutlined } from '@ant-design/icons';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Badge, Button, Card, Empty, Input, List, Select, Slider, Space, Spin, Tag, message } from 'antd';
+import {
+  SearchOutlined,
+  EnvironmentOutlined,
+  PlayCircleOutlined,
+  PauseCircleOutlined,
+  FastForwardOutlined,
+} from '@ant-design/icons';
 import { motion } from 'framer-motion';
+import TiandituMap from '../components/TiandituMap';
+import type { MapMarker, MapPoint, MapPolyline } from '../components/TiandituMap';
+import { fetchVehicleDetail, fetchVehicles } from '../utils/vehicleApi';
+import type { VehicleDetailRecord } from '../utils/vehicleApi';
 
 const { Option } = Select;
 
+type TrackingVehicle = {
+  id: string;
+  company: string;
+  status: string;
+  statusCode: 'moving' | 'stopped' | 'offline';
+  speed: string;
+  location: string;
+  position: MapPoint;
+  path: MapPoint[];
+};
+
+const defaultCenter: MapPoint = [120.1551, 30.2741];
+
+const interpolatePosition = (path: MapPoint[], progress: number): MapPoint => {
+  if (path.length <= 1) {
+    return path[0] || defaultCenter;
+  }
+  const normalized = Math.min(Math.max(progress, 0), 100) / 100;
+  const scaled = normalized * (path.length - 1);
+  const index = Math.min(Math.floor(scaled), path.length - 2);
+  const ratio = scaled - index;
+  const start = path[index];
+  const end = path[index + 1];
+  return [start[0] + (end[0] - start[0]) * ratio, start[1] + (end[1] - start[1]) * ratio];
+};
+
+const fallbackPoint = (index: number): MapPoint => [120.12 + index * 0.022, 30.21 + index * 0.018];
+
+const buildPath = (position: MapPoint, index: number): MapPoint[] => {
+  const offset = 0.012 + (index % 4) * 0.004;
+  return [
+    [position[0] - offset, position[1] - offset * 0.7],
+    [position[0] - offset * 0.45, position[1] - offset * 0.2],
+    position,
+    [position[0] + offset * 0.35, position[1] + offset * 0.55],
+    [position[0] + offset * 0.7, position[1] + offset * 0.95],
+  ];
+};
+
+const resolveTrackingVehicle = (record: VehicleDetailRecord, index: number): TrackingVehicle => {
+  const position: MapPoint = record.lng != null && record.lat != null ? [record.lng, record.lat] : fallbackPoint(index);
+  const runningStatus = (record.runningStatus || '').toUpperCase();
+  const statusCode: 'moving' | 'stopped' | 'offline' =
+    runningStatus === 'MOVING' ? 'moving' : record.status === 3 ? 'offline' : 'stopped';
+  const status = statusCode === 'moving' ? '行驶中' : statusCode === 'stopped' ? '静止' : '离线';
+  const location = record.remark || record.orgName || record.fleetName || '平台车辆在线定位';
+  return {
+    id: record.plateNo,
+    company: record.orgName || '未归属单位',
+    status,
+    statusCode,
+    speed: record.currentSpeed != null ? String(record.currentSpeed) + ' km/h' : '--',
+    location,
+    position,
+    path: buildPath(position, index),
+  };
+};
+
 const VehicleTracking: React.FC = () => {
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [progress, setProgress] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [fleetFilter, setFleetFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [keyword, setKeyword] = useState('');
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(45);
+  const [vehicles, setVehicles] = useState<TrackingVehicle[]>([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState('');
 
-    const vehicleList = [
-        { id: '川A88921', company: '宏基渣土运输公司', status: '行驶中', speed: '45 km/h', location: '科技路与创新大道交汇处' },
-        { id: '川A6258W', company: '顺达土方工程队', status: '静止', speed: '0 km/h', location: '城东一号消纳场内' },
-        { id: '川A1192N', company: '捷安运输', status: '行驶中', speed: '52 km/h', location: '环城南路 88 段' },
-        { id: '川B44521', company: '新思路运输', status: '离线', speed: '--', location: '最后位置: 高新产业园C区' },
-    ];
+  useEffect(() => {
+    if (!isPlaying) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setProgress((value) => {
+        if (value >= 100) {
+          window.clearInterval(timer);
+          setIsPlaying(false);
+          return 100;
+        }
+        return Math.min(value + 2, 100);
+      });
+    }, 800);
+    return () => window.clearInterval(timer);
+  }, [isPlaying]);
 
-    return (
-        <div className="flex h-[calc(100vh-110px)] gap-6">
-            {/* 左侧车辆列表面板 */}
-            <motion.div 
-                initial={{ opacity: 0, x: -20 }} 
-                animate={{ opacity: 1, x: 0 }} 
-                className="w-80 flex flex-col gap-4"
-            >
-                <Card className="glass-panel g-border-panel border" bodyStyle={{ padding: '16px' }}>
-                    <h2 className="text-lg font-bold g-text-primary mb-4">车辆追踪</h2>
-                    <div className="space-y-3">
-                        <Select defaultValue="all" className="w-full" popupClassName="bg-white">
-                            <Option value="all">全部车队</Option>
-                            <Option value="hongji">宏基渣土运输公司</Option>
-                            <Option value="shunda">顺达土方工程队</Option>
-                        </Select>
-                        <Select defaultValue="all" className="w-full" popupClassName="bg-white">
-                            <Option value="all">全部状态</Option>
-                            <Option value="moving">行驶中</Option>
-                            <Option value="stopped">静止</Option>
-                            <Option value="offline">离线</Option>
-                        </Select>
-                        <Input placeholder="搜索车牌号..." prefix={<SearchOutlined className="g-text-secondary" />} className="bg-white g-border-panel border g-text-primary" />
+  useEffect(() => {
+    const loadVehicles = async () => {
+      setLoading(true);
+      try {
+        const page = await fetchVehicles({ pageNo: 1, pageSize: 50 });
+        const detailRecords = await Promise.all(
+          (page.records || []).map(async (record) => fetchVehicleDetail(record.id))
+        );
+        const mapped = detailRecords.map((record, index) => resolveTrackingVehicle(record, index));
+        setVehicles(mapped);
+        setSelectedVehicleId((current) => current || (mapped[0] ? mapped[0].id : ''));
+      } catch (error) {
+        console.error(error);
+        message.error('获取车辆追踪数据失败');
+        setVehicles([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadVehicles();
+  }, []);
+
+  const fleetOptions = useMemo(() => {
+    return Array.from(new Set(vehicles.map((vehicle) => vehicle.company))).filter(Boolean);
+  }, [vehicles]);
+
+  const filteredVehicles = useMemo(() => {
+    const search = keyword.trim();
+    return vehicles.filter((vehicle) => {
+      if (fleetFilter !== 'all' && vehicle.company !== fleetFilter) {
+        return false;
+      }
+      if (statusFilter !== 'all' && vehicle.statusCode !== statusFilter) {
+        return false;
+      }
+      if (search && !vehicle.id.includes(search) && !vehicle.company.includes(search) && !vehicle.location.includes(search)) {
+        return false;
+      }
+      return true;
+    });
+  }, [fleetFilter, keyword, statusFilter, vehicles]);
+
+  useEffect(() => {
+    if (!filteredVehicles.some((vehicle) => vehicle.id === selectedVehicleId)) {
+      setSelectedVehicleId(filteredVehicles[0] ? filteredVehicles[0].id : '');
+      setProgress(0);
+    }
+  }, [filteredVehicles, selectedVehicleId]);
+
+  const selectedVehicle = useMemo(() => {
+    return filteredVehicles.find((vehicle) => vehicle.id === selectedVehicleId)
+      || vehicles.find((vehicle) => vehicle.id === selectedVehicleId)
+      || filteredVehicles[0]
+      || vehicles[0]
+      || null;
+  }, [filteredVehicles, selectedVehicleId, vehicles]);
+
+  const activePosition = useMemo(() => {
+    return selectedVehicle ? interpolatePosition(selectedVehicle.path, progress) : defaultCenter;
+  }, [progress, selectedVehicle]);
+
+  const markers = useMemo<MapMarker[]>(() => {
+    return filteredVehicles.map((vehicle) => ({
+      id: vehicle.id,
+      position: selectedVehicle && vehicle.id === selectedVehicle.id ? activePosition : vehicle.position,
+    }));
+  }, [activePosition, filteredVehicles, selectedVehicle]);
+
+  const polylines = useMemo<MapPolyline[]>(() => {
+    if (!selectedVehicle) {
+      return [];
+    }
+    return [{ id: selectedVehicle.id + '-route', path: selectedVehicle.path, color: '#1677ff', weight: 5 }];
+  }, [selectedVehicle]);
+
+  return (
+    <div className="flex h-[calc(100vh-110px)] gap-6">
+      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="w-80 flex flex-col gap-4">
+        <Card className="glass-panel g-border-panel border" bodyStyle={{ padding: '16px' }}>
+          <h2 className="text-lg font-bold g-text-primary mb-4">车辆追踪</h2>
+          <div className="space-y-3">
+            <Select value={fleetFilter} className="w-full" popupClassName="bg-white" onChange={setFleetFilter}>
+              <Option value="all">全部车队</Option>
+              {fleetOptions.map((company) => (
+                <Option key={company} value={company}>{company}</Option>
+              ))}
+            </Select>
+            <Select value={statusFilter} className="w-full" popupClassName="bg-white" onChange={setStatusFilter}>
+              <Option value="all">全部状态</Option>
+              <Option value="moving">行驶中</Option>
+              <Option value="stopped">静止</Option>
+              <Option value="offline">离线</Option>
+            </Select>
+            <Input
+              placeholder="搜索车牌号..."
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+              prefix={<SearchOutlined className="g-text-secondary" />}
+              className="bg-white g-border-panel border g-text-primary"
+            />
+          </div>
+        </Card>
+
+        <Card className="glass-panel g-border-panel border flex-1 overflow-auto" bodyStyle={{ padding: 0 }}>
+          <Spin spinning={loading}>
+            {filteredVehicles.length === 0 ? (
+              <div className="py-16"><Empty description="暂无可追踪车辆" /></div>
+            ) : (
+              <List
+                dataSource={filteredVehicles}
+                renderItem={(item) => (
+                  <List.Item
+                    className={[
+                      'px-4 py-3 hover:bg-white cursor-pointer border-b g-border-panel border transition-colors',
+                      item.id === (selectedVehicle && selectedVehicle.id) ? 'bg-white/80' : '',
+                    ].join(' ')}
+                    onClick={() => {
+                      setSelectedVehicleId(item.id);
+                      setProgress(0);
+                    }}
+                  >
+                    <div className="w-full">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="g-text-primary font-bold">{item.id}</span>
+                        <Badge
+                          status={item.statusCode === 'moving' ? 'success' : item.statusCode === 'stopped' ? 'warning' : 'default'}
+                          text={<span className="g-text-secondary text-xs">{item.status}</span>}
+                        />
+                      </div>
+                      <div className="text-xs g-text-secondary mb-2">{item.company}</div>
+                      <div className="flex justify-between text-xs g-text-secondary gap-2">
+                        <span className="truncate w-40" title={item.location}><EnvironmentOutlined /> {item.location}</span>
+                        <span className="g-text-primary-link whitespace-nowrap">{item.speed}</span>
+                      </div>
                     </div>
-                </Card>
+                  </List.Item>
+                )}
+              />
+            )}
+          </Spin>
+        </Card>
+      </motion.div>
 
-                <Card className="glass-panel g-border-panel border flex-1 overflow-auto" bodyStyle={{ padding: 0 }}>
-                    <List
-                        dataSource={vehicleList}
-                        renderItem={item => (
-                            <List.Item className="px-4 py-3 hover:bg-white cursor-pointer border-b g-border-panel border transition-colors">
-                                <div className="w-full">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="g-text-primary font-bold">{item.id}</span>
-                                        <Badge status={item.status === '行驶中' ? 'success' : item.status === '静止' ? 'warning' : 'default'} text={<span className="g-text-secondary text-xs">{item.status}</span>} />
-                                    </div>
-                                    <div className="text-xs g-text-secondary mb-2">{item.company}</div>
-                                    <div className="flex justify-between text-xs g-text-secondary">
-                                        <span className="truncate w-32" title={item.location}><EnvironmentOutlined /> {item.location}</span>
-                                        <span className="g-text-primary-link">{item.speed}</span>
-                                    </div>
-                                </div>
-                            </List.Item>
-                        )}
-                    />
-                </Card>
-            </motion.div>
+      <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 flex flex-col gap-4 relative">
+        <div className="flex-1 glass-panel g-border-panel border rounded-lg overflow-hidden relative">
+          <TiandituMap
+            className="absolute inset-0"
+            center={activePosition}
+            zoom={12}
+            markers={markers}
+            polylines={polylines}
+            loadingText="天地图车辆追踪加载中..."
+          />
 
-            {/* 右侧地图与回放面板 */}
-            <motion.div 
-                initial={{ opacity: 0, scale: 0.98 }} 
-                animate={{ opacity: 1, scale: 1 }} 
-                className="flex-1 flex flex-col gap-4 relative"
-            >
-                {/* 模拟地图区域 */}
-                <div className="flex-1 glass-panel g-border-panel border rounded-lg overflow-hidden relative g-bg-toolbar flex items-center justify-center">
-                    {/* 模拟地图底图纹理 */}
-                    <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#1890ff 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-                    
-                    {/* 模拟车辆位置点 */}
-                    <div className="absolute top-1/3 left-1/4 flex flex-col items-center">
-                        <div className="bg-green-500 w-4 h-4 rounded-full border-2 border-white shadow-[0_0_10px_rgba(16,185,129,0.8)] animate-pulse"></div>
-                        <Tag color="green" className="mt-1 border-none g-bg-toolbar backdrop-blur-sm">川A88921</Tag>
-                    </div>
-                    
-                    <div className="absolute top-1/2 left-1/2 flex flex-col items-center">
-                        <div className="bg-orange-500 w-4 h-4 rounded-full border-2 border-white shadow-[0_0_10px_rgba(245,158,11,0.8)]"></div>
-                        <Tag color="orange" className="mt-1 border-none g-bg-toolbar backdrop-blur-sm">川A6258W</Tag>
-                    </div>
-
-                    <div className="z-10 g-text-secondary font-light text-xl tracking-widest">地图组件加载区 (高德/百度暗色主题)</div>
+          {selectedVehicle && (
+            <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-md p-4 rounded-lg border g-border-panel border shadow-xl min-w-72">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                  <div className="text-lg font-semibold g-text-primary">{selectedVehicle.id}</div>
+                  <div className="text-xs g-text-secondary mt-1">{selectedVehicle.company}</div>
                 </div>
+                <Tag color={selectedVehicle.statusCode === 'moving' ? 'green' : selectedVehicle.statusCode === 'stopped' ? 'orange' : 'default'}>
+                  {selectedVehicle.status}
+                </Tag>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-slate-50 rounded-lg px-3 py-2">
+                  <div className="text-xs g-text-secondary mb-1">当前速度</div>
+                  <div className="font-semibold g-text-primary-link">{selectedVehicle.speed}</div>
+                </div>
+                <div className="bg-slate-50 rounded-lg px-3 py-2">
+                  <div className="text-xs g-text-secondary mb-1">轨迹进度</div>
+                  <div className="font-semibold g-text-primary">{progress}%</div>
+                </div>
+              </div>
+              <div className="text-xs g-text-secondary mt-3 leading-6"><EnvironmentOutlined /> {selectedVehicle.location}</div>
+            </div>
+          )}
 
-                {/* 轨迹回放控制条 */}
-                <Card className="glass-panel g-border-panel border" bodyStyle={{ padding: '16px 24px' }}>
-                    <div className="flex items-center gap-6">
-                        <Space size="large">
-                            <Button 
-                                type="primary" 
-                                shape="circle" 
-                                icon={isPlaying ? <PauseCircleOutlined /> : <PlayCircleOutlined />} 
-                                size="large"
-                                onClick={() => setIsPlaying(!isPlaying)}
-                                className="g-btn-primary border-none"
-                            />
-                            <Button shape="circle" icon={<FastForwardOutlined />} className="bg-white g-text-secondary border-slate-600 hover:g-text-primary" />
-                        </Space>
-                        <div className="flex-1 flex items-center gap-4">
-                            <span className="g-text-secondary text-sm">08:00</span>
-                            <Slider 
-                                className="flex-1" 
-                                value={progress} 
-                                onChange={setProgress} 
-                                tooltip={{ formatter: (val) => `14:${Math.floor((val || 0) * 0.6).toString().padStart(2, '0')}` }}
-                            />
-                            <span className="g-text-secondary text-sm">18:00</span>
-                        </div>
-                        <div className="g-text-secondary text-sm">
-                            当前时间: <span className="g-text-primary-link font-mono">14:30:00</span>
-                        </div>
-                    </div>
-                </Card>
-            </motion.div>
+          <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md p-4 rounded-lg border g-border-panel border shadow-xl">
+            <div className="text-sm font-semibold g-text-primary mb-2">地图能力</div>
+            <div className="space-y-2 text-xs g-text-secondary">
+              <div>真实车辆列表接入</div>
+              <div>天地图位置分布</div>
+              <div>单车轨迹回放</div>
+            </div>
+          </div>
         </div>
-    );
+
+        <Card className="glass-panel g-border-panel border" bodyStyle={{ padding: '16px 24px' }}>
+          <div className="flex items-center gap-6">
+            <Space size="large">
+              <Button
+                type="primary"
+                shape="circle"
+                icon={isPlaying ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+                size="large"
+                disabled={!selectedVehicle}
+                onClick={() => setIsPlaying(!isPlaying)}
+                className="g-btn-primary border-none"
+              />
+              <Button
+                shape="circle"
+                icon={<FastForwardOutlined />}
+                disabled={!selectedVehicle}
+                className="bg-white g-text-secondary border-slate-600 hover:g-text-primary"
+                onClick={() => setProgress((value) => Math.min(value + 10, 100))}
+              />
+            </Space>
+            <div className="flex-1 flex items-center gap-4">
+              <span className="g-text-secondary text-sm">08:00</span>
+              <Slider
+                className="flex-1"
+                value={progress}
+                onChange={setProgress}
+                tooltip={{ formatter: (value) => '14:' + Math.floor((value || 0) * 0.6).toString().padStart(2, '0') }}
+              />
+              <span className="g-text-secondary text-sm">18:00</span>
+            </div>
+            <div className="g-text-secondary text-sm">
+              当前时间: <span className="g-text-primary-link font-mono">14:30:00</span>
+            </div>
+          </div>
+        </Card>
+      </motion.div>
+    </div>
+  );
 };
 
 export default VehicleTracking;

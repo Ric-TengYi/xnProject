@@ -1,0 +1,52 @@
+{
+  "generatedAt": "2026-03-20 18:49:22",
+  "passed": 9,
+  "failed": 0,
+  "results": [
+    {
+      "name": "环境 / backend端口可访问",
+      "ok": true,
+      "detail": "tcp=8090"
+    },
+    {
+      "name": "前端 / /",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "前端 / /alerts/events",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "前端 / /alerts/security",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "认证 / API登录",
+      "ok": true,
+      "detail": "user=admin"
+    },
+    {
+      "name": "事件管理 / 汇总接口",
+      "ok": true,
+      "detail": "total=12, pending=1, buckets=3"
+    },
+    {
+      "name": "事件管理 / 扩展字段 + 流转闭环",
+      "ok": true,
+      "detail": "id=13, status=CLOSED, audits=5"
+    },
+    {
+      "name": "安全台账 / 汇总增强接口",
+      "ok": true,
+      "detail": "month=18, dangerBuckets=3"
+    },
+    {
+      "name": "安全台账 / 扩展字段 + 整改流转",
+      "ok": true,
+      "detail": "id=19, status=RECTIFYING, danger=HIGH"
+    }
+  ]
+}

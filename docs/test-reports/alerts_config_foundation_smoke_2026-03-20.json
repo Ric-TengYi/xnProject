@@ -1,0 +1,87 @@
+{
+  "generatedAt": "2026-03-20T15:15:48.610835",
+  "frontend": "http://127.0.0.1:5173",
+  "backend": "http://127.0.0.1:8090/api",
+  "passed": 13,
+  "failed": 0,
+  "results": [
+    {
+      "module": "环境",
+      "test_case": "backend可访问",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "module": "环境",
+      "test_case": "frontend可访问",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "module": "认证",
+      "test_case": "API登录",
+      "passed": true,
+      "detail": "user=admin"
+    },
+    {
+      "module": "环境",
+      "test_case": "基础主数据读取",
+      "passed": true,
+      "detail": "project=项目-001, site=场地-001, vehicle=浙A97610"
+    },
+    {
+      "module": "处置证",
+      "test_case": "新增/详情/更新",
+      "passed": true,
+      "detail": "id=2034891642682609666"
+    },
+    {
+      "module": "审批配置",
+      "test_case": "新增/详情/更新/状态/删除",
+      "passed": true,
+      "detail": "id=5"
+    },
+    {
+      "module": "数据字典",
+      "test_case": "新增/更新/状态/删除",
+      "passed": true,
+      "detail": "id=2034891643001376769"
+    },
+    {
+      "module": "系统参数",
+      "test_case": "新增/更新/状态/删除",
+      "passed": true,
+      "detail": "id=2034891643114622978"
+    },
+    {
+      "module": "预警配置",
+      "test_case": "规则/围栏/推送CRUD",
+      "passed": true,
+      "detail": "rule=7, fence=6, push=6"
+    },
+    {
+      "module": "预警中心",
+      "test_case": "汇总/列表/处置",
+      "passed": true,
+      "detail": "alerts=3, topRisk=1, fences=2"
+    },
+    {
+      "module": "事件管理",
+      "test_case": "新增/提交/审核/关闭",
+      "passed": true,
+      "detail": "id=6"
+    },
+    {
+      "module": "安全台账",
+      "test_case": "新增/整改/汇总",
+      "passed": true,
+      "detail": "id=12, total=12, open=8"
+    },
+    {
+      "module": "前端页面",
+      "test_case": "登录与核心路由冒烟",
+      "passed": true,
+      "detail": "routes=8"
+    }
+  ]
+}
