@@ -43,6 +43,37 @@ export interface ApprovalMaterialConfigPayload {
   remark?: string;
 }
 
+export interface ApprovalFlowConfigRecord {
+  id: string;
+  processKey: string;
+  configName: string;
+  approvalType?: string | null;
+  nodeCode: string;
+  nodeName: string;
+  approvers?: string | null;
+  conditions?: string | null;
+  formTemplateCode?: string | null;
+  timeoutHours?: number | null;
+  sortOrder?: number | null;
+  status?: string | null;
+  remark?: string | null;
+}
+
+export interface ApprovalFlowConfigPayload {
+  processKey: string;
+  configName: string;
+  approvalType?: string;
+  nodeCode: string;
+  nodeName: string;
+  approvers?: string;
+  conditions?: string;
+  formTemplateCode?: string;
+  timeoutHours?: number;
+  sortOrder?: number;
+  status?: string;
+  remark?: string;
+}
+
 const mapRecord = (item: any): ApprovalRuleRecord => ({
   id: String(item.id || ''),
   tenantId: item.tenantId || '1',
@@ -62,6 +93,22 @@ const mapMaterialRecord = (item: any): ApprovalMaterialConfigRecord => ({
   materialType: item.materialType || null,
   required: Boolean(item.required),
   sortOrder: Number(item.sortOrder || 0),
+  status: item.status || 'ENABLED',
+  remark: item.remark || null,
+});
+
+const mapFlowRecord = (item: any): ApprovalFlowConfigRecord => ({
+  id: String(item.id || ''),
+  processKey: item.processKey || '',
+  configName: item.configName || '',
+  approvalType: item.approvalType || null,
+  nodeCode: item.nodeCode || '',
+  nodeName: item.nodeName || '',
+  approvers: item.approvers || null,
+  conditions: item.conditions || null,
+  formTemplateCode: item.formTemplateCode || null,
+  timeoutHours: item.timeoutHours != null ? Number(item.timeoutHours) : null,
+  sortOrder: item.sortOrder != null ? Number(item.sortOrder) : 0,
   status: item.status || 'ENABLED',
   remark: item.remark || null,
 });
@@ -130,4 +177,32 @@ export async function updateApprovalMaterialConfigStatus(
 
 export async function deleteApprovalMaterialConfig(id: string) {
   await http.delete(`/approval-material-configs/${id}`);
+}
+
+export async function fetchApprovalFlowConfigs(params: Record<string, any> = {}) {
+  const res = await http.get<ApprovalFlowConfigRecord[]>('/approval-configs', { params });
+  return (Array.isArray(res.data) ? res.data : []).map(mapFlowRecord);
+}
+
+export async function fetchApprovalFlowConfigDetail(id: string) {
+  const res = await http.get<ApprovalFlowConfigRecord>(`/approval-configs/${id}`);
+  return mapFlowRecord(res.data || {});
+}
+
+export async function createApprovalFlowConfig(payload: ApprovalFlowConfigPayload) {
+  const res = await http.post<ApprovalFlowConfigRecord>('/approval-configs', payload);
+  return mapFlowRecord(res.data || {});
+}
+
+export async function updateApprovalFlowConfig(id: string, payload: ApprovalFlowConfigPayload) {
+  const res = await http.put<ApprovalFlowConfigRecord>(`/approval-configs/${id}`, payload);
+  return mapFlowRecord(res.data || {});
+}
+
+export async function updateApprovalFlowConfigStatus(id: string, status: string) {
+  await http.put(`/approval-configs/${id}/status`, { status });
+}
+
+export async function deleteApprovalFlowConfig(id: string) {
+  await http.delete(`/approval-configs/${id}`);
 }

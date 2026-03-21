@@ -93,6 +93,7 @@ export interface VehicleQueryParams {
   keyword?: string;
   status?: number;
   orgId?: string;
+  vehicleType?: string;
   useStatus?: string;
   pageNo?: number;
   pageSize?: number;
@@ -195,6 +196,10 @@ export async function createVehicle(payload: VehicleUpsertPayload) {
 export async function updateVehicle(id: string, payload: VehicleUpsertPayload) {
   const res = await http.put<VehicleDetailRecord>('/vehicles/' + id, payload);
   return fetchVehicleDetail(String(res.data.id || id));
+}
+
+export async function deleteVehicle(id: string) {
+  await http.delete('/vehicles/' + id);
 }
 
 export async function fetchVehicleStats() {

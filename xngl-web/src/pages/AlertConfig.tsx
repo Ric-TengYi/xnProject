@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Form, Input, Modal, Select, Switch, Table, Tabs, Tag, message } from 'antd';
+import { Button, Card, Form, Input, Modal, Select, Space, Switch, Table, Tabs, Tag, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined } from '@ant-design/icons';
 import {
@@ -181,6 +181,21 @@ const AlertConfig: React.FC = () => {
     { title: '操作', key: 'action', render: (_, record) => <Button type="link" onClick={() => openPushModal(record)}>编辑</Button> },
   ];
 
+  const modelCards = sceneOptions.map((scene) => {
+    const sceneRules = rules.filter((item) => item.ruleScene === scene.value);
+    const sceneRuleCodes = new Set(sceneRules.map((item) => item.ruleCode));
+    const linkedFenceCount = fences.filter((item) => item.ruleCode && sceneRuleCodes.has(item.ruleCode)).length;
+    const linkedPushCount = pushRules.filter((item) => sceneRuleCodes.has(item.ruleCode)).length;
+    return {
+      ...scene,
+      ruleCount: sceneRules.length,
+      enabledCount: sceneRules.filter((item) => item.status === 'ENABLED').length,
+      linkedFenceCount,
+      linkedPushCount,
+      ruleNames: sceneRules.slice(0, 4).map((item) => item.ruleName || item.ruleCode),
+    };
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -215,6 +230,68 @@ const AlertConfig: React.FC = () => {
               <Card className="glass-panel g-border-panel border" extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => openPushModal()}>新增推送规则</Button>}>
                 <Table rowKey="id" loading={loading} columns={pushColumns} dataSource={pushRules} pagination={false} />
               </Card>
+            ),
+          },
+          {
+            key: 'models',
+            label: '研判模型',
+            children: (
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                {modelCards.map((item) => (
+                  <Card
+                    key={item.value}
+                    className="glass-panel g-border-panel border"
+                    title={`${item.label}模型`}
+                    extra={
+                      <Button
+                        type="link"
+                        onClick={() => {
+                          setEditingKind('rule');
+                          setEditingRecord(null);
+                          ruleForm.setFieldsValue({
+                            ruleCode: `${item.value}_MODEL_${Date.now()}`,
+                            ruleName: `${item.label}研判规则`,
+                            ruleScene: item.value,
+                            metricCode: '',
+                            thresholdJson: '',
+                            level: 'L2',
+                            status: 'ENABLED',
+                            scopeType: 'GLOBAL',
+                            remark: '',
+                          });
+                        }}
+                      >
+                        新增规则
+                      </Button>
+                    }
+                  >
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="g-text-secondary">规则总数</div>
+                        <div className="text-xl font-semibold">{item.ruleCount}</div>
+                      </div>
+                      <div>
+                        <div className="g-text-secondary">启用规则</div>
+                        <div className="text-xl font-semibold">{item.enabledCount}</div>
+                      </div>
+                      <div>
+                        <div className="g-text-secondary">围栏挂接</div>
+                        <div className="text-xl font-semibold">{item.linkedFenceCount}</div>
+                      </div>
+                      <div>
+                        <div className="g-text-secondary">推送挂接</div>
+                        <div className="text-xl font-semibold">{item.linkedPushCount}</div>
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <div className="g-text-secondary mb-2">当前规则</div>
+                      <Space wrap>
+                        {item.ruleNames.length ? item.ruleNames.map((name) => <Tag key={name}>{name}</Tag>) : <span style={{ color: 'var(--text-secondary)' }}>暂无规则</span>}
+                      </Space>
+                    </div>
+                  </Card>
+                ))}
+              </div>
             ),
           },
         ]}

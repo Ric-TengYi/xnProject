@@ -18,6 +18,7 @@ import SitesDocuments from './pages/SitesDocuments';
 import SitesBasicInfo from './pages/SitesBasicInfo';
 import SitesReports from './pages/SitesReports';
 import VehiclesManagement from './pages/VehiclesManagement';
+import VehicleModelsManagement from './pages/VehicleModelsManagement';
 import FleetManagement from './pages/FleetManagement';
 import VehiclesCards from './pages/VehiclesCards';
 import VehicleInsurances from './pages/VehicleInsurances';
@@ -69,6 +70,7 @@ function App() {
           <Route path="sites/reports" element={<SitesReports />} />
 
           <Route path="vehicles" element={<VehiclesManagement />} />
+          <Route path="vehicles/models" element={<VehicleModelsManagement />} />
           <Route path="vehicles/fleet" element={<FleetManagement />} />
           <Route path="vehicles/cards" element={<VehiclesCards />} />
           <Route path="vehicles/insurances" element={<VehicleInsurances />} />

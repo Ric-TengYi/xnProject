@@ -67,6 +67,7 @@ const items: MenuItem[] = [
   ]),
   getItem('车辆与运力', 'vehicles', <CarOutlined />, [
     getItem(<Link to="/vehicles">车辆信息</Link>, '/vehicles'),
+    getItem(<Link to="/vehicles/models">车型管理</Link>, '/vehicles/models'),
     getItem(<Link to="/vehicles/fleet">车队管理</Link>, '/vehicles/fleet'),
     getItem(<Link to="/vehicles/cards">油电卡管理</Link>, '/vehicles/cards'),
     getItem(<Link to="/vehicles/insurances">保险管理</Link>, '/vehicles/insurances'),

@@ -39,6 +39,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -70,6 +71,7 @@ public class VehiclesController {
       @RequestParam(required = false) String keyword,
       @RequestParam(required = false) Integer status,
       @RequestParam(required = false) Long orgId,
+      @RequestParam(required = false) String vehicleType,
       @RequestParam(required = false) String useStatus,
       @RequestParam(defaultValue = "1") int pageNo,
       @RequestParam(defaultValue = "20") int pageSize,
@@ -82,6 +84,9 @@ public class VehiclesController {
     }
     if (orgId != null) {
       query.eq(Vehicle::getOrgId, orgId);
+    }
+    if (StringUtils.hasText(vehicleType)) {
+      query.eq(Vehicle::getVehicleType, vehicleType.trim());
     }
     if (StringUtils.hasText(useStatus)) {
       query.eq(Vehicle::getUseStatus, useStatus.trim().toUpperCase());
@@ -258,6 +263,17 @@ public class VehiclesController {
     vehicleMapper.updateById(vehicle);
     Org org = vehicle.getOrgId() != null ? orgMapper.selectById(vehicle.getOrgId()) : null;
     return ApiResult.ok(toDetail(vehicleMapper.selectById(vehicle.getId()), org));
+  }
+
+  @DeleteMapping("/{id}")
+  public ApiResult<Void> delete(@PathVariable Long id, HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    Vehicle vehicle = vehicleMapper.selectById(id);
+    if (vehicle == null || !Objects.equals(vehicle.getTenantId(), currentUser.getTenantId())) {
+      return ApiResult.fail(404, "车辆不存在");
+    }
+    vehicleMapper.deleteById(id);
+    return ApiResult.ok();
   }
 
   private List<Vehicle> listTenantVehicles(Long tenantId) {

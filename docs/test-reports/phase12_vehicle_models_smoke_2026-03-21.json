@@ -1,0 +1,58 @@
+{
+  "date": "2026-03-21",
+  "total": 10,
+  "passed": 10,
+  "failed": 0,
+  "results": [
+    {
+      "name": "API login",
+      "passed": true,
+      "detail": "userId=6"
+    },
+    {
+      "name": "Vehicle model seed list",
+      "passed": true,
+      "detail": "count=3 includes=HOWO-8X4"
+    },
+    {
+      "name": "Vehicle model create",
+      "passed": true,
+      "detail": "id=7 code=TEST-1774092415547"
+    },
+    {
+      "name": "Vehicle model detail",
+      "passed": true,
+      "detail": "brand=测试品牌"
+    },
+    {
+      "name": "Vehicle model update",
+      "passed": true,
+      "detail": "modelName=测试车型升级版"
+    },
+    {
+      "name": "Vehicle model status update api",
+      "passed": true,
+      "detail": "status=DISABLED"
+    },
+    {
+      "name": "Vehicle model status toggle",
+      "passed": true,
+      "detail": "id=7 disabled=true"
+    },
+    {
+      "name": "Vehicle model delete api",
+      "passed": true,
+      "detail": "id=7"
+    },
+    {
+      "name": "Vehicle model delete",
+      "passed": true,
+      "detail": "id=7 removed=true"
+    },
+    {
+      "name": "UI vehicle model page",
+      "passed": true,
+      "detail": "heading=车型管理 seedVisible=true"
+    }
+  ]
+}

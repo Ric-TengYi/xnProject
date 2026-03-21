@@ -14,8 +14,11 @@ export interface AlertRecord {
   siteName?: string | null;
   vehicleId?: string | null;
   vehicleNo?: string | null;
+  userId?: string | null;
+  userName?: string | null;
   contractId?: string | null;
   contractNo?: string | null;
+  targetName?: string | null;
   relatedId?: string | null;
   relatedType?: string | null;
   level?: string | null;
@@ -39,6 +42,8 @@ export interface AlertSummaryRecord {
   vehicleCount: number;
   siteCount: number;
   projectCount: number;
+  contractCount: number;
+  userCount: number;
   highRiskCount: number;
   avgHandleMinutes: number;
   overdueCount: number;
@@ -74,6 +79,14 @@ export interface AlertAnalyticsRecord {
   };
 }
 
+export interface AlertTopRiskRecord {
+  targetId: string;
+  targetType: string;
+  targetName: string;
+  extraName?: string | null;
+  count: number;
+}
+
 const mapRecord = (item: any): AlertRecord => ({
   id: String(item.id || ''),
   alertNo: item.alertNo || null,
@@ -88,8 +101,11 @@ const mapRecord = (item: any): AlertRecord => ({
   siteName: item.siteName || null,
   vehicleId: item.vehicleId != null ? String(item.vehicleId) : null,
   vehicleNo: item.vehicleNo || null,
+  userId: item.userId != null ? String(item.userId) : null,
+  userName: item.userName || null,
   contractId: item.contractId != null ? String(item.contractId) : null,
   contractNo: item.contractNo || null,
+  targetName: item.targetName || null,
   relatedId: item.relatedId != null ? String(item.relatedId) : null,
   relatedType: item.relatedType || null,
   level: item.level || null,
@@ -131,6 +147,8 @@ export async function fetchAlertSummary() {
     vehicleCount: Number(res.data.vehicleCount || 0),
     siteCount: Number(res.data.siteCount || 0),
     projectCount: Number(res.data.projectCount || 0),
+    contractCount: Number(res.data.contractCount || 0),
+    userCount: Number(res.data.userCount || 0),
     highRiskCount: Number(res.data.highRiskCount || 0),
     avgHandleMinutes: Number(res.data.avgHandleMinutes || 0),
     overdueCount: Number(res.data.overdueCount || 0),
@@ -167,9 +185,35 @@ export async function fetchTopRiskVehicles() {
   return Array.isArray(res.data) ? res.data : [];
 }
 
+export async function fetchTopRiskTargets(targetType: 'VEHICLE' | 'CONTRACT' | 'USER') {
+  const res = await http.get<any[]>('/alerts/top-risk-targets', { params: { targetType } });
+  return (Array.isArray(res.data) ? res.data : []).map(
+    (item): AlertTopRiskRecord => ({
+      targetId: String(item.targetId || ''),
+      targetType: item.targetType || targetType,
+      targetName: item.targetName || '-',
+      extraName: item.extraName || null,
+      count: Number(item.count || 0),
+    }),
+  );
+}
+
 export async function fetchFenceStatus() {
   const res = await http.get<any[]>('/alerts/fence-status');
   return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function generateAlerts(targetTypes?: string[]) {
+  const res = await http.post<any>('/alerts/generate', {
+    targetTypes: targetTypes?.length ? targetTypes : undefined,
+  });
+  return {
+    targetTypes: Array.isArray(res.data?.targetTypes) ? res.data.targetTypes : [],
+    createdCount: Number(res.data?.createdCount || 0),
+    updatedCount: Number(res.data?.updatedCount || 0),
+    closedCount: Number(res.data?.closedCount || 0),
+    activeCount: Number(res.data?.activeCount || 0),
+  };
 }
 
 export async function handleAlert(id: string, payload: { status?: string; handleRemark?: string }) {

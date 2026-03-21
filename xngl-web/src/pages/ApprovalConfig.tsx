@@ -19,18 +19,26 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import {
+  createApprovalFlowConfig,
   createApprovalMaterialConfig,
   createApprovalRule,
+  deleteApprovalFlowConfig,
   deleteApprovalMaterialConfig,
   deleteApprovalRule,
+  fetchApprovalFlowConfigDetail,
+  fetchApprovalFlowConfigs,
   fetchApprovalMaterialConfigDetail,
   fetchApprovalMaterialConfigs,
   fetchApprovalRuleDetail,
   fetchApprovalRules,
+  updateApprovalFlowConfig,
+  updateApprovalFlowConfigStatus,
   updateApprovalMaterialConfig,
   updateApprovalMaterialConfigStatus,
   updateApprovalRule,
   updateApprovalRuleStatus,
+  type ApprovalFlowConfigPayload,
+  type ApprovalFlowConfigRecord,
   type ApprovalMaterialConfigPayload,
   type ApprovalMaterialConfigRecord,
   type ApprovalRulePayload,
@@ -58,6 +66,12 @@ const materialTypeOptions = [
   { label: '其他', value: 'OTHER' },
 ];
 
+const approvalTypeOptions = [
+  { label: '串行审批', value: 'SERIAL' },
+  { label: '并行审批', value: 'PARALLEL' },
+  { label: '自动通过', value: 'AUTO' },
+];
+
 const ApprovalConfig: React.FC = () => {
   const [activeTab, setActiveTab] = useState('rules');
   const [loading, setLoading] = useState(false);
@@ -73,6 +87,12 @@ const ApprovalConfig: React.FC = () => {
   const [materialModalOpen, setMaterialModalOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<ApprovalMaterialConfigRecord | null>(null);
   const [materialForm] = Form.useForm<ApprovalMaterialConfigPayload>();
+  const [flowLoading, setFlowLoading] = useState(false);
+  const [flowSubmitLoading, setFlowSubmitLoading] = useState(false);
+  const [flowRecords, setFlowRecords] = useState<ApprovalFlowConfigRecord[]>([]);
+  const [flowModalOpen, setFlowModalOpen] = useState(false);
+  const [editingFlow, setEditingFlow] = useState<ApprovalFlowConfigRecord | null>(null);
+  const [flowForm] = Form.useForm<ApprovalFlowConfigPayload>();
 
   const tenantId = useMemo(() => {
     try {
@@ -108,8 +128,20 @@ const ApprovalConfig: React.FC = () => {
     }
   };
 
+  const loadFlows = async () => {
+    setFlowLoading(true);
+    try {
+      setFlowRecords(await fetchApprovalFlowConfigs());
+    } catch (error) {
+      console.error(error);
+      message.error('获取审批流程配置失败');
+    } finally {
+      setFlowLoading(false);
+    }
+  };
+
   useEffect(() => {
-    void Promise.all([loadRules(), loadMaterials()]);
+    void Promise.all([loadRules(), loadMaterials(), loadFlows()]);
   }, [tenantId]);
 
   const openCreate = () => {
@@ -275,6 +307,93 @@ const ApprovalConfig: React.FC = () => {
     }
   };
 
+  const openCreateFlow = () => {
+    setEditingFlow(null);
+    flowForm.resetFields();
+    flowForm.setFieldsValue({
+      processKey: 'CONTRACT_APPROVAL',
+      configName: '合同审批标准流',
+      approvalType: 'SERIAL',
+      nodeCode: 'NODE_01',
+      nodeName: '流程节点',
+      timeoutHours: 24,
+      sortOrder: 10,
+      status: 'ENABLED',
+    });
+    setFlowModalOpen(true);
+  };
+
+  const openEditFlow = async (record: ApprovalFlowConfigRecord) => {
+    try {
+      const detail = await fetchApprovalFlowConfigDetail(record.id);
+      setEditingFlow(detail);
+      flowForm.setFieldsValue({
+        processKey: detail.processKey,
+        configName: detail.configName,
+        approvalType: detail.approvalType || 'SERIAL',
+        nodeCode: detail.nodeCode,
+        nodeName: detail.nodeName,
+        approvers: detail.approvers || undefined,
+        conditions: detail.conditions || undefined,
+        formTemplateCode: detail.formTemplateCode || undefined,
+        timeoutHours: detail.timeoutHours || 24,
+        sortOrder: detail.sortOrder || 0,
+        status: detail.status || 'ENABLED',
+        remark: detail.remark || undefined,
+      });
+      setFlowModalOpen(true);
+    } catch (error) {
+      console.error(error);
+      message.error('获取流程配置详情失败');
+    }
+  };
+
+  const handleFlowSubmit = async () => {
+    try {
+      const values = await flowForm.validateFields();
+      setFlowSubmitLoading(true);
+      if (editingFlow) {
+        await updateApprovalFlowConfig(editingFlow.id, values);
+        message.success('流程配置已更新');
+      } else {
+        await createApprovalFlowConfig(values);
+        message.success('流程配置已新增');
+      }
+      setFlowModalOpen(false);
+      await loadFlows();
+    } catch (error) {
+      if ((error as { errorFields?: unknown[] })?.errorFields) {
+        return;
+      }
+      console.error(error);
+      message.error('保存流程配置失败');
+    } finally {
+      setFlowSubmitLoading(false);
+    }
+  };
+
+  const toggleFlowStatus = async (record: ApprovalFlowConfigRecord, checked: boolean) => {
+    try {
+      await updateApprovalFlowConfigStatus(record.id, checked ? 'ENABLED' : 'DISABLED');
+      message.success('状态已更新');
+      await loadFlows();
+    } catch (error) {
+      console.error(error);
+      message.error('更新流程状态失败');
+    }
+  };
+
+  const handleDeleteFlow = async (id: string) => {
+    try {
+      await deleteApprovalFlowConfig(id);
+      message.success('流程配置已删除');
+      await loadFlows();
+    } catch (error) {
+      console.error(error);
+      message.error('删除流程配置失败');
+    }
+  };
+
   const columns: ColumnsType<ApprovalRuleRecord> = [
     {
       title: '审批事项',
@@ -412,6 +531,88 @@ const ApprovalConfig: React.FC = () => {
     },
   ];
 
+  const flowColumns: ColumnsType<ApprovalFlowConfigRecord> = [
+    {
+      title: '流程 / 节点',
+      key: 'configName',
+      render: (_, record) => (
+        <div className="flex flex-col">
+          <span style={{ color: 'var(--text-primary)' }}>{record.configName}</span>
+          <span style={{ color: 'var(--text-secondary)' }}>
+            {record.processKey} / {record.nodeName}
+          </span>
+        </div>
+      ),
+    },
+    {
+      title: '审批方式',
+      dataIndex: 'approvalType',
+      key: 'approvalType',
+      render: (value) => (
+        <Tag color={value === 'PARALLEL' ? 'geekblue' : value === 'AUTO' ? 'green' : 'blue'}>
+          {approvalTypeOptions.find((item) => item.value === value)?.label || value || '-'}
+        </Tag>
+      ),
+    },
+    {
+      title: '审批人表达式',
+      dataIndex: 'approvers',
+      key: 'approvers',
+      render: (value) => value || '-',
+    },
+    {
+      title: '条件表达式',
+      dataIndex: 'conditions',
+      key: 'conditions',
+      render: (value) => value || '-',
+    },
+    {
+      title: '超时/排序',
+      key: 'meta',
+      render: (_, record) => (
+        <div className="flex flex-col">
+          <span>{record.timeoutHours || 0} 小时</span>
+          <span style={{ color: 'var(--text-secondary)' }}>排序 {record.sortOrder || 0}</span>
+        </div>
+      ),
+    },
+    {
+      title: '启用',
+      dataIndex: 'status',
+      key: 'status',
+      render: (_, record) => (
+        <Switch
+          checked={record.status === 'ENABLED'}
+          onChange={(checked) => void toggleFlowStatus(record, checked)}
+        />
+      ),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_, record) => (
+        <Space>
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => void openEditFlow(record)}
+          >
+            编辑
+          </Button>
+          <Popconfirm
+            title="确认删除当前流程节点？"
+            onConfirm={() => void handleDeleteFlow(record.id)}
+          >
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
   const previewItems = [
     { title: '发起申请', description: '申请人提交业务单据' },
     { title: '审核节点', description: records[0]?.ruleName || '按配置规则匹配审批人' },
@@ -428,6 +629,16 @@ const ApprovalConfig: React.FC = () => {
     };
   }, [materialRecords]);
 
+  const flowStats = useMemo(() => {
+    const enabledCount = flowRecords.filter((item) => item.status === 'ENABLED').length;
+    const processCount = new Set(flowRecords.map((item) => item.processKey)).size;
+    return {
+      total: flowRecords.length,
+      enabledCount,
+      processCount,
+    };
+  }, [flowRecords]);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -441,9 +652,13 @@ const ApprovalConfig: React.FC = () => {
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
             新增规则
           </Button>
-        ) : (
+        ) : activeTab === 'materials' ? (
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreateMaterial}>
             新增材料
+          </Button>
+        ) : (
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreateFlow}>
+            新增流程
           </Button>
         )}
       </div>
@@ -499,6 +714,39 @@ const ApprovalConfig: React.FC = () => {
                     loading={materialsLoading}
                     columns={materialColumns}
                     dataSource={materialRecords}
+                    pagination={false}
+                  />
+                </Card>
+              </Space>
+            ),
+          },
+          {
+            key: 'flows',
+            label: '流程配置',
+            children: (
+              <Space direction="vertical" size={16} className="w-full">
+                <Card className="glass-panel g-border-panel border">
+                  <div className="flex gap-8 flex-wrap">
+                    <div>
+                      <div className="text-sm g-text-secondary">节点总数</div>
+                      <div className="text-2xl font-bold g-text-primary">{flowStats.total}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm g-text-secondary">已启用节点</div>
+                      <div className="text-2xl font-bold g-text-success">{flowStats.enabledCount}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm g-text-secondary">流程数</div>
+                      <div className="text-2xl font-bold g-text-warning">{flowStats.processCount}</div>
+                    </div>
+                  </div>
+                </Card>
+                <Card className="glass-panel g-border-panel border">
+                  <Table
+                    rowKey="id"
+                    loading={flowLoading}
+                    columns={flowColumns}
+                    dataSource={flowRecords}
                     pagination={false}
                   />
                 </Card>
@@ -591,6 +839,84 @@ const ApprovalConfig: React.FC = () => {
           <Form.Item name="sortOrder" label="排序">
             <InputNumber min={0} className="w-full" />
           </Form.Item>
+          <Form.Item name="status" label="状态">
+            <Select
+              options={[
+                { label: '启用', value: 'ENABLED' },
+                { label: '停用', value: 'DISABLED' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="remark" label="备注">
+            <Input.TextArea rows={3} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={editingFlow ? '编辑流程配置' : '新增流程配置'}
+        open={flowModalOpen}
+        onCancel={() => setFlowModalOpen(false)}
+        onOk={() => void handleFlowSubmit()}
+        confirmLoading={flowSubmitLoading}
+      >
+        <Form form={flowForm} layout="vertical">
+          <Form.Item
+            name="processKey"
+            label="业务流程"
+            rules={[{ required: true, message: '请选择业务流程' }]}
+          >
+            <Select options={processOptions} />
+          </Form.Item>
+          <Form.Item
+            name="configName"
+            label="流程名称"
+            rules={[{ required: true, message: '请输入流程名称' }]}
+          >
+            <Input placeholder="如 合同审批标准流" />
+          </Form.Item>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Form.Item
+              name="approvalType"
+              label="审批方式"
+              rules={[{ required: true, message: '请选择审批方式' }]}
+            >
+              <Select options={approvalTypeOptions} />
+            </Form.Item>
+            <Form.Item name="formTemplateCode" label="文书模板编码">
+              <Input placeholder="如 CONTRACT_APPLY_DOC" />
+            </Form.Item>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Form.Item
+              name="nodeCode"
+              label="节点编码"
+              rules={[{ required: true, message: '请输入节点编码' }]}
+            >
+              <Input placeholder="如 APPLY_AUDIT" />
+            </Form.Item>
+            <Form.Item
+              name="nodeName"
+              label="节点名称"
+              rules={[{ required: true, message: '请输入节点名称' }]}
+            >
+              <Input placeholder="如 申请审核" />
+            </Form.Item>
+          </div>
+          <Form.Item name="approvers" label="审批人表达式">
+            <Input.TextArea rows={2} placeholder="如 role:project_manager,user:1001" />
+          </Form.Item>
+          <Form.Item name="conditions" label="流转条件">
+            <Input.TextArea rows={2} placeholder="如 amount>500000" />
+          </Form.Item>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Form.Item name="timeoutHours" label="超时小时数">
+              <InputNumber min={0} className="w-full" />
+            </Form.Item>
+            <Form.Item name="sortOrder" label="排序">
+              <InputNumber min={0} className="w-full" />
+            </Form.Item>
+          </div>
           <Form.Item name="status" label="状态">
             <Select
               options={[

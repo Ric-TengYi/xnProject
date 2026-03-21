@@ -1,0 +1,72 @@
+{
+  "generatedAt": "2026-03-21 11:55:54",
+  "passed": 13,
+  "failed": 0,
+  "results": [
+    {
+      "name": "环境 / backend端口可访问",
+      "ok": true,
+      "detail": "tcp=8090"
+    },
+    {
+      "name": "前端 / /",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "前端 / /alerts",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "前端 / /alerts/config",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "认证 / API登录",
+      "ok": true,
+      "detail": "user=admin"
+    },
+    {
+      "name": "预警汇总 / 合同与人员计数",
+      "ok": true,
+      "detail": "contract=1, user=1, total=5"
+    },
+    {
+      "name": "模型覆盖 / 合同与人员场景",
+      "ok": true,
+      "detail": "coverage={'CONTRACT': 2, 'USER': 2, 'PROJECT': 1, 'SITE': 1, 'VEHICLE': 5}"
+    },
+    {
+      "name": "高风险排行 / 合同目标",
+      "ok": "HT-001",
+      "detail": "top=HT-001"
+    },
+    {
+      "name": "高风险排行 / 人员目标",
+      "ok": "Demo Admin",
+      "detail": "top=Demo Admin"
+    },
+    {
+      "name": "预警列表 / 合同筛选",
+      "ok": "HT-001",
+      "detail": "count=1"
+    },
+    {
+      "name": "预警列表 / 人员筛选",
+      "ok": "Demo Admin",
+      "detail": "count=1"
+    },
+    {
+      "name": "合同预警 / 处置确认",
+      "ok": true,
+      "detail": "id=4, status=CONFIRMED"
+    },
+    {
+      "name": "人员预警 / 关闭原因",
+      "ok": true,
+      "detail": "id=5, status=CLOSED"
+    }
+  ]
+}

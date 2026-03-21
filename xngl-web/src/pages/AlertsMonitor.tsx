@@ -4,8 +4,10 @@ import {
   Card,
   Descriptions,
   Drawer,
+  Form,
   Input,
   List,
+  Modal,
   Select,
   Space,
   Statistic,
@@ -21,11 +23,14 @@ import {
   fetchAlerts,
   fetchAlertSummary,
   fetchFenceStatus,
+  fetchTopRiskTargets,
   fetchTopRiskVehicles,
+  generateAlerts,
   handleAlert,
   type AlertAnalyticsRecord,
   type AlertRecord,
   type AlertSummaryRecord,
+  type AlertTopRiskRecord,
 } from '../utils/alertApi';
 
 const levelOptions = [
@@ -77,6 +82,8 @@ const emptySummary: AlertSummaryRecord = {
   vehicleCount: 0,
   siteCount: 0,
   projectCount: 0,
+  contractCount: 0,
+  userCount: 0,
   highRiskCount: 0,
   avgHandleMinutes: 0,
   overdueCount: 0,
@@ -104,13 +111,21 @@ const emptyAnalytics: AlertAnalyticsRecord = {
 const AlertsMonitor: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [generateLoading, setGenerateLoading] = useState(false);
   const [summary, setSummary] = useState<AlertSummaryRecord>(emptySummary);
   const [analytics, setAnalytics] = useState<AlertAnalyticsRecord>(emptyAnalytics);
   const [records, setRecords] = useState<AlertRecord[]>([]);
   const [topRisk, setTopRisk] = useState<any[]>([]);
+  const [topContractRisk, setTopContractRisk] = useState<AlertTopRiskRecord[]>([]);
+  const [topUserRisk, setTopUserRisk] = useState<AlertTopRiskRecord[]>([]);
   const [fences, setFences] = useState<any[]>([]);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detail, setDetail] = useState<AlertRecord | null>(null);
+  const [actionModalOpen, setActionModalOpen] = useState(false);
+  const [actionRecord, setActionRecord] = useState<AlertRecord | null>(null);
+  const [actionMode, setActionMode] = useState<'PROCESSING' | 'CONFIRMED' | 'CLOSED'>('PROCESSING');
+  const [actionForm] = Form.useForm<{ handleRemark: string }>();
   const [filters, setFilters] = useState({
     keyword: '',
     level: 'ALL',
@@ -142,17 +157,21 @@ const AlertsMonitor: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [summaryData, analyticsData, alertList, topRiskList, fenceList] = await Promise.all([
+      const [summaryData, analyticsData, alertList, topRiskList, topContractList, topUserList, fenceList] = await Promise.all([
         fetchAlertSummary(),
         fetchAlertAnalytics(),
         fetchAlerts(buildParams()),
         fetchTopRiskVehicles(),
+        fetchTopRiskTargets('CONTRACT'),
+        fetchTopRiskTargets('USER'),
         fetchFenceStatus(),
       ]);
       setSummary(summaryData);
       setAnalytics(analyticsData);
       setRecords(alertList);
       setTopRisk(topRiskList);
+      setTopContractRisk(topContractList);
+      setTopUserRisk(topUserList);
       setFences(fenceList);
     } catch (error) {
       console.error(error);
@@ -192,18 +211,61 @@ const AlertsMonitor: React.FC = () => {
     }
   };
 
-  const handleAction = async (action: () => Promise<void>, successText: string, id?: string) => {
+  const openActionModal = (record: AlertRecord, mode: 'PROCESSING' | 'CONFIRMED' | 'CLOSED') => {
+    setActionRecord(record);
+    setActionMode(mode);
+    actionForm.setFieldsValue({
+      handleRemark:
+        mode === 'PROCESSING'
+          ? '已开始研判处置'
+          : mode === 'CONFIRMED'
+            ? '研判属实，已确认并转后续跟进'
+            : '已完成处置并关闭预警',
+    });
+    setActionModalOpen(true);
+  };
+
+  const submitAction = async () => {
+    if (!actionRecord) return;
     try {
-      await action();
-      message.success(successText);
-      if (id) {
-        await refreshDetail(id);
+      const values = await actionForm.validateFields();
+      setActionLoading(true);
+      if (actionMode === 'CLOSED') {
+        await closeAlert(actionRecord.id, { handleRemark: values.handleRemark });
+      } else {
+        await handleAlert(actionRecord.id, { status: actionMode, handleRemark: values.handleRemark });
+      }
+      message.success(actionMode === 'CLOSED' ? '预警已关闭' : actionMode === 'CONFIRMED' ? '预警已确认' : '预警已转入处置中');
+      setActionModalOpen(false);
+      setActionRecord(null);
+      actionForm.resetFields();
+      if (detail?.id === actionRecord.id) {
+        await refreshDetail(actionRecord.id);
       } else {
         await loadData();
       }
     } catch (error) {
+      if ((error as { errorFields?: unknown[] })?.errorFields) return;
       console.error(error);
-      message.error(successText.replace('成功', '失败'));
+      message.error('提交预警处置失败');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleGenerate = async () => {
+    try {
+      setGenerateLoading(true);
+      const result = await generateAlerts();
+      message.success(
+        `预警已刷新：新增 ${result.createdCount}，更新 ${result.updatedCount}，关闭 ${result.closedCount}`,
+      );
+      await loadData();
+    } catch (error) {
+      console.error(error);
+      message.error('刷新自动预警失败');
+    } finally {
+      setGenerateLoading(false);
     }
   };
 
@@ -267,29 +329,18 @@ const AlertsMonitor: React.FC = () => {
               <Button
                 type="link"
                 size="small"
-                onClick={() =>
-                  void handleAction(
-                    () => handleAlert(record.id, { status: 'PROCESSING', handleRemark: '已开始处置' }),
-                    '预警已转入处置中',
-                    detail?.id === record.id ? record.id : undefined,
-                  )
-                }
+                onClick={() => openActionModal(record, 'PROCESSING')}
               >
                 开始处置
               </Button>
             ) : null}
+            {record.status !== 'CONFIRMED' && record.status !== 'CLOSED' ? (
+              <Button type="link" size="small" onClick={() => openActionModal(record, 'CONFIRMED')}>
+                确认
+              </Button>
+            ) : null}
             {record.status !== 'CLOSED' ? (
-              <Button
-                type="link"
-                size="small"
-                onClick={() =>
-                  void handleAction(
-                    () => closeAlert(record.id, { handleRemark: '已关闭' }),
-                    '预警已关闭',
-                    detail?.id === record.id ? record.id : undefined,
-                  )
-                }
-              >
+              <Button type="link" size="small" onClick={() => openActionModal(record, 'CLOSED')}>
                 关闭
               </Button>
             ) : null}
@@ -304,9 +355,19 @@ const AlertsMonitor: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold g-text-primary m-0">预警与监控中心</h1>
-        <p className="g-text-secondary mt-1">补实预警规则、实例闭环和告警模型覆盖情况</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold g-text-primary m-0">预警与监控中心</h1>
+          <p className="g-text-secondary mt-1">补实预警规则、实例闭环和告警模型覆盖情况</p>
+        </div>
+        <Space>
+          <Button loading={loading} onClick={() => void loadData()}>
+            刷新列表
+          </Button>
+          <Button type="primary" loading={generateLoading} onClick={() => void handleGenerate()}>
+            刷新自动预警
+          </Button>
+        </Space>
       </div>
 
       <Card className="glass-panel g-border-panel border">
@@ -329,6 +390,8 @@ const AlertsMonitor: React.FC = () => {
         <Card className="glass-panel g-border-panel border"><Statistic title="待处置" value={summary.pending} valueStyle={{ color: '#dc2626' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="处置中" value={summary.processing} valueStyle={{ color: '#f59e0b' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="高风险" value={summary.highRiskCount} valueStyle={{ color: '#dc2626' }} /></Card>
+        <Card className="glass-panel g-border-panel border"><Statistic title="合同预警" value={summary.contractCount} valueStyle={{ color: '#722ed1' }} /></Card>
+        <Card className="glass-panel g-border-panel border"><Statistic title="人员预警" value={summary.userCount} valueStyle={{ color: '#1677ff' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="超时未闭环" value={summary.overdueCount} valueStyle={{ color: '#ef4444' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="平均处置(分)" value={summary.avgHandleMinutes} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="启用规则" value={summary.enabledRuleCount} /></Card>
@@ -370,6 +433,45 @@ const AlertsMonitor: React.FC = () => {
                 </List.Item>
               )}
             />
+          </Card>
+
+          <Card className="glass-panel g-border-panel border" title="高风险合同 / 人员">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <List
+                size="small"
+                header="合同 TOP"
+                dataSource={topContractRisk}
+                locale={{ emptyText: '暂无数据' }}
+                renderItem={(item, index) => (
+                  <List.Item>
+                    <div className="flex w-full items-center justify-between gap-3">
+                      <div>
+                        <div>{index + 1}. {item.targetName}</div>
+                        <div style={{ color: 'var(--text-secondary)' }}>{item.extraName || '合同预警'}</div>
+                      </div>
+                      <Tag color="purple">{item.count} 起</Tag>
+                    </div>
+                  </List.Item>
+                )}
+              />
+              <List
+                size="small"
+                header="人员 TOP"
+                dataSource={topUserRisk}
+                locale={{ emptyText: '暂无数据' }}
+                renderItem={(item, index) => (
+                  <List.Item>
+                    <div className="flex w-full items-center justify-between gap-3">
+                      <div>
+                        <div>{index + 1}. {item.targetName}</div>
+                        <div style={{ color: 'var(--text-secondary)' }}>{item.extraName || '人员预警'}</div>
+                      </div>
+                      <Tag color="cyan">{item.count} 起</Tag>
+                    </div>
+                  </List.Item>
+                )}
+              />
+            </div>
           </Card>
 
           <Card className="glass-panel g-border-panel border" title="启用中的电子围栏">
@@ -415,8 +517,9 @@ const AlertsMonitor: React.FC = () => {
           <Descriptions.Item label="标题">{detail?.title || '-'}</Descriptions.Item>
           <Descriptions.Item label="规则编码">{detail?.ruleCode || '-'}</Descriptions.Item>
           <Descriptions.Item label="对象类型">{detail?.targetType || '-'}</Descriptions.Item>
+          <Descriptions.Item label="对象名称">{detail?.targetName || '-'}</Descriptions.Item>
           <Descriptions.Item label="项目 / 场地">{detail?.projectName || '-'} / {detail?.siteName || '-'}</Descriptions.Item>
-          <Descriptions.Item label="车辆 / 合同">{detail?.vehicleNo || '-'} / {detail?.contractNo || '-'}</Descriptions.Item>
+          <Descriptions.Item label="车辆 / 合同 / 人员">{detail?.vehicleNo || '-'} / {detail?.contractNo || '-'} / {detail?.userName || '-'}</Descriptions.Item>
           <Descriptions.Item label="状态">
             <Space>
               <Tag color={statusColorMap[detail?.status || ''] || 'default'}>{detail?.status || '-'}</Tag>
@@ -434,17 +537,47 @@ const AlertsMonitor: React.FC = () => {
         </Descriptions>
         <div className="mt-4 flex justify-end gap-2">
           {detail && detail.status !== 'PROCESSING' && detail.status !== 'CLOSED' ? (
-            <Button onClick={() => void handleAction(() => handleAlert(detail.id, { status: 'PROCESSING', handleRemark: '已开始处置' }), '预警已转入处置中', detail.id)}>
+            <Button onClick={() => openActionModal(detail, 'PROCESSING')}>
               开始处置
             </Button>
           ) : null}
+          {detail && detail.status !== 'CONFIRMED' && detail.status !== 'CLOSED' ? (
+            <Button onClick={() => openActionModal(detail, 'CONFIRMED')}>
+              确认预警
+            </Button>
+          ) : null}
           {detail && detail.status !== 'CLOSED' ? (
-            <Button type="primary" onClick={() => void handleAction(() => closeAlert(detail.id, { handleRemark: '已关闭' }), '预警已关闭', detail.id)}>
+            <Button type="primary" onClick={() => openActionModal(detail, 'CLOSED')}>
               关闭预警
             </Button>
           ) : null}
         </div>
       </Drawer>
+
+      <Modal
+        title={actionMode === 'CLOSED' ? '关闭预警' : actionMode === 'CONFIRMED' ? '确认预警' : '开始处置'}
+        open={actionModalOpen}
+        onCancel={() => {
+          setActionModalOpen(false);
+          setActionRecord(null);
+          actionForm.resetFields();
+        }}
+        onOk={() => void submitAction()}
+        confirmLoading={actionLoading}
+      >
+        <Form form={actionForm} layout="vertical">
+          <Form.Item label="预警对象">
+            <span>{actionRecord?.title || '-'}</span>
+          </Form.Item>
+          <Form.Item
+            name="handleRemark"
+            label={actionMode === 'CLOSED' ? '关闭原因' : '处置说明'}
+            rules={[{ required: true, message: '请填写说明' }]}
+          >
+            <Input.TextArea rows={4} placeholder="请输入处理结果、关闭原因或研判结论" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };

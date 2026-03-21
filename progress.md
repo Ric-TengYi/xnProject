@@ -218,6 +218,60 @@
 
 ### Phase 6: 场地报表、总体分析、运力分析、油电卡与保险联调
 - **Status:** in_progress
+ 
+### Phase 12: 车型管理真实联调
+- **Status:** completed
+- **Started:** 2026-03-21
+- Actions taken:
+  - 新增 `biz_vehicle_model` 车型字典表实体、Mapper、控制器与 `032_vehicle_model_dictionary.sql`
+  - 落地 `/api/vehicle-models` 列表、详情、新增、编辑、状态切换、删除接口
+  - 新增前端 `vehicleModelApi.ts` 与 `VehicleModelsManagement` 页面，完成车型管理 CRUD 台账
+  - 将“车型管理”接入 `App` 路由和左侧“车辆与运力”菜单
+  - 在 `VehiclesManagement` 中接入启用车型字典，打通车辆档案与车型库的数据衔接
+  - 执行 MySQL patch、重启后端、完成 API + UI 烟测并落盘 `docs/test-reports/phase12_vehicle_models_smoke_2026-03-21.md`
+- Files created/modified:
+  - `xngl-service/xngl-service-infrastructure/src/main/java/com/xngl/infrastructure/persistence/entity/vehicle/VehicleModel.java`
+  - `xngl-service/xngl-service-infrastructure/src/main/java/com/xngl/infrastructure/persistence/mapper/VehicleModelMapper.java`
+  - `xngl-service/xngl-service-web/src/main/java/com/xngl/web/controller/VehicleModelsController.java`
+  - `xngl-service/xngl-service-starter/src/main/resources/db/schema/patches/032_vehicle_model_dictionary.sql`
+  - `xngl-web/src/utils/vehicleModelApi.ts`
+  - `xngl-web/src/pages/VehicleModelsManagement.tsx`
+  - `xngl-web/src/pages/VehiclesManagement.tsx`
+  - `xngl-web/src/App.tsx`
+  - `xngl-web/src/layouts/MainLayout.tsx`
+  - `docs/test-reports/phase12_vehicle_models_smoke_2026-03-21.md`
+  - `docs/test-reports/phase12_vehicle_models_smoke_2026-03-21.json`
+
+## Verification Results
+| Command | Result | Status |
+|---------|--------|--------|
+| `cd xngl-service && mvn -q -DskipTests install` | 车型管理后端编译/安装通过 | PASS |
+| `cd xngl-web && npm run build` | 车型管理前端构建通过 | PASS |
+| `mysql -h127.0.0.1 -P3306 -uroot -p'ForkliftDev2025' -D xngl < .../032_vehicle_model_dictionary.sql` | 车型字典 patch 执行通过 | PASS |
+| `python3 -u <phase12 vehicle models smoke>` | API + UI 10/10 通过，报告已落盘 | PASS |
+
+### Phase 13: 车辆信息维护真实闭环
+- **Status:** completed
+- **Started:** 2026-03-21
+- Actions taken:
+  - 为 `/api/vehicles` 增加 `vehicleType` 筛选与删除接口，补齐车辆档案维护所需后端能力
+  - 扩展 `vehicleApi.ts`，新增车辆删除能力并同步前端查询参数
+  - 将 `VehiclesManagement` 升级为完整维护台：支持车型模板带参、新增、编辑、删除、VIN/年检/自重/负责人/里程等字段维护
+  - 打通高级筛选中的车型条件，与车型库数据联动形成真实维护闭环
+  - 重启后端并输出 `docs/test-reports/phase13_vehicle_maintenance_smoke_2026-03-21.md`
+- Files created/modified:
+  - `xngl-service/xngl-service-web/src/main/java/com/xngl/web/controller/VehiclesController.java`
+  - `xngl-web/src/utils/vehicleApi.ts`
+  - `xngl-web/src/pages/VehiclesManagement.tsx`
+  - `docs/test-reports/phase13_vehicle_maintenance_smoke_2026-03-21.md`
+  - `docs/test-reports/phase13_vehicle_maintenance_smoke_2026-03-21.json`
+
+## Verification Results
+| Command | Result | Status |
+|---------|--------|--------|
+| `cd xngl-service && mvn -q -DskipTests install` | 车辆维护后端编译/安装通过 | PASS |
+| `cd xngl-web && npm run build` | 车辆维护前端构建通过 | PASS |
+| `python3 -u <phase13 vehicle maintenance smoke>` | API + UI 12/12 通过，报告已落盘 | PASS |
 - **Started:** 2026-03-20
 - Actions taken:
   - 新增 `/api/reports/sites/*` 场地报表接口，打通场地日/月/年汇总、列表、趋势与导出任务创建
@@ -447,3 +501,88 @@
 | `cd xngl-web && npm run build` | 事件/安全台账增强前端构建通过 | PASS |
 | `cd xngl-service && mvn spring-boot:run -pl xngl-service-starter` | 后端重启通过，端口 8090 正常监听 | PASS |
 | `python3 -u <alerts events security detail extensions smoke>` | 9/9 通过，报告已落盘 `docs/test-reports/alerts_events_security_detail_extensions_smoke_2026-03-20.md` | PASS |
+
+### Phase 9: 预警模型 + 合同/人员预警增强
+- **Status:** in_progress
+- **Started:** 2026-03-21
+- Actions taken:
+  - 新增 `029_alert_contract_personnel_seed.sql`，补齐合同临期/应付款超期、人员证照/违章风险规则、推送配置与示例预警事件
+  - 扩展 `AlertsController`，新增合同/人员预警计数、目标名称补齐、`/top-risk-targets` 排行接口与更完整的详情字段
+  - 将 `AlertsMonitor` 升级为支持合同/人员风险排行、确认/关闭原因填写的处置弹窗版本
+  - 将 `AlertConfig` 增加“研判模型”标签页，按场景展示规则数、挂接围栏/推送数，并支持快捷新增场景规则
+  - 执行 029 patch、重启后端，并完成合同/人员预警模型冒烟测试 `docs/test-reports/alerts_models_contract_personnel_smoke_2026-03-21.md`
+- Files created/modified:
+  - `xngl-service/xngl-service-starter/src/main/resources/db/schema/patches/029_alert_contract_personnel_seed.sql`
+  - `xngl-service/xngl-service-web/src/main/java/com/xngl/web/controller/AlertsController.java`
+  - `xngl-web/src/utils/alertApi.ts`
+  - `xngl-web/src/pages/AlertsMonitor.tsx`
+  - `xngl-web/src/pages/AlertConfig.tsx`
+  - `docs/test-reports/alerts_models_contract_personnel_smoke_2026-03-21.md`
+  - `docs/test-reports/alerts_models_contract_personnel_smoke_2026-03-21.json`
+
+## Verification Results
+| Command | Result | Status |
+|---------|--------|--------|
+| `mysql -h127.0.0.1 -P3306 -uroot -p'ForkliftDev2025' -D xngl -e "source .../029_alert_contract_personnel_seed.sql"` | patch 执行通过 | PASS |
+| `cd xngl-service && mvn -q -DskipTests install` | 预警增强后端安装通过 | PASS |
+| `cd xngl-web && npm run build` | 预警增强前端构建通过 | PASS |
+| `cd xngl-service && mvn spring-boot:run -pl xngl-service-starter` | 后端重启通过，端口 8090 正常监听 | PASS |
+| `python3 -u <alerts models contract personnel smoke>` | 13/13 通过，报告已落盘 `docs/test-reports/alerts_models_contract_personnel_smoke_2026-03-21.md` | PASS |
+
+### Phase 10: 预警自动生成 + 审批流程配置
+- **Status:** in_progress
+- **Started:** 2026-03-21
+- Actions taken:
+  - 新增 `030_approval_flow_configs_and_alert_generation.sql`，补齐 `sys_approval_config` 表及默认流程节点种子
+  - 扩展 `AlertsController`，新增 `/api/alerts/generate`，支持项目进度、合同临期/应收超期、人员证照临期/安全检查风险自动生成与自动关闭
+  - 新增 `ApprovalConfigsController`，打通审批流程配置列表、详情、新增、编辑、启停、删除真实接口
+  - 将 `AlertsMonitor` 增加“刷新自动预警”入口，支持前端直接触发模型刷新并查看结果
+  - 将 `ApprovalConfig` 增加“流程配置”标签页，支持审批节点编排、审批方式、条件表达式、审批人表达式配置
+  - 执行 030 patch、重启后端、完成 API + UI 烟测并落盘 `docs/test-reports/phase10_alerts_approval_smoke_2026-03-21.md`
+- Files created/modified:
+  - `xngl-service/xngl-service-starter/src/main/resources/db/schema/patches/030_approval_flow_configs_and_alert_generation.sql`
+  - `xngl-service/xngl-service-manager/src/main/java/com/xngl/manager/approval/entity/ApprovalConfig.java`
+  - `xngl-service/xngl-service-manager/src/main/java/com/xngl/manager/approval/controller/ApprovalConfigController.java`
+  - `xngl-service/xngl-service-web/src/main/java/com/xngl/web/controller/AlertsController.java`
+  - `xngl-service/xngl-service-web/src/main/java/com/xngl/web/controller/ApprovalConfigsController.java`
+  - `xngl-web/src/utils/alertApi.ts`
+  - `xngl-web/src/utils/approvalApi.ts`
+  - `xngl-web/src/pages/AlertsMonitor.tsx`
+  - `xngl-web/src/pages/ApprovalConfig.tsx`
+  - `docs/test-reports/phase10_alerts_approval_smoke_2026-03-21.md`
+  - `docs/test-reports/phase10_alerts_approval_smoke_2026-03-21.json`
+
+## Verification Results
+| Command | Result | Status |
+|---------|--------|--------|
+| `mysql -h127.0.0.1 -P3306 -uroot -p'ForkliftDev2025' -D xngl < .../030_approval_flow_configs_and_alert_generation.sql` | patch 执行通过 | PASS |
+| `cd xngl-service && mvn -q -DskipTests install` | 预警自动生成/审批流程配置后端安装通过 | PASS |
+| `cd xngl-web && npm run build` | 审批流程配置/预警页面前端构建通过 | PASS |
+| `cd xngl-service && mvn spring-boot:run -pl xngl-service-starter` | 后端重启通过，端口 8090 正常监听（PID 26468） | PASS |
+| `python3 -u <phase10 alerts approval smoke>` | 14/14 通过，报告已落盘 `docs/test-reports/phase10_alerts_approval_smoke_2026-03-21.md` | PASS |
+
+### Phase 11: 处置证有效期预警 + 定时任务化
+- **Status:** in_progress
+- **Started:** 2026-03-21
+- Actions taken:
+  - 新增 `031_project_permit_alert_seed.sql`，补齐 `PROJECT_PERMIT_EXPIRING` 规则、推送配置与临期处置证演示数据
+  - 扩展 `AlertsController`，将项目预警进一步补齐到处置证有效期场景，并支持 `relatedType=DISPOSAL_PERMIT` 的实例快照
+  - 新增 `AlertAutoGenerateScheduler`，通过 `@Scheduled` 定时刷新项目/合同/人员自动预警
+  - 为启动类启用调度能力，并在 `application.yml` 中新增预警自动生成开关与 cron 配置
+  - 重启后端并完成处置证有效期预警 + 定时任务配置烟测，报告落盘 `docs/test-reports/phase11_permit_alert_scheduler_smoke_2026-03-21.md`
+- Files created/modified:
+  - `xngl-service/xngl-service-starter/src/main/resources/db/schema/patches/031_project_permit_alert_seed.sql`
+  - `xngl-service/xngl-service-starter/src/main/java/com/xngl/XnglServiceApplication.java`
+  - `xngl-service/xngl-service-starter/src/main/resources/application.yml`
+  - `xngl-service/xngl-service-web/src/main/java/com/xngl/web/controller/AlertsController.java`
+  - `xngl-service/xngl-service-web/src/main/java/com/xngl/web/task/AlertAutoGenerateScheduler.java`
+  - `docs/test-reports/phase11_permit_alert_scheduler_smoke_2026-03-21.md`
+  - `docs/test-reports/phase11_permit_alert_scheduler_smoke_2026-03-21.json`
+
+## Verification Results
+| Command | Result | Status |
+|---------|--------|--------|
+| `mysql -h127.0.0.1 -P3306 -uroot -p'ForkliftDev2025' -D xngl < .../031_project_permit_alert_seed.sql` | patch 执行通过 | PASS |
+| `cd xngl-service && mvn -q -DskipTests install` | 处置证预警/定时任务化后端安装通过 | PASS |
+| `cd xngl-service && mvn spring-boot:run -pl xngl-service-starter` | 后端重启通过，端口 8090 正常监听（PID 37686） | PASS |
+| `python3 -u <phase11 permit alert scheduler smoke>` | 9/9 通过，报告已落盘 `docs/test-reports/phase11_permit_alert_scheduler_smoke_2026-03-21.md` | PASS |

@@ -11,6 +11,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popconfirm,
   Row,
   Select,
   Space,
@@ -29,25 +30,29 @@ import {
   SearchOutlined,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
-import type { Dayjs } from 'dayjs';
+import dayjs, { type Dayjs } from 'dayjs';
 import {
   createVehicle,
+  deleteVehicle,
   fetchVehicleCompanyCapacity,
   fetchVehicleDetail,
   fetchVehicleStats,
   fetchVehicles,
+  updateVehicle,
   type VehicleCompanyCapacityRecord,
   type VehicleDetailRecord,
   type VehicleRecord,
   type VehicleStatsRecord,
   type VehicleUpsertPayload,
 } from '../utils/vehicleApi';
+import { fetchVehicleModels, type VehicleModelRecord } from '../utils/vehicleModelApi';
 
 type VehicleFormValues = Omit<
   VehicleUpsertPayload,
   'orgId' | 'nextMaintainDate' | 'annualInspectionExpireDate' | 'insuranceExpireDate'
 > & {
   orgId?: string;
+  vehicleModelCode?: string;
   nextMaintainDate?: Dayjs;
   annualInspectionExpireDate?: Dayjs;
   insuranceExpireDate?: Dayjs;
@@ -59,12 +64,6 @@ const statusOptions = [
   { label: '维修', value: 2 },
   { label: '禁用', value: 3 },
   { label: '待命', value: 4 },
-];
-
-const vehicleTypeOptions = [
-  '重型自卸货车',
-  '中型自卸货车',
-  '轻型自卸货车',
 ];
 
 const runningStatusColorMap: Record<string, string> = {
@@ -107,13 +106,16 @@ const VehiclesManagement: React.FC = () => {
     totalLoadTons: 0,
   });
   const [companyCapacity, setCompanyCapacity] = useState<VehicleCompanyCapacityRecord[]>([]);
+  const [vehicleModels, setVehicleModels] = useState<VehicleModelRecord[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleDetailRecord | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [filterVisible, setFilterVisible] = useState(false);
   const [createVisible, setCreateVisible] = useState(false);
+  const [editingVehicleId, setEditingVehicleId] = useState<string | null>(null);
   const [keyword, setKeyword] = useState('');
   const [status, setStatus] = useState<number | 'all'>('all');
   const [orgId, setOrgId] = useState<string | undefined>(undefined);
+  const [vehicleType, setVehicleType] = useState<string | undefined>(undefined);
   const [pageNo, setPageNo] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
@@ -127,6 +129,23 @@ const VehiclesManagement: React.FC = () => {
         value: item.orgId || '',
       })),
     [companyCapacity]
+  );
+
+  const vehicleTypeOptions = useMemo(() => {
+    const values = [
+      ...vehicleModels.map((item) => item.vehicleType),
+      ...vehicles.map((item) => item.vehicleType),
+    ].filter(Boolean) as string[];
+    return Array.from(new Set(values));
+  }, [vehicleModels, vehicles]);
+
+  const vehicleModelOptions = useMemo(
+    () =>
+      vehicleModels.map((item) => ({
+        value: item.modelCode,
+        label: `${item.brand} / ${item.modelName}`,
+      })),
+    [vehicleModels]
   );
 
   const refreshOverview = async () => {
@@ -153,6 +172,20 @@ const VehiclesManagement: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const loadVehicleModels = async () => {
+      try {
+        const rows = await fetchVehicleModels({ status: 'ENABLED' });
+        setVehicleModels(rows);
+      } catch (error) {
+        console.error(error);
+        message.error('获取车型字典失败');
+        setVehicleModels([]);
+      }
+    };
+    void loadVehicleModels();
+  }, []);
+
+  useEffect(() => {
     const loadVehicles = async () => {
       setListLoading(true);
       try {
@@ -160,6 +193,7 @@ const VehiclesManagement: React.FC = () => {
           keyword: keyword.trim() || undefined,
           status: status === 'all' ? undefined : status,
           orgId: orgId || undefined,
+          vehicleType: vehicleType || undefined,
           pageNo,
           pageSize,
         });
@@ -176,7 +210,7 @@ const VehiclesManagement: React.FC = () => {
     };
 
     void loadVehicles();
-  }, [keyword, status, orgId, pageNo, pageSize]);
+  }, [keyword, status, orgId, vehicleType, pageNo, pageSize]);
 
   const summaryCards = useMemo(
     () => [
@@ -228,38 +262,145 @@ const VehiclesManagement: React.FC = () => {
     filterForm.resetFields();
     setStatus('all');
     setOrgId(undefined);
+    setVehicleType(undefined);
     setPageNo(1);
   };
 
-  const handleCreate = async () => {
+  const resetVehicleForm = () => {
+    createForm.resetFields();
+    createForm.setFieldsValue({
+      status: 1,
+      useStatus: 'ACTIVE',
+      runningStatus: 'STOPPED',
+      energyType: 'DIESEL',
+    });
+  };
+
+  const handleVehicleModelSelect = (modelCode?: string) => {
+    if (!modelCode) {
+      return;
+    }
+    const model = vehicleModels.find((item) => item.modelCode === modelCode);
+    if (!model) {
+      return;
+    }
+    createForm.setFieldsValue({
+      vehicleType: model.vehicleType || undefined,
+      brand: model.brand,
+      model: model.modelName,
+      energyType: model.energyType || undefined,
+      axleCount: model.axleCount || undefined,
+      deadWeight: model.deadWeight || undefined,
+      loadWeight: model.loadWeight || undefined,
+    });
+  };
+
+  const openCreate = () => {
+    setEditingVehicleId(null);
+    resetVehicleForm();
+    setCreateVisible(true);
+  };
+
+  const openEdit = async (id: string) => {
+    try {
+      setSubmitLoading(true);
+      const detail = await fetchVehicleDetail(id);
+      const matchedModel = vehicleModels.find(
+        (item) =>
+          item.vehicleType === detail.vehicleType &&
+          item.brand === detail.brand &&
+          item.modelName === detail.model
+      );
+      createForm.setFieldsValue({
+        plateNo: detail.plateNo,
+        vin: detail.vin || undefined,
+        orgId: detail.orgId || undefined,
+        vehicleModelCode: matchedModel?.modelCode,
+        vehicleType: detail.vehicleType || undefined,
+        brand: detail.brand || undefined,
+        model: detail.model || undefined,
+        energyType: detail.energyType || undefined,
+        axleCount: detail.axleCount || undefined,
+        deadWeight: detail.deadWeight || undefined,
+        loadWeight: detail.loadWeight || undefined,
+        driverName: detail.driverName || undefined,
+        driverPhone: detail.driverPhone || undefined,
+        fleetName: detail.fleetName || undefined,
+        captainName: detail.captainName || undefined,
+        captainPhone: detail.captainPhone || undefined,
+        status: detail.status || 1,
+        nextMaintainDate: detail.nextMaintainDate ? dayjs(detail.nextMaintainDate) : undefined,
+        annualInspectionExpireDate: detail.annualInspectionExpireDate ? dayjs(detail.annualInspectionExpireDate) : undefined,
+        insuranceExpireDate: detail.insuranceExpireDate ? dayjs(detail.insuranceExpireDate) : undefined,
+        currentMileage: detail.currentMileage || undefined,
+        remark: detail.remark || undefined,
+      });
+      setEditingVehicleId(id);
+      setCreateVisible(true);
+    } catch (error) {
+      console.error(error);
+      message.error('获取车辆档案失败');
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const reloadVehicleTable = async (nextPage = pageNo) => {
+    const page = await fetchVehicles({
+      keyword: keyword.trim() || undefined,
+      status: status === 'all' ? undefined : status,
+      orgId: orgId || undefined,
+      vehicleType: vehicleType || undefined,
+      pageNo: nextPage,
+      pageSize,
+    });
+    setVehicles(page.records || []);
+    setTotal(page.total || 0);
+  };
+
+  const handleSubmit = async () => {
     try {
       const values = await createForm.validateFields();
       const payload: VehicleUpsertPayload = {
-        ...values,
+        plateNo: values.plateNo,
+        vin: values.vin,
+        vehicleType: values.vehicleType,
+        brand: values.brand,
+        model: values.model,
+        energyType: values.energyType,
+        axleCount: values.axleCount,
+        deadWeight: values.deadWeight,
+        loadWeight: values.loadWeight,
+        driverName: values.driverName,
+        driverPhone: values.driverPhone,
+        fleetName: values.fleetName,
+        captainName: values.captainName,
+        captainPhone: values.captainPhone,
+        status: values.status,
+        useStatus: values.useStatus,
+        runningStatus: values.runningStatus,
+        currentMileage: values.currentMileage,
+        remark: values.remark,
         orgId: values.orgId ? Number(values.orgId) : undefined,
         nextMaintainDate: values.nextMaintainDate?.format('YYYY-MM-DD'),
         annualInspectionExpireDate: values.annualInspectionExpireDate?.format('YYYY-MM-DD'),
         insuranceExpireDate: values.insuranceExpireDate?.format('YYYY-MM-DD'),
       };
       setSubmitLoading(true);
-      await createVehicle(payload);
-      message.success('车辆已新增');
+      if (editingVehicleId) {
+        await updateVehicle(editingVehicleId, payload);
+        message.success('车辆档案已更新');
+      } else {
+        await createVehicle(payload);
+        message.success('车辆已新增');
+      }
       setCreateVisible(false);
-      createForm.resetFields();
+      setEditingVehicleId(null);
+      resetVehicleForm();
       setPageNo(1);
       await Promise.all([
         refreshOverview(),
-        (async () => {
-          const page = await fetchVehicles({
-            keyword: keyword.trim() || undefined,
-            status: status === 'all' ? undefined : status,
-            orgId: orgId || undefined,
-            pageNo: 1,
-            pageSize,
-          });
-          setVehicles(page.records || []);
-          setTotal(page.total || 0);
-        })(),
+        reloadVehicleTable(1),
       ]);
     } catch (error) {
       if (error instanceof Error) {
@@ -268,9 +409,21 @@ const VehiclesManagement: React.FC = () => {
       if ((error as { errorFields?: unknown[] })?.errorFields) {
         return;
       }
-      message.error('新增车辆失败');
+      message.error(editingVehicleId ? '更新车辆失败' : '新增车辆失败');
     } finally {
       setSubmitLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteVehicle(id);
+      message.success('车辆已删除');
+      await Promise.all([refreshOverview(), reloadVehicleTable(1)]);
+      setPageNo(1);
+    } catch (error) {
+      console.error(error);
+      message.error('删除车辆失败');
     }
   };
 
@@ -353,6 +506,12 @@ const VehiclesManagement: React.FC = () => {
           <a style={{ color: 'var(--primary)' }} onClick={() => openDetail(record.id)}>
             详情
           </a>
+          <a onClick={() => void openEdit(record.id)}>
+            编辑
+          </a>
+          <Popconfirm title="确认删除当前车辆档案？" onConfirm={() => void handleDelete(record.id)}>
+            <a style={{ color: 'var(--error)' }}>删除</a>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -460,7 +619,7 @@ const VehiclesManagement: React.FC = () => {
             </Button>
           </div>
           <Space>
-            <Button type="primary" icon={<PlusOutlined />} className="g-btn-primary border-none" onClick={() => setCreateVisible(true)}>
+            <Button type="primary" icon={<PlusOutlined />} className="g-btn-primary border-none" onClick={openCreate}>
               新增车辆
             </Button>
           </Space>
@@ -522,6 +681,7 @@ const VehiclesManagement: React.FC = () => {
                 const values = filterForm.getFieldsValue();
                 setStatus(values.status ?? 'all');
                 setOrgId(values.orgId || undefined);
+                setVehicleType(values.vehicleType || undefined);
                 setPageNo(1);
                 setFilterVisible(false);
               }}
@@ -537,6 +697,7 @@ const VehiclesManagement: React.FC = () => {
           initialValues={{
             status,
             orgId,
+            vehicleType,
           }}
         >
           <Form.Item name="vehicleType" label="车型">
@@ -544,7 +705,6 @@ const VehiclesManagement: React.FC = () => {
               allowClear
               placeholder="请选择车型"
               options={vehicleTypeOptions.map((item) => ({ value: item, label: item }))}
-              disabled
             />
           </Form.Item>
           <Form.Item name="orgId" label="运输单位">
@@ -597,25 +757,20 @@ const VehiclesManagement: React.FC = () => {
       </Drawer>
 
       <Modal
-        title="新增车辆"
+        title={editingVehicleId ? '编辑车辆档案' : '新增车辆'}
         open={createVisible}
         onCancel={() => {
           setCreateVisible(false);
-          createForm.resetFields();
+          setEditingVehicleId(null);
+          resetVehicleForm();
         }}
-        onOk={() => void handleCreate()}
+        onOk={() => void handleSubmit()}
         confirmLoading={submitLoading}
         width={760}
       >
         <Form
           form={createForm}
           layout="vertical"
-          initialValues={{
-            status: 1,
-            useStatus: 'ACTIVE',
-            runningStatus: 'STOPPED',
-            energyType: 'DIESEL',
-          }}
         >
           <Row gutter={16}>
             <Col span={12}>
@@ -624,8 +779,24 @@ const VehiclesManagement: React.FC = () => {
               </Form.Item>
             </Col>
             <Col span={12}>
+              <Form.Item name="vin" label="VIN 码">
+                <Input placeholder="请输入车辆识别代号" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
               <Form.Item name="orgId" label="所属运输单位" rules={[{ required: true, message: '请选择运输单位' }]}>
                 <Select placeholder="请选择运输单位" options={companyOptions} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="vehicleModelCode" label="车型模板">
+                <Select
+                  allowClear
+                  showSearch
+                  placeholder="选择已建车型自动带出参数"
+                  options={vehicleModelOptions}
+                  onChange={(value) => handleVehicleModelSelect(value)}
+                />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -649,6 +820,21 @@ const VehiclesManagement: React.FC = () => {
               </Form.Item>
             </Col>
             <Col span={12}>
+              <Form.Item name="energyType" label="能源类型">
+                <Input placeholder="如：DIESEL / ELECTRIC" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="axleCount" label="轴数">
+                <InputNumber min={1} precision={0} className="w-full" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="deadWeight" label="车辆自重(吨)">
+                <InputNumber min={0} precision={2} className="w-full" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
               <Form.Item name="driverName" label="司机姓名">
                 <Input placeholder="请输入司机姓名" />
               </Form.Item>
@@ -669,6 +855,21 @@ const VehiclesManagement: React.FC = () => {
               </Form.Item>
             </Col>
             <Col span={12}>
+              <Form.Item name="captainName" label="车队负责人">
+                <Input placeholder="请输入负责人姓名" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="captainPhone" label="负责人电话">
+                <Input placeholder="请输入负责人电话" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="annualInspectionExpireDate" label="年检到期日">
+                <DatePicker className="w-full" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
               <Form.Item name="nextMaintainDate" label="保养到期日">
                 <DatePicker className="w-full" />
               </Form.Item>
@@ -676,6 +877,11 @@ const VehiclesManagement: React.FC = () => {
             <Col span={12}>
               <Form.Item name="insuranceExpireDate" label="保险到期日">
                 <DatePicker className="w-full" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="currentMileage" label="当前里程(km)">
+                <InputNumber min={0} precision={1} className="w-full" />
               </Form.Item>
             </Col>
             <Col span={24}>
