@@ -1,0 +1,9 @@
+{
+  "results": [
+    {
+      "name": "API login",
+      "ok": true,
+      "detail": "admin/admin 登录成功并获取 token"
+    }
+  ]
+}

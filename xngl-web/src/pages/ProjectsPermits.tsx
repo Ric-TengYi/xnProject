@@ -16,15 +16,17 @@ import {
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { EditOutlined, EyeOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { EditOutlined, EyeOutlined, PlusOutlined, SearchOutlined, SyncOutlined } from '@ant-design/icons';
 import {
   createDisposalPermit,
   fetchDisposalPermitDetail,
   fetchDisposalPermits,
   updateDisposalPermit,
+  type DisposalPermitQueryParams,
   type DisposalPermitRecord,
   type DisposalPermitUpsertPayload,
 } from '../utils/permitApi';
+import { mockSyncGovPermits } from '../utils/platformApi';
 import { fetchContractList, type ContractRecord } from '../utils/contractApi';
 import { fetchProjects, type ProjectRecord } from '../utils/projectApi';
 import { fetchSites, type SiteRecord } from '../utils/siteApi';
@@ -42,6 +44,18 @@ const statusOptions = [
   { label: '即将到期', value: 'EXPIRING' },
   { label: '已过期', value: 'EXPIRED' },
   { label: '作废', value: 'VOID' },
+];
+
+const bindStatusOptions = [
+  { label: '全部绑定状态', value: 'ALL' },
+  { label: '已绑定', value: 'BOUND' },
+  { label: '未绑定', value: 'UNBOUND' },
+];
+
+const sourceOptions = [
+  { label: '全部来源', value: 'ALL' },
+  { label: '手工新增', value: 'MANUAL' },
+  { label: '政务网同步', value: 'GOV_PORTAL' },
 ];
 
 const resolvePermitType = (value?: string | null) => {
@@ -79,10 +93,19 @@ const ProjectsPermits: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [permitType, setPermitType] = useState('ALL');
   const [status, setStatus] = useState('ALL');
+  const [bindStatus, setBindStatus] = useState('ALL');
+  const [sourcePlatform, setSourcePlatform] = useState('ALL');
+  const [projectId, setProjectId] = useState<number>();
+  const [contractId, setContractId] = useState<number>();
+  const [siteId, setSiteId] = useState<number>();
   const [detailOpen, setDetailOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [currentRecord, setCurrentRecord] = useState<DisposalPermitRecord | null>(null);
+  const [syncing, setSyncing] = useState(false);
   const [form] = Form.useForm<DisposalPermitUpsertPayload>();
+  const selectedContractId = Form.useWatch('contractId', form);
+  const selectedFormProjectId = Form.useWatch('projectId', form);
+  const selectedFormSiteId = Form.useWatch('siteId', form);
 
   const projectNameMap = useMemo(
     () => Object.fromEntries(projects.map((item) => [String(item.id), item.name])),
@@ -103,11 +126,22 @@ const ProjectsPermits: React.FC = () => {
     [sites],
   );
 
-  const loadData = async () => {
+  const loadData = async (overrides: DisposalPermitQueryParams = {}) => {
     setLoading(true);
     try {
+      const query: DisposalPermitQueryParams = {
+        keyword: keyword.trim() || undefined,
+        permitType: permitType !== 'ALL' ? permitType : undefined,
+        status: status !== 'ALL' ? status : undefined,
+        bindStatus: bindStatus !== 'ALL' ? bindStatus : undefined,
+        sourcePlatform: sourcePlatform !== 'ALL' ? sourcePlatform : undefined,
+        projectId,
+        contractId,
+        siteId,
+        ...overrides,
+      };
       const [permitList, contractPage, projectPage, siteList, vehiclePage] = await Promise.all([
-        fetchDisposalPermits(),
+        fetchDisposalPermits(query),
         fetchContractList({ pageNo: 1, pageSize: 200 }),
         fetchProjects({ pageNo: 1, pageSize: 200 }),
         fetchSites(),
@@ -130,20 +164,38 @@ const ProjectsPermits: React.FC = () => {
     void loadData();
   }, []);
 
-  const filteredRecords = useMemo(() => {
-    const keywordValue = keyword.trim();
-    return records.filter((item) => {
-      const matchedKeyword =
-        !keywordValue
-        || item.permitNo.includes(keywordValue)
-        || (item.vehicleNo || '').includes(keywordValue)
-        || (projectNameMap[String(item.projectId || '')] || '').includes(keywordValue)
-        || (contractNameMap[String(item.contractId || '')] || '').includes(keywordValue);
-      const matchedType = permitType === 'ALL' || item.permitType === permitType;
-      const matchedStatus = status === 'ALL' || item.status === status;
-      return matchedKeyword && matchedType && matchedStatus;
+  useEffect(() => {
+    if (!modalOpen) {
+      return;
+    }
+    if (!selectedContractId) {
+      return;
+    }
+    const selectedContract = contracts.find((item) => Number(item.id) === Number(selectedContractId));
+    if (!selectedContract) {
+      return;
+    }
+    form.setFieldsValue({
+      projectId: selectedContract.projectId ? Number(selectedContract.projectId) : undefined,
+      siteId: selectedContract.siteId ? Number(selectedContract.siteId) : undefined,
     });
-  }, [keyword, permitType, projectNameMap, records, status]);
+  }, [contracts, form, modalOpen, selectedContractId]);
+
+  const availableContracts = useMemo(
+    () =>
+      contracts.filter((item) => {
+        const effectiveProjectId = modalOpen ? selectedFormProjectId : projectId;
+        const effectiveSiteId = modalOpen ? selectedFormSiteId : siteId;
+        if (effectiveProjectId && Number(item.projectId || 0) !== Number(effectiveProjectId)) {
+          return false;
+        }
+        if (effectiveSiteId && Number(item.siteId || 0) !== Number(effectiveSiteId)) {
+          return false;
+        }
+        return true;
+      }),
+    [contracts, modalOpen, projectId, selectedFormProjectId, selectedFormSiteId, siteId],
+  );
 
   const openDetail = async (id: string | number) => {
     setDetailLoading(true);
@@ -208,6 +260,24 @@ const ProjectsPermits: React.FC = () => {
     }
   };
 
+  const handleGovSync = async () => {
+    try {
+      setSyncing(true);
+      const result = await mockSyncGovPermits({ syncMode: 'MANUAL', includeTransportPermits: true });
+      message.success(`政务网同步完成，批次 ${result.batchNo}`);
+      await loadData();
+    } catch (error) {
+      console.error(error);
+      message.error('政务网同步失败');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleSearch = async () => {
+    await loadData();
+  };
+
   const columns: ColumnsType<DisposalPermitRecord> = [
     {
       title: '处置证号',
@@ -250,6 +320,18 @@ const ProjectsPermits: React.FC = () => {
       render: (value) => <Tag color={statusColorMap[value || ''] || 'default'}>{resolveStatus(value)}</Tag>,
     },
     {
+      title: '来源 / 同步',
+      key: 'sync',
+      render: (_, record) => (
+        <div className="flex flex-col">
+            <span>{record.sourcePlatform || 'MANUAL'}</span>
+          <span style={{ color: 'var(--text-secondary)' }}>
+            {record.syncBatchNo || record.lastSyncTime || '未同步'}
+          </span>
+        </div>
+      ),
+    },
+    {
       title: '操作',
       key: 'action',
       render: (_, record) => (
@@ -272,9 +354,14 @@ const ProjectsPermits: React.FC = () => {
           <h1 className="text-2xl font-bold g-text-primary m-0">处置证清单</h1>
           <p className="g-text-secondary mt-1">支持手工新增、关联项目/场地/车辆并维护有效期</p>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-          新增处置证
-        </Button>
+        <Space>
+          <Button icon={<SyncOutlined />} loading={syncing} onClick={() => void handleGovSync()}>
+            政务网同步
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            新增处置证
+          </Button>
+        </Space>
       </div>
 
       <Card className="glass-panel g-border-panel border">
@@ -289,12 +376,46 @@ const ProjectsPermits: React.FC = () => {
           />
           <Select value={permitType} options={permitTypeOptions} onChange={setPermitType} className="w-40" />
           <Select value={status} options={statusOptions} onChange={setStatus} className="w-40" />
+          <Select
+            allowClear
+            value={projectId}
+            placeholder="筛选项目"
+            options={projects.map((item) => ({ label: item.name, value: Number(item.id) }))}
+            onChange={(value) => setProjectId(value)}
+            className="w-44"
+          />
+          <Select
+            allowClear
+            showSearch
+            value={contractId}
+            placeholder="筛选合同"
+            optionFilterProp="label"
+            options={availableContracts.map((item) => ({
+              label: `${item.contractNo}${item.name ? ` / ${item.name}` : ''}`,
+              value: Number(item.id),
+            }))}
+            onChange={(value) => setContractId(value)}
+            className="w-56"
+          />
+          <Select
+            allowClear
+            value={siteId}
+            placeholder="筛选场地"
+            options={sites.map((item) => ({ label: item.name, value: Number(item.id) }))}
+            onChange={(value) => setSiteId(value)}
+            className="w-44"
+          />
+          <Select value={bindStatus} options={bindStatusOptions} onChange={setBindStatus} className="w-40" />
+          <Select value={sourcePlatform} options={sourceOptions} onChange={setSourcePlatform} className="w-40" />
+          <Button type="primary" icon={<SearchOutlined />} onClick={() => void handleSearch()}>
+            查询
+          </Button>
         </div>
         <Table
           rowKey="id"
           loading={loading}
           columns={columns}
-          dataSource={filteredRecords}
+          dataSource={records}
           locale={{ emptyText: <Empty description="暂无处置证数据" /> }}
           pagination={{ pageSize: 10 }}
         />
@@ -317,6 +438,10 @@ const ProjectsPermits: React.FC = () => {
               <Tag color={statusColorMap[currentRecord?.status || ''] || 'default'}>{resolveStatus(currentRecord?.status)}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="绑定状态">{resolveBindStatus(currentRecord?.bindStatus)}</Descriptions.Item>
+            <Descriptions.Item label="来源平台">{currentRecord?.sourcePlatform || 'MANUAL'}</Descriptions.Item>
+            <Descriptions.Item label="外部流水号">{currentRecord?.externalRefNo || '-'}</Descriptions.Item>
+            <Descriptions.Item label="同步批次">{currentRecord?.syncBatchNo || '-'}</Descriptions.Item>
+            <Descriptions.Item label="最近同步">{currentRecord?.lastSyncTime || '-'}</Descriptions.Item>
             <Descriptions.Item label="备注">{currentRecord?.remark || '-'}</Descriptions.Item>
           </Descriptions>
         )}
@@ -339,14 +464,17 @@ const ProjectsPermits: React.FC = () => {
               <Select options={permitTypeOptions.filter((item) => item.value !== 'ALL')} />
             </Form.Item>
             <Form.Item name="projectId" label="关联项目">
-              <Select allowClear options={projects.map((item) => ({ label: item.name, value: Number(item.id) }))} />
+              <Select
+                allowClear
+                options={projects.map((item) => ({ label: item.name, value: Number(item.id) }))}
+              />
             </Form.Item>
             <Form.Item name="contractId" label="关联合同">
               <Select
                 allowClear
                 showSearch
                 optionFilterProp="label"
-                options={contracts.map((item) => ({
+                options={availableContracts.map((item) => ({
                   label: `${item.contractNo}${item.name ? ` / ${item.name}` : ''}`,
                   value: Number(item.id),
                 }))}

@@ -1,4 +1,4 @@
-import http from './request';
+import http, { request } from './request';
 import type { PageResult } from './vehicleApi';
 
 export interface VehicleMaintenancePlanRecord {
@@ -20,6 +20,9 @@ export interface VehicleMaintenancePlanRecord {
   statusLabel: string;
   overdue?: boolean | null;
   remark?: string | null;
+  recordCount?: number | null;
+  totalRecordCost?: number | null;
+  lastServiceDate?: string | null;
 }
 
 export interface VehicleMaintenanceRecord {
@@ -36,8 +39,18 @@ export interface VehicleMaintenanceRecord {
   odometer: number;
   vendorName?: string | null;
   costAmount: number;
+  laborCost?: number | null;
+  materialCost?: number | null;
+  externalCost?: number | null;
   items?: string | null;
+  issueDescription?: string | null;
+  resultSummary?: string | null;
   operatorName?: string | null;
+  technicianName?: string | null;
+  checkerName?: string | null;
+  signoffStatus?: string | null;
+  signoffStatusLabel?: string | null;
+  attachmentUrls?: string | null;
   status: string;
   statusLabel: string;
   remark?: string | null;
@@ -57,6 +70,11 @@ export interface VehicleMaintenanceQueryParams {
   status?: string;
   orgId?: string;
   vehicleId?: string;
+  nextMaintainDateFrom?: string;
+  nextMaintainDateTo?: string;
+  serviceDateFrom?: string;
+  serviceDateTo?: string;
+  overdueOnly?: boolean;
   pageNo?: number;
   pageSize?: number;
 }
@@ -80,8 +98,17 @@ export interface VehicleMaintenanceExecutePayload {
   odometer?: number;
   vendorName?: string;
   costAmount?: number;
+  laborCost?: number;
+  materialCost?: number;
+  externalCost?: number;
   items?: string;
+  issueDescription?: string;
+  resultSummary?: string;
   operatorName?: string;
+  technicianName?: string;
+  checkerName?: string;
+  signoffStatus?: string;
+  attachmentUrls?: string;
   status?: string;
   remark?: string;
   nextMaintainDate?: string;
@@ -109,6 +136,9 @@ const mapPlan = (record: Partial<VehicleMaintenancePlanRecord>): VehicleMaintena
   statusLabel: record.statusLabel || '未知',
   overdue: record.overdue ?? false,
   remark: record.remark || null,
+  recordCount: record.recordCount == null ? null : toNumber(record.recordCount),
+  totalRecordCost: record.totalRecordCost == null ? null : toNumber(record.totalRecordCost),
+  lastServiceDate: record.lastServiceDate || null,
 });
 
 const mapRecord = (record: Partial<VehicleMaintenanceRecord>): VehicleMaintenanceRecord => ({
@@ -125,8 +155,18 @@ const mapRecord = (record: Partial<VehicleMaintenanceRecord>): VehicleMaintenanc
   odometer: toNumber(record.odometer),
   vendorName: record.vendorName || null,
   costAmount: toNumber(record.costAmount),
+  laborCost: record.laborCost == null ? null : toNumber(record.laborCost),
+  materialCost: record.materialCost == null ? null : toNumber(record.materialCost),
+  externalCost: record.externalCost == null ? null : toNumber(record.externalCost),
   items: record.items || null,
+  issueDescription: record.issueDescription || null,
+  resultSummary: record.resultSummary || null,
   operatorName: record.operatorName || null,
+  technicianName: record.technicianName || null,
+  checkerName: record.checkerName || null,
+  signoffStatus: record.signoffStatus || null,
+  signoffStatusLabel: record.signoffStatusLabel || null,
+  attachmentUrls: record.attachmentUrls || null,
   status: record.status || 'DONE',
   statusLabel: record.statusLabel || '未知',
   remark: record.remark || null,
@@ -166,6 +206,21 @@ export async function fetchVehicleMaintenanceRecords(params: VehicleMaintenanceQ
   };
 }
 
+export async function fetchVehicleMaintenancePlanDetail(id: string) {
+  const res = await http.get<VehicleMaintenancePlanRecord>('/vehicle-maintenance-plans/' + id);
+  return mapPlan(res.data);
+}
+
+export async function fetchVehicleMaintenancePlanRecords(id: string) {
+  const res = await http.get<VehicleMaintenanceRecord[]>('/vehicle-maintenance-plans/' + id + '/records');
+  return (Array.isArray(res.data) ? res.data : []).map(mapRecord);
+}
+
+export async function fetchVehicleMaintenanceRecordDetail(id: string) {
+  const res = await http.get<VehicleMaintenanceRecord>('/vehicle-maintenance-plans/records/' + id);
+  return mapRecord(res.data);
+}
+
 export async function createVehicleMaintenancePlan(payload: VehicleMaintenancePlanUpsertPayload) {
   const res = await http.post<VehicleMaintenancePlanRecord>('/vehicle-maintenance-plans', payload);
   return mapPlan(res.data);
@@ -179,7 +234,27 @@ export async function updateVehicleMaintenancePlan(
   return mapPlan(res.data);
 }
 
+export async function deleteVehicleMaintenancePlan(id: string) {
+  await http.delete('/vehicle-maintenance-plans/' + id);
+}
+
 export async function executeVehicleMaintenance(id: string, payload: VehicleMaintenanceExecutePayload) {
   const res = await http.post<VehicleMaintenanceRecord>('/vehicle-maintenance-plans/' + id + '/execute', payload);
   return mapRecord(res.data);
+}
+
+export async function exportVehicleMaintenancePlans(params: VehicleMaintenanceQueryParams = {}) {
+  const response = await request.get('/vehicle-maintenance-plans/export/plans', {
+    params,
+    responseType: 'blob',
+  });
+  return response.data as Blob;
+}
+
+export async function exportVehicleMaintenanceRecords(params: VehicleMaintenanceQueryParams = {}) {
+  const response = await request.get('/vehicle-maintenance-plans/export/records', {
+    params,
+    responseType: 'blob',
+  });
+  return response.data as Blob;
 }

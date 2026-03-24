@@ -12,6 +12,7 @@ import com.xngl.infrastructure.persistence.entity.project.Project;
 import com.xngl.infrastructure.persistence.entity.security.SecurityInspection;
 import com.xngl.infrastructure.persistence.entity.site.Site;
 import com.xngl.infrastructure.persistence.entity.vehicle.Vehicle;
+import com.xngl.infrastructure.persistence.entity.vehicle.VehicleViolationRecord;
 import com.xngl.infrastructure.persistence.mapper.AlertEventMapper;
 import com.xngl.infrastructure.persistence.mapper.AlertFenceMapper;
 import com.xngl.infrastructure.persistence.mapper.AlertPushRuleMapper;
@@ -23,17 +24,20 @@ import com.xngl.infrastructure.persistence.mapper.SecurityInspectionMapper;
 import com.xngl.infrastructure.persistence.mapper.SiteMapper;
 import com.xngl.infrastructure.persistence.mapper.UserMapper;
 import com.xngl.infrastructure.persistence.mapper.VehicleMapper;
+import com.xngl.infrastructure.persistence.mapper.VehicleViolationRecordMapper;
 import com.xngl.manager.disposal.entity.DisposalPermit;
 import com.xngl.manager.disposal.mapper.DisposalPermitMapper;
 import com.xngl.manager.sysparam.entity.SysParam;
 import com.xngl.manager.sysparam.mapper.SysParamMapper;
-import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,6 +52,9 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.Data;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -62,14 +69,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class AlertsController {
 
   private static final BigDecimal ZERO = BigDecimal.ZERO;
+  private static final DateTimeFormatter ISO_DATE_TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
   private static final Set<String> AUTO_GENERATE_RULE_CODES =
       Set.of(
           "PROJECT_PROGRESS_LAG",
           "PROJECT_PERMIT_EXPIRING",
+          "SITE_CAPACITY_WARN",
           "CONTRACT_EXPIRING_SOON",
           "CONTRACT_PAYMENT_OVERDUE",
           "PERSONNEL_LICENSE_EXPIRING",
-          "PERSONNEL_VIOLATION_SCORE");
+          "PERSONNEL_VIOLATION_SCORE",
+          "VEHICLE_ROUTE_DEVIATION");
 
   private final AlertEventMapper alertEventMapper;
   private final AlertFenceMapper alertFenceMapper;
@@ -78,13 +88,14 @@ public class AlertsController {
   private final ProjectMapper projectMapper;
   private final SiteMapper siteMapper;
   private final VehicleMapper vehicleMapper;
+  private final VehicleViolationRecordMapper vehicleViolationRecordMapper;
   private final ContractMapper contractMapper;
   private final ContractTicketMapper contractTicketMapper;
   private final SecurityInspectionMapper securityInspectionMapper;
   private final DisposalPermitMapper disposalPermitMapper;
   private final UserMapper userMapper;
   private final SysParamMapper sysParamMapper;
-  private final UserService userService;
+  private final UserContext userContext;
 
   public AlertsController(
       AlertEventMapper alertEventMapper,
@@ -94,13 +105,14 @@ public class AlertsController {
       ProjectMapper projectMapper,
       SiteMapper siteMapper,
       VehicleMapper vehicleMapper,
+      VehicleViolationRecordMapper vehicleViolationRecordMapper,
       ContractMapper contractMapper,
       ContractTicketMapper contractTicketMapper,
       SecurityInspectionMapper securityInspectionMapper,
       DisposalPermitMapper disposalPermitMapper,
       UserMapper userMapper,
       SysParamMapper sysParamMapper,
-      UserService userService) {
+      UserContext userContext) {
     this.alertEventMapper = alertEventMapper;
     this.alertFenceMapper = alertFenceMapper;
     this.alertRuleMapper = alertRuleMapper;
@@ -108,13 +120,14 @@ public class AlertsController {
     this.projectMapper = projectMapper;
     this.siteMapper = siteMapper;
     this.vehicleMapper = vehicleMapper;
+    this.vehicleViolationRecordMapper = vehicleViolationRecordMapper;
     this.contractMapper = contractMapper;
     this.contractTicketMapper = contractTicketMapper;
     this.securityInspectionMapper = securityInspectionMapper;
     this.disposalPermitMapper = disposalPermitMapper;
     this.userMapper = userMapper;
     this.sysParamMapper = sysParamMapper;
-    this.userService = userService;
+    this.userContext = userContext;
   }
 
   @GetMapping
@@ -124,34 +137,32 @@ public class AlertsController {
       @RequestParam(required = false) String level,
       @RequestParam(required = false) String status,
       @RequestParam(required = false) String sourceChannel,
+      @RequestParam(required = false) String ruleCode,
+      @RequestParam(required = false) Boolean overdueOnly,
+      @RequestParam(required = false) String occurTimeFrom,
+      @RequestParam(required = false) String occurTimeTo,
+      @RequestParam(required = false) String resolveTimeFrom,
+      @RequestParam(required = false) String resolveTimeTo,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    String keywordValue = trimToNull(keyword);
     List<AlertEvent> rows =
-        alertEventMapper.selectList(
-            new LambdaQueryWrapper<AlertEvent>()
-                .eq(AlertEvent::getTenantId, currentUser.getTenantId())
-                .eq(StringUtils.hasText(targetType), AlertEvent::getTargetType, targetType)
-                .eq(StringUtils.hasText(level), AlertEvent::getAlertLevel, level)
-                .eq(StringUtils.hasText(status), AlertEvent::getAlertStatus, status)
-                .eq(StringUtils.hasText(sourceChannel), AlertEvent::getSourceChannel, sourceChannel)
-                .and(
-                    StringUtils.hasText(keywordValue),
-                    wrapper ->
-                        wrapper
-                            .like(AlertEvent::getAlertNo, keywordValue)
-                            .or()
-                            .like(AlertEvent::getTitle, keywordValue)
-                            .or()
-                            .like(AlertEvent::getRuleCode, keywordValue)
-                            .or()
-                            .like(AlertEvent::getContent, keywordValue))
-                .orderByDesc(AlertEvent::getOccurTime)
-                .orderByDesc(AlertEvent::getId));
+        queryTenantAlerts(
+            currentUser.getTenantId(),
+            keyword,
+            targetType,
+            level,
+            status,
+            sourceChannel,
+            ruleCode,
+            overdueOnly,
+            parseDateTime(occurTimeFrom),
+            parseDateTime(occurTimeTo),
+            parseDateTime(resolveTimeFrom),
+            parseDateTime(resolveTimeTo));
     return ApiResult.ok(enrich(rows));
   }
 
-  @GetMapping("/{id}")
+  @GetMapping("/{id:\\d+}")
   public ApiResult<Map<String, Object>> get(@PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
     AlertEvent entity = requireEntity(id, currentUser.getTenantId());
@@ -159,9 +170,34 @@ public class AlertsController {
   }
 
   @GetMapping("/summary")
-  public ApiResult<Map<String, Object>> summary(HttpServletRequest request) {
+  public ApiResult<Map<String, Object>> summary(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String targetType,
+      @RequestParam(required = false) String level,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) String sourceChannel,
+      @RequestParam(required = false) String ruleCode,
+      @RequestParam(required = false) Boolean overdueOnly,
+      @RequestParam(required = false) String occurTimeFrom,
+      @RequestParam(required = false) String occurTimeTo,
+      @RequestParam(required = false) String resolveTimeFrom,
+      @RequestParam(required = false) String resolveTimeTo,
+      HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    List<AlertEvent> rows = queryTenantAlerts(currentUser.getTenantId());
+    List<AlertEvent> rows =
+        queryTenantAlerts(
+            currentUser.getTenantId(),
+            keyword,
+            targetType,
+            level,
+            status,
+            sourceChannel,
+            ruleCode,
+            overdueOnly,
+            parseDateTime(occurTimeFrom),
+            parseDateTime(occurTimeTo),
+            parseDateTime(resolveTimeFrom),
+            parseDateTime(resolveTimeTo));
     Map<String, Object> result = new LinkedHashMap<>();
     result.put("total", rows.size());
     result.put("pending", rows.stream().filter(item -> "PENDING".equalsIgnoreCase(item.getAlertStatus())).count());
@@ -183,9 +219,34 @@ public class AlertsController {
   }
 
   @GetMapping("/analytics")
-  public ApiResult<Map<String, Object>> analytics(HttpServletRequest request) {
+  public ApiResult<Map<String, Object>> analytics(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String targetType,
+      @RequestParam(required = false) String level,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) String sourceChannel,
+      @RequestParam(required = false) String ruleCode,
+      @RequestParam(required = false) Boolean overdueOnly,
+      @RequestParam(required = false) String occurTimeFrom,
+      @RequestParam(required = false) String occurTimeTo,
+      @RequestParam(required = false) String resolveTimeFrom,
+      @RequestParam(required = false) String resolveTimeTo,
+      HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    List<AlertEvent> rows = queryTenantAlerts(currentUser.getTenantId());
+    List<AlertEvent> rows =
+        queryTenantAlerts(
+            currentUser.getTenantId(),
+            keyword,
+            targetType,
+            level,
+            status,
+            sourceChannel,
+            ruleCode,
+            overdueOnly,
+            parseDateTime(occurTimeFrom),
+            parseDateTime(occurTimeTo),
+            parseDateTime(resolveTimeFrom),
+            parseDateTime(resolveTimeTo));
     List<AlertRule> rules =
         alertRuleMapper.selectList(
             new LambdaQueryWrapper<AlertRule>()
@@ -208,21 +269,63 @@ public class AlertsController {
   }
 
   @GetMapping("/top-risk")
-  public ApiResult<List<Map<String, Object>>> topRisk(HttpServletRequest request) {
-    return topRisk("VEHICLE", request);
+  public ApiResult<List<Map<String, Object>>> topRisk(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String level,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) String sourceChannel,
+      @RequestParam(required = false) String ruleCode,
+      @RequestParam(required = false) Boolean overdueOnly,
+      @RequestParam(required = false) String occurTimeFrom,
+      @RequestParam(required = false) String occurTimeTo,
+      @RequestParam(required = false) String resolveTimeFrom,
+      @RequestParam(required = false) String resolveTimeTo,
+      HttpServletRequest request) {
+    return topRisk(
+        "VEHICLE",
+        keyword,
+        level,
+        status,
+        sourceChannel,
+        ruleCode,
+        overdueOnly,
+        occurTimeFrom,
+        occurTimeTo,
+        resolveTimeFrom,
+        resolveTimeTo,
+        request);
   }
 
   @GetMapping("/top-risk-targets")
   public ApiResult<List<Map<String, Object>>> topRisk(
-      @RequestParam(required = false) String targetType, HttpServletRequest request) {
+      @RequestParam(required = false) String targetType,
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String level,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) String sourceChannel,
+      @RequestParam(required = false) String ruleCode,
+      @RequestParam(required = false) Boolean overdueOnly,
+      @RequestParam(required = false) String occurTimeFrom,
+      @RequestParam(required = false) String occurTimeTo,
+      @RequestParam(required = false) String resolveTimeFrom,
+      @RequestParam(required = false) String resolveTimeTo,
+      HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
     String targetTypeValue = defaultValue(targetType, "VEHICLE");
     List<AlertEvent> rows =
-        alertEventMapper.selectList(
-            new LambdaQueryWrapper<AlertEvent>()
-                .eq(AlertEvent::getTenantId, currentUser.getTenantId())
-                .eq(AlertEvent::getTargetType, targetTypeValue)
-                .orderByDesc(AlertEvent::getOccurTime));
+        queryTenantAlerts(
+            currentUser.getTenantId(),
+            keyword,
+            targetTypeValue,
+            level,
+            status,
+            sourceChannel,
+            ruleCode,
+            overdueOnly,
+            parseDateTime(occurTimeFrom),
+            parseDateTime(occurTimeTo),
+            parseDateTime(resolveTimeFrom),
+            parseDateTime(resolveTimeTo));
     Map<Long, Long> countMap =
         rows.stream()
             .map(item -> resolveTopRiskId(item, targetTypeValue))
@@ -329,6 +432,12 @@ public class AlertsController {
       generateProjectAlerts(context, enabledRuleMap.get("PROJECT_PROGRESS_LAG"));
       generateProjectPermitAlerts(context, enabledRuleMap.get("PROJECT_PERMIT_EXPIRING"));
     }
+    if (targetTypes.contains("SITE")) {
+      generateSiteAlerts(context, enabledRuleMap.get("SITE_CAPACITY_WARN"));
+    }
+    if (targetTypes.contains("VEHICLE")) {
+      generateVehicleAlerts(context, enabledRuleMap.get("VEHICLE_ROUTE_DEVIATION"));
+    }
     if (targetTypes.contains("CONTRACT")) {
       generateContractAlerts(
           context,
@@ -380,12 +489,89 @@ public class AlertsController {
     return ApiResult.ok();
   }
 
-  private List<AlertEvent> queryTenantAlerts(Long tenantId) {
-    return alertEventMapper.selectList(
+  @GetMapping("/export")
+  public ResponseEntity<byte[]> export(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String targetType,
+      @RequestParam(required = false) String level,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) String sourceChannel,
+      @RequestParam(required = false) String ruleCode,
+      @RequestParam(required = false) Boolean overdueOnly,
+      @RequestParam(required = false) String occurTimeFrom,
+      @RequestParam(required = false) String occurTimeTo,
+      @RequestParam(required = false) String resolveTimeFrom,
+      @RequestParam(required = false) String resolveTimeTo,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<Map<String, Object>> rows =
+        enrich(
+            queryTenantAlerts(
+                currentUser.getTenantId(),
+                keyword,
+                targetType,
+                level,
+                status,
+                sourceChannel,
+                ruleCode,
+                overdueOnly,
+                parseDateTime(occurTimeFrom),
+                parseDateTime(occurTimeTo),
+                parseDateTime(resolveTimeFrom),
+                parseDateTime(resolveTimeTo)));
+    return csvResponse("alerts_monitor.csv", buildAlertCsv(rows));
+  }
+
+  private List<AlertEvent> queryTenantAlerts(
+      Long tenantId,
+      String keyword,
+      String targetType,
+      String level,
+      String status,
+      String sourceChannel,
+      String ruleCode,
+      Boolean overdueOnly,
+      LocalDateTime occurTimeFrom,
+      LocalDateTime occurTimeTo,
+      LocalDateTime resolveTimeFrom,
+      LocalDateTime resolveTimeTo) {
+    String keywordValue = trimToNull(keyword);
+    List<AlertEvent> rows =
+        alertEventMapper.selectList(
         new LambdaQueryWrapper<AlertEvent>()
             .eq(AlertEvent::getTenantId, tenantId)
+            .eq(StringUtils.hasText(targetType), AlertEvent::getTargetType, targetType)
+            .eq(StringUtils.hasText(level), AlertEvent::getAlertLevel, level)
+            .eq(StringUtils.hasText(status), AlertEvent::getAlertStatus, status)
+            .eq(StringUtils.hasText(sourceChannel), AlertEvent::getSourceChannel, sourceChannel)
+            .eq(StringUtils.hasText(ruleCode), AlertEvent::getRuleCode, ruleCode)
+            .ge(occurTimeFrom != null, AlertEvent::getOccurTime, occurTimeFrom)
+            .le(occurTimeTo != null, AlertEvent::getOccurTime, occurTimeTo)
+            .ge(resolveTimeFrom != null, AlertEvent::getResolveTime, resolveTimeFrom)
+            .le(resolveTimeTo != null, AlertEvent::getResolveTime, resolveTimeTo)
+            .and(
+                StringUtils.hasText(keywordValue),
+                wrapper ->
+                    wrapper
+                        .like(AlertEvent::getAlertNo, keywordValue)
+                        .or()
+                        .like(AlertEvent::getTitle, keywordValue)
+                        .or()
+                        .like(AlertEvent::getRuleCode, keywordValue)
+                        .or()
+                        .like(AlertEvent::getContent, keywordValue))
             .orderByDesc(AlertEvent::getOccurTime)
             .orderByDesc(AlertEvent::getId));
+    if (!Boolean.TRUE.equals(overdueOnly)) {
+      return rows;
+    }
+    LocalDateTime now = LocalDateTime.now();
+    return rows.stream()
+        .filter(item -> item.getOccurTime() != null)
+        .filter(item -> !"CLOSED".equalsIgnoreCase(item.getAlertStatus()))
+        .filter(item -> !"CONFIRMED".equalsIgnoreCase(item.getAlertStatus()))
+        .filter(item -> ChronoUnit.HOURS.between(item.getOccurTime(), now) >= 24)
+        .toList();
   }
 
   private Map<String, Object> buildModelCoverage(Long tenantId, List<AlertRule> rules) {
@@ -562,6 +748,12 @@ public class AlertsController {
                   row.getOccurTime(),
                   row.getResolveTime() != null ? row.getResolveTime() : LocalDateTime.now())
               : null);
+      item.put(
+          "isOverdue",
+          row.getOccurTime() != null
+              && !"CLOSED".equalsIgnoreCase(row.getAlertStatus())
+              && !"CONFIRMED".equalsIgnoreCase(row.getAlertStatus())
+              && ChronoUnit.HOURS.between(row.getOccurTime(), LocalDateTime.now()) >= 24);
       result.add(item);
     }
     result.sort(
@@ -699,7 +891,7 @@ public class AlertsController {
   private Set<String> resolveGenerateTargetTypes(AlertGenerateRequest body) {
     List<String> requestTypes = body != null ? body.getTargetTypes() : null;
     if (requestTypes == null || requestTypes.isEmpty()) {
-      return Set.of("PROJECT", "CONTRACT", "USER");
+      return Set.of("PROJECT", "SITE", "VEHICLE", "CONTRACT", "USER");
     }
     return normalizeTargetTypes(requestTypes);
   }
@@ -711,7 +903,7 @@ public class AlertsController {
         result.add(item.trim().toUpperCase());
       }
     }
-    return result.isEmpty() ? Set.of("PROJECT", "CONTRACT", "USER") : result;
+    return result.isEmpty() ? Set.of("PROJECT", "SITE", "VEHICLE", "CONTRACT", "USER") : result;
   }
 
   private Map<String, AlertRule> loadEnabledRuleMap(Long tenantId) {
@@ -926,6 +1118,150 @@ public class AlertsController {
               + "\",\"daysToExpire\":"
               + nearestExpireDays
               + "}";
+      upsertAutoAlert(context, candidate);
+    }
+  }
+
+  private void generateSiteAlerts(AlertGenerationContext context, AlertRule rule) {
+    if (rule == null) {
+      return;
+    }
+    List<Site> sites =
+        siteMapper.selectList(
+            new LambdaQueryWrapper<Site>()
+                .eq(Site::getDeleted, 0));
+    if (sites.isEmpty()) {
+      return;
+    }
+    List<Contract> contracts =
+        contractMapper.selectList(
+            new LambdaQueryWrapper<Contract>()
+                .eq(Contract::getTenantId, context.tenantId)
+                .eq(Contract::getDeleted, 0));
+    Map<Long, List<Contract>> contractsBySite =
+        contracts.stream()
+            .filter(item -> item.getSiteId() != null)
+            .collect(Collectors.groupingBy(Contract::getSiteId, LinkedHashMap::new, Collectors.toList()));
+    Map<Long, List<ContractTicket>> ticketsByContract =
+        loadTicketsByContract(contracts.stream().map(Contract::getId).collect(Collectors.toSet()));
+    int threshold = extractThreshold(rule.getThresholdJson(), 80);
+
+    for (Site site : sites) {
+      if (site.getId() == null) {
+        continue;
+      }
+      BigDecimal usedVolume = ZERO;
+      for (Contract contract : contractsBySite.getOrDefault(site.getId(), Collections.emptyList())) {
+        for (ContractTicket ticket :
+            ticketsByContract.getOrDefault(contract.getId(), Collections.emptyList())) {
+          usedVolume = usedVolume.add(defaultDecimal(ticket.getVolume()));
+        }
+      }
+      BigDecimal capacity = deriveSiteCapacity(site, usedVolume);
+      if (capacity.compareTo(ZERO) <= 0) {
+        continue;
+      }
+      int utilizationRate = calculatePercent(usedVolume, capacity);
+      if (utilizationRate < threshold) {
+        continue;
+      }
+      BigDecimal remaining = capacity.subtract(usedVolume).max(ZERO);
+      AutoAlertCandidate candidate = new AutoAlertCandidate();
+      candidate.ruleCode = rule.getRuleCode();
+      candidate.alertType = "SITE_CAPACITY";
+      candidate.targetType = "SITE";
+      candidate.targetId = site.getId();
+      candidate.siteId = site.getId();
+      candidate.level = utilizationRate >= 95 ? "L3" : defaultLevel(rule.getLevel());
+      candidate.sourceChannel = "SYSTEM";
+      candidate.title = resolveSiteName(site, site.getId()) + " 容量预警";
+      candidate.content =
+          "场地当前容量使用率已达 "
+              + utilizationRate
+              + "%，剩余容量 "
+              + remaining.stripTrailingZeros().toPlainString()
+              + " 方。";
+      candidate.snapshotJson =
+          "{\"siteName\":\""
+              + jsonEscape(resolveSiteName(site, site.getId()))
+              + "\",\"capacity\":"
+              + formatDecimal(capacity)
+              + ",\"usedVolume\":"
+              + formatDecimal(usedVolume)
+              + ",\"remainingVolume\":"
+              + formatDecimal(remaining)
+              + ",\"utilizationRate\":"
+              + utilizationRate
+              + "}";
+      upsertAutoAlert(context, candidate);
+    }
+  }
+
+  private void generateVehicleAlerts(AlertGenerationContext context, AlertRule rule) {
+    if (rule == null) {
+      return;
+    }
+    List<VehicleViolationRecord> violations =
+        vehicleViolationRecordMapper.selectList(
+            new LambdaQueryWrapper<VehicleViolationRecord>()
+                .eq(VehicleViolationRecord::getTenantId, context.tenantId)
+                .and(
+                    wrapper ->
+                        wrapper
+                            .like(VehicleViolationRecord::getViolationType, "偏航")
+                            .or()
+                            .like(VehicleViolationRecord::getViolationType, "闯禁"))
+                .ge(VehicleViolationRecord::getTriggerTime, LocalDateTime.now().minusDays(30))
+                .orderByDesc(VehicleViolationRecord::getTriggerTime)
+                .orderByDesc(VehicleViolationRecord::getId));
+    if (violations.isEmpty()) {
+      return;
+    }
+    Map<Long, Vehicle> vehicleMap =
+        loadVehicles(
+            violations.stream().map(VehicleViolationRecord::getVehicleId).collect(Collectors.toSet()));
+    Map<Long, List<VehicleViolationRecord>> grouped =
+        violations.stream()
+            .filter(item -> item.getVehicleId() != null)
+            .collect(
+                Collectors.groupingBy(
+                    VehicleViolationRecord::getVehicleId,
+                    LinkedHashMap::new,
+                    Collectors.toList()));
+    for (Map.Entry<Long, List<VehicleViolationRecord>> entry : grouped.entrySet()) {
+      Vehicle vehicle = vehicleMap.get(entry.getKey());
+      VehicleViolationRecord latest = entry.getValue().get(0);
+      int riskCount = entry.getValue().size();
+      AutoAlertCandidate candidate = new AutoAlertCandidate();
+      candidate.ruleCode = rule.getRuleCode();
+      candidate.alertType = "VEHICLE_ROUTE_DEVIATION";
+      candidate.targetType = "VEHICLE";
+      candidate.targetId = entry.getKey();
+      candidate.vehicleId = entry.getKey();
+      candidate.level =
+          entry.getValue().stream().anyMatch(item -> "DISABLED".equalsIgnoreCase(item.getActionStatus()))
+              ? "L3"
+              : defaultLevel(rule.getLevel());
+      candidate.sourceChannel = "GPS";
+      candidate.title =
+          (vehicle != null ? resolveVehicleNo(vehicle, vehicle.getId()) : "车辆#" + entry.getKey())
+              + " 线路偏航预警";
+      candidate.content =
+          "近 30 天检测到 "
+              + riskCount
+              + " 次偏航/闯禁相关风险，最近一次位置为 "
+              + defaultValue(trimToNull(latest.getTriggerLocation()), "未知位置")
+              + "。";
+      candidate.snapshotJson =
+          "{\"vehicleNo\":\""
+              + jsonEscape(vehicle != null ? resolveVehicleNo(vehicle, vehicle.getId()) : "车辆#" + entry.getKey())
+              + "\",\"riskCount\":"
+              + riskCount
+              + ",\"latestViolationType\":\""
+              + jsonEscape(defaultValue(latest.getViolationType(), "-"))
+              + "\",\"latestTriggerTime\":\""
+              + latest.getTriggerTime()
+              + "\"}";
       upsertAutoAlert(context, candidate);
     }
   }
@@ -1306,6 +1642,17 @@ public class AlertsController {
         .intValue();
   }
 
+  private BigDecimal deriveSiteCapacity(Site site, BigDecimal usedVolume) {
+    if (site != null && site.getCapacity() != null && site.getCapacity().compareTo(ZERO) > 0) {
+      return site.getCapacity();
+    }
+    BigDecimal base =
+        BigDecimal.valueOf(((site != null && site.getId() != null ? site.getId() : 1L) % 7) + 3L)
+            .multiply(BigDecimal.valueOf(100000L));
+    BigDecimal dynamic = defaultDecimal(usedVolume).multiply(BigDecimal.valueOf(1.2));
+    return dynamic.compareTo(base) > 0 ? dynamic : base;
+  }
+
   private BigDecimal defaultDecimal(BigDecimal value) {
     return value != null ? value : ZERO;
   }
@@ -1349,20 +1696,66 @@ public class AlertsController {
     return StringUtils.hasText(value) ? value.trim() : null;
   }
 
-  private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
+  private LocalDateTime parseDateTime(String value) {
+    if (!StringUtils.hasText(value)) {
+      return null;
     }
     try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null || user.getTenantId() == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
+      return LocalDateTime.parse(value.trim(), ISO_DATE_TIME);
+    } catch (Exception ex) {
+      return null;
     }
+  }
+
+  private ResponseEntity<byte[]> csvResponse(String fileName, String content) {
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName)
+        .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+        .body(content.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private String buildAlertCsv(List<Map<String, Object>> rows) {
+    StringBuilder builder =
+        new StringBuilder("预警编号,标题,规则编码,对象类型,对象名称,等级,状态,来源,项目,场地,车辆,合同,人员,是否超期,发生时间,关闭时间,持续分钟,处置说明,预警内容\n");
+    for (Map<String, Object> row : rows) {
+      builder
+          .append(csv(row.get("alertNo"))).append(',')
+          .append(csv(row.get("title"))).append(',')
+          .append(csv(row.get("ruleCode"))).append(',')
+          .append(csv(row.get("targetType"))).append(',')
+          .append(csv(row.get("targetName"))).append(',')
+          .append(csv(row.get("level"))).append(',')
+          .append(csv(row.get("status"))).append(',')
+          .append(csv(row.get("sourceChannel"))).append(',')
+          .append(csv(row.get("projectName"))).append(',')
+          .append(csv(row.get("siteName"))).append(',')
+          .append(csv(row.get("vehicleNo"))).append(',')
+          .append(csv(row.get("contractNo"))).append(',')
+          .append(csv(row.get("userName"))).append(',')
+          .append(csv(Boolean.TRUE.equals(row.get("isOverdue")) ? "是" : "否")).append(',')
+          .append(csv(formatDateTime((LocalDateTime) row.get("occurTime")))).append(',')
+          .append(csv(formatDateTime((LocalDateTime) row.get("resolveTime")))).append(',')
+          .append(csv(row.get("durationMinutes"))).append(',')
+          .append(csv(row.get("handleRemark"))).append(',')
+          .append(csv(row.get("content"))).append('\n');
+    }
+    return builder.toString();
+  }
+
+  private String formatDateTime(LocalDateTime value) {
+    return value != null ? value.format(ISO_DATE_TIME) : null;
+  }
+
+  private String csv(Object value) {
+    if (value == null) {
+      return "";
+    }
+    String text = String.valueOf(value).replace("\"", "\"\"");
+    return "\"" + text + "\"";
+  }
+
+  private User requireCurrentUser(HttpServletRequest request) {
+    return userContext.requireCurrentUser(request);
   }
 
   @Data

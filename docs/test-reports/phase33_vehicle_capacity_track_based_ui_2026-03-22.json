@@ -1,0 +1,19 @@
+{
+  "results": [
+    {
+      "name": "UI page load",
+      "ok": true,
+      "detail": "运力分析页面成功打开"
+    },
+    {
+      "name": "UI vehicle table",
+      "ok": true,
+      "detail": "运力分析表格已加载，当前页展示 8 条车辆记录"
+    },
+    {
+      "name": "UI track-backed metrics",
+      "ok": true,
+      "detail": "页面可见带轨迹车辆及其里程口径展示"
+    }
+  ]
+}

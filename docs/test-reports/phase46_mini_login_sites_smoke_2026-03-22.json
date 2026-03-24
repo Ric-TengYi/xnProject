@@ -1,0 +1,123 @@
+{
+  "phase": "phase46_mini_login_sites_smoke_2026-03-22",
+  "executedAt": "2026-03-22T21:12:00+08:00",
+  "modules": [
+    {
+      "id": 110,
+      "name": "小程序登录",
+      "scope": "平台账号密码 + 手机短信二次校验登录"
+    },
+    {
+      "id": 98,
+      "name": "小程序消纳清单",
+      "scope": "场地维度消纳清单查询"
+    },
+    {
+      "id": 103,
+      "name": "小程序消纳场",
+      "scope": "场地人员登录后查看场地基础信息和消纳数据"
+    }
+  ],
+  "builds": [
+    {
+      "command": "cd xngl-service && mvn -pl xngl-service-starter -am compile -DskipTests",
+      "status": "PASS",
+      "detail": "小程序登录/场地接口后端编译通过"
+    },
+    {
+      "command": "cd xngl-service && mvn -pl xngl-service-starter -am install -DskipTests",
+      "status": "PASS",
+      "detail": "小程序登录/场地接口后端安装打包通过"
+    }
+  ],
+  "database": [
+    {
+      "command": "mysql -h127.0.0.1 -P3306 -uroot -p'ForkliftDev2025' -D xngl -e \"source .../046_mini_program_auth_and_sites.sql\"",
+      "status": "PASS",
+      "detail": "mini_user_binding 与 mini_sms_code_record 建表成功"
+    }
+  ],
+  "runtime": [
+    {
+      "command": "cd xngl-service && mvn spring-boot:run -pl xngl-service-starter",
+      "status": "PASS",
+      "detail": "后端带最新 mini 接口重启成功"
+    }
+  ],
+  "checks": [
+    {
+      "name": "send_sms_code",
+      "status": "PASS",
+      "detail": {
+        "mobile": "13800000001",
+        "mockCode": "049483"
+      }
+    },
+    {
+      "name": "mini_login",
+      "status": "PASS",
+      "detail": {
+        "siteCount": 2,
+        "firstSiteId": "1"
+      }
+    },
+    {
+      "name": "mini_me",
+      "status": "PASS",
+      "detail": {
+        "bindingStatus": "BOUND",
+        "openId": "mini-openid-admin"
+      }
+    },
+    {
+      "name": "mini_sites",
+      "status": "PASS",
+      "detail": {
+        "count": 2,
+        "first": {
+          "siteId": "1",
+          "siteName": "场地-001",
+          "siteCode": "SITE-001",
+          "roleType": "ADMIN",
+          "dutyScope": "全部场地",
+          "todayDisposalCount": 0,
+          "todayDisposalVolume": 0,
+          "onlineDeviceCount": 2
+        }
+      }
+    },
+    {
+      "name": "mini_site_detail",
+      "status": "PASS",
+      "detail": {
+        "siteId": "1",
+        "todayDisposalCount": 0,
+        "onlineDeviceCount": 2
+      }
+    },
+    {
+      "name": "mini_site_disposals",
+      "status": "PASS",
+      "detail": {
+        "total": 6,
+        "pageSize": 5,
+        "firstRecord": {
+          "id": "8",
+          "siteId": "1",
+          "site": "场地-001",
+          "time": "2026-09-02",
+          "plate": "HT-APPROVAL-APPROVE-1774151741",
+          "project": "项目-001",
+          "source": "ONLINE",
+          "volume": 3,
+          "status": "正常"
+        }
+      }
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "blocked": 0,
+    "failed": 0
+  }
+}

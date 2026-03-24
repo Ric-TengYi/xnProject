@@ -16,6 +16,8 @@ public class VehicleRepairOrderListItemDto {
   private String urgencyLabel;
   private String repairReason;
   private String repairContent;
+  private String diagnosisResult;
+  private String safetyImpact;
   private BigDecimal budgetAmount;
   private String applyDate;
   private String applicantName;
@@ -25,7 +27,17 @@ public class VehicleRepairOrderListItemDto {
   private String approvedTime;
   private String completedDate;
   private String vendorName;
+  private String repairManager;
+  private String technicianName;
+  private String acceptanceResult;
+  private String signoffStatus;
+  private String signoffStatusLabel;
+  private String attachmentUrls;
   private BigDecimal actualAmount;
+  private BigDecimal partsCost;
+  private BigDecimal laborCost;
+  private BigDecimal otherCost;
+  private BigDecimal costVariance;
   private String auditRemark;
   private String remark;
 }

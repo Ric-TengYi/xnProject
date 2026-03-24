@@ -29,6 +29,8 @@ export interface SettlementRecord {
 
 export interface SettlementLine {
   id: string;
+  contractId?: string | null;
+  contractNo?: string | null;
   sourceRecordType?: string | null;
   sourceRecordId?: string | null;
   projectId?: string | null;
@@ -41,11 +43,21 @@ export interface SettlementLine {
   remark?: string | null;
 }
 
+export interface SettlementContractSummary {
+  contractId?: string | null;
+  contractNo?: string | null;
+  itemCount?: number | null;
+  totalVolume?: number | null;
+  totalAmount?: number | null;
+  averageUnitPrice?: number | null;
+}
+
 export interface SettlementDetail extends SettlementRecord {
   unitPrice?: number | null;
   settlementDate?: string | null;
   processInstanceId?: string | null;
   remark?: string | null;
+  contractSummaries?: SettlementContractSummary[];
   items?: SettlementLine[];
 }
 

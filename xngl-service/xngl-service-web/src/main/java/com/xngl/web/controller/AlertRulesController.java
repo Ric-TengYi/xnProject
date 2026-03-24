@@ -4,10 +4,10 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.xngl.infrastructure.persistence.entity.alert.AlertRule;
 import com.xngl.infrastructure.persistence.entity.organization.User;
 import com.xngl.infrastructure.persistence.mapper.AlertRuleMapper;
-import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.user.StatusUpdateDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Comparator;
 import java.util.List;
@@ -28,11 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AlertRulesController {
 
   private final AlertRuleMapper mapper;
-  private final UserService userService;
+  private final UserContext userContext;
 
-  public AlertRulesController(AlertRuleMapper mapper, UserService userService) {
+  public AlertRulesController(AlertRuleMapper mapper, UserContext userContext) {
     this.mapper = mapper;
-    this.userService = userService;
+    this.userContext = userContext;
   }
 
   @GetMapping
@@ -137,19 +137,7 @@ public class AlertRulesController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null || user.getTenantId() == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 
   @Data

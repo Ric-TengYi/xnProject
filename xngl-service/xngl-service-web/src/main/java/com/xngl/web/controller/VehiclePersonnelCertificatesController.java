@@ -8,15 +8,16 @@ import com.xngl.infrastructure.persistence.entity.vehicle.VehiclePersonnelCertif
 import com.xngl.infrastructure.persistence.mapper.OrgMapper;
 import com.xngl.infrastructure.persistence.mapper.VehicleMapper;
 import com.xngl.infrastructure.persistence.mapper.VehiclePersonnelCertificateMapper;
-import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
 import com.xngl.web.dto.vehicle.VehiclePersonnelCertificateListItemDto;
 import com.xngl.web.dto.vehicle.VehiclePersonnelCertificateSummaryDto;
 import com.xngl.web.dto.vehicle.VehiclePersonnelCertificateUpsertDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -29,6 +30,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -49,17 +53,17 @@ public class VehiclePersonnelCertificatesController {
   private final VehiclePersonnelCertificateMapper certificateMapper;
   private final VehicleMapper vehicleMapper;
   private final OrgMapper orgMapper;
-  private final UserService userService;
+  private final UserContext userContext;
 
   public VehiclePersonnelCertificatesController(
       VehiclePersonnelCertificateMapper certificateMapper,
       VehicleMapper vehicleMapper,
       OrgMapper orgMapper,
-      UserService userService) {
+      UserContext userContext) {
     this.certificateMapper = certificateMapper;
     this.vehicleMapper = vehicleMapper;
     this.orgMapper = orgMapper;
-    this.userService = userService;
+    this.userContext = userContext;
   }
 
   @GetMapping
@@ -69,13 +73,27 @@ public class VehiclePersonnelCertificatesController {
       @RequestParam(required = false) String status,
       @RequestParam(required = false) Long orgId,
       @RequestParam(required = false) Long vehicleId,
+      @RequestParam(required = false) String feeDueDateFrom,
+      @RequestParam(required = false) String feeDueDateTo,
+      @RequestParam(required = false) Integer expireWithinDays,
+      @RequestParam(required = false) Boolean unpaidOnly,
       @RequestParam(defaultValue = "1") int pageNo,
       @RequestParam(defaultValue = "20") int pageSize,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
     List<VehiclePersonnelCertificateListItemDto> rows =
         new ArrayList<>(
-            loadRows(currentUser.getTenantId(), keyword, roleType, status, orgId, vehicleId));
+            loadRows(
+                currentUser.getTenantId(),
+                keyword,
+                roleType,
+                status,
+                orgId,
+                vehicleId,
+                parseDate(feeDueDateFrom),
+                parseDate(feeDueDateTo),
+                expireWithinDays,
+                Boolean.TRUE.equals(unpaidOnly)));
     rows.sort(
         Comparator.comparing(
                 VehiclePersonnelCertificateListItemDto::getRemainingDays,
@@ -93,10 +111,24 @@ public class VehiclePersonnelCertificatesController {
       @RequestParam(required = false) String status,
       @RequestParam(required = false) Long orgId,
       @RequestParam(required = false) Long vehicleId,
+      @RequestParam(required = false) String feeDueDateFrom,
+      @RequestParam(required = false) String feeDueDateTo,
+      @RequestParam(required = false) Integer expireWithinDays,
+      @RequestParam(required = false) Boolean unpaidOnly,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
     List<VehiclePersonnelCertificateListItemDto> rows =
-        loadRows(currentUser.getTenantId(), keyword, roleType, status, orgId, vehicleId);
+        loadRows(
+            currentUser.getTenantId(),
+            keyword,
+            roleType,
+            status,
+            orgId,
+            vehicleId,
+            parseDate(feeDueDateFrom),
+            parseDate(feeDueDateTo),
+            expireWithinDays,
+            Boolean.TRUE.equals(unpaidOnly));
     BigDecimal totalFeeAmount =
         rows.stream()
             .map(VehiclePersonnelCertificateListItemDto::getFeeAmount)
@@ -121,6 +153,40 @@ public class VehiclePersonnelCertificatesController {
             totalFeeAmount,
             paidAmount,
             unpaidAmount));
+  }
+
+  @GetMapping("/export")
+  public ResponseEntity<byte[]> export(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String roleType,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) Long orgId,
+      @RequestParam(required = false) Long vehicleId,
+      @RequestParam(required = false) String feeDueDateFrom,
+      @RequestParam(required = false) String feeDueDateTo,
+      @RequestParam(required = false) Integer expireWithinDays,
+      @RequestParam(required = false) Boolean unpaidOnly,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<VehiclePersonnelCertificateListItemDto> rows =
+        loadRows(
+            currentUser.getTenantId(),
+            keyword,
+            roleType,
+            status,
+            orgId,
+            vehicleId,
+            parseDate(feeDueDateFrom),
+            parseDate(feeDueDateTo),
+            expireWithinDays,
+            Boolean.TRUE.equals(unpaidOnly));
+    String csv = buildCsv(rows);
+    return ResponseEntity.ok()
+        .header(
+            HttpHeaders.CONTENT_DISPOSITION,
+            "attachment; filename=vehicle_personnel_certificates.csv")
+        .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+        .body(csv.getBytes(StandardCharsets.UTF_8));
   }
 
   @PostMapping
@@ -154,7 +220,11 @@ public class VehiclePersonnelCertificatesController {
       String roleType,
       String status,
       Long orgId,
-      Long vehicleId) {
+      Long vehicleId,
+      LocalDate feeDueDateFrom,
+      LocalDate feeDueDateTo,
+      Integer expireWithinDays,
+      boolean unpaidOnly) {
     List<VehiclePersonnelCertificate> rows =
         certificateMapper.selectList(
             new LambdaQueryWrapper<VehiclePersonnelCertificate>()
@@ -177,7 +247,28 @@ public class VehiclePersonnelCertificatesController {
         .filter(item -> matchKeyword(item, keywordValue))
         .filter(item -> roleValue == null || roleValue.equalsIgnoreCase(item.getRoleType()))
         .filter(item -> statusValue == null || statusValue.equalsIgnoreCase(item.getStatus()))
+        .filter(item -> matchDateRange(item.getFeeDueDate(), feeDueDateFrom, feeDueDateTo))
+        .filter(item -> matchExpireWithinDays(item.getRemainingDays(), expireWithinDays))
+        .filter(item -> !unpaidOnly || defaultDecimal(item.getUnpaidAmount()).compareTo(ZERO) > 0)
         .toList();
+  }
+
+  private boolean matchDateRange(String value, LocalDate from, LocalDate to) {
+    if (from == null && to == null) {
+      return true;
+    }
+    LocalDate date = parseDate(value);
+    if (date == null) {
+      return false;
+    }
+    return (from == null || !date.isBefore(from)) && (to == null || !date.isAfter(to));
+  }
+
+  private boolean matchExpireWithinDays(Integer remainingDays, Integer expireWithinDays) {
+    if (expireWithinDays == null || expireWithinDays < 0) {
+      return true;
+    }
+    return remainingDays != null && remainingDays >= 0 && remainingDays <= expireWithinDays;
   }
 
   private VehiclePersonnelCertificateListItemDto loadDto(Long id, Long tenantId) {
@@ -325,19 +416,7 @@ public class VehiclePersonnelCertificatesController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null || user.getTenantId() == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 
   private String resolveRoleLabel(String roleType) {
@@ -424,5 +503,49 @@ public class VehiclePersonnelCertificatesController {
 
   private boolean contains(String source, String keyword) {
     return StringUtils.hasText(source) && source.toLowerCase().contains(keyword.toLowerCase());
+  }
+
+  private LocalDate parseDate(String value) {
+    if (!StringUtils.hasText(value)) {
+      return null;
+    }
+    try {
+      return LocalDate.parse(value.trim(), ISO_DATE);
+    } catch (Exception ex) {
+      throw new BizException(400, "日期格式错误，应为 yyyy-MM-dd");
+    }
+  }
+
+  private String buildCsv(List<VehiclePersonnelCertificateListItemDto> rows) {
+    StringBuilder builder =
+        new StringBuilder(
+            "人员姓名,手机号,角色,所属单位,关联车辆,驾驶证号,驾驶证到期日,营运证号,营运证到期日,费用到期日,应缴费用,已缴费用,未缴费用,状态,剩余天数,备注\n");
+    for (VehiclePersonnelCertificateListItemDto row : rows) {
+      builder
+          .append(csv(row.getPersonName())).append(',')
+          .append(csv(row.getMobile())).append(',')
+          .append(csv(row.getRoleTypeLabel())).append(',')
+          .append(csv(row.getOrgName())).append(',')
+          .append(csv(row.getPlateNo())).append(',')
+          .append(csv(row.getDriverLicenseNo())).append(',')
+          .append(csv(row.getDriverLicenseExpireDate())).append(',')
+          .append(csv(row.getTransportLicenseNo())).append(',')
+          .append(csv(row.getTransportLicenseExpireDate())).append(',')
+          .append(csv(row.getFeeDueDate())).append(',')
+          .append(defaultDecimal(row.getFeeAmount())).append(',')
+          .append(defaultDecimal(row.getPaidAmount())).append(',')
+          .append(defaultDecimal(row.getUnpaidAmount())).append(',')
+          .append(csv(row.getStatusLabel())).append(',')
+          .append(row.getRemainingDays() != null ? row.getRemainingDays() : "").append(',')
+          .append(csv(row.getRemark())).append('\n');
+    }
+    return builder.toString();
+  }
+
+  private String csv(String value) {
+    if (value == null) {
+      return "";
+    }
+    return "\"" + value.replace("\"", "\"\"") + "\"";
   }
 }

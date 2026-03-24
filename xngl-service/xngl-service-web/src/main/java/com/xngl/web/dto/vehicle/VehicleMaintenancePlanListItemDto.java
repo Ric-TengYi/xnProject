@@ -24,4 +24,7 @@ public class VehicleMaintenancePlanListItemDto {
   private String statusLabel;
   private Boolean overdue;
   private String remark;
+  private Integer recordCount;
+  private java.math.BigDecimal totalRecordCost;
+  private String lastServiceDate;
 }

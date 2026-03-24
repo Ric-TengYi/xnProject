@@ -1,10 +1,12 @@
-import http from './request';
+import http, { request } from './request';
 
 export interface SecurityInspectionRecord {
   id: string;
   inspectionNo?: string | null;
   objectType: string;
   objectId?: string | null;
+  objectName?: string | null;
+  objectLabel?: string | null;
   title: string;
   checkScene?: string | null;
   checkType?: string | null;
@@ -20,6 +22,8 @@ export interface SecurityInspectionRecord {
   vehicleId?: string | null;
   vehicleNo?: string | null;
   userId?: string | null;
+  userName?: string | null;
+  userMobile?: string | null;
   inspectorId?: string | null;
   inspectorName?: string | null;
   rectifyOwner?: string | null;
@@ -33,6 +37,52 @@ export interface SecurityInspectionRecord {
   checkTime?: string | null;
   nextCheckTime?: string | null;
   isOverdue?: boolean;
+  relatedProfile?: SecurityRelatedProfile | null;
+  relatedProfileSummary?: string | null;
+  actions?: SecurityInspectionActionRecord[];
+}
+
+export interface SecurityRelatedProfile {
+  profileType?: string | null;
+  certificateCount?: number | null;
+  expiringCertificateCount?: number | null;
+  overdueFeeCount?: number | null;
+  learningCount?: number | null;
+  completedLearningCount?: number | null;
+  studyMinutes?: number | null;
+  lastStudyTime?: string | null;
+  insuranceCount?: number | null;
+  activeInsuranceCount?: number | null;
+  expiringInsuranceCount?: number | null;
+  expiredInsuranceCount?: number | null;
+  maintenanceCount?: number | null;
+  latestMaintenanceDate?: string | null;
+  maintenanceCostTotal?: number | null;
+  documentCount?: number | null;
+  approvalDocumentCount?: number | null;
+  operationDocumentCount?: number | null;
+  deviceCount?: number | null;
+  onlineDeviceCount?: number | null;
+  offlineDeviceCount?: number | null;
+  latestDocumentTime?: string | null;
+  openAlertCount?: number | null;
+  highRiskAlertCount?: number | null;
+  certificateOwners?: string[];
+}
+
+export interface SecurityInspectionActionRecord {
+  id: string;
+  actionType?: string | null;
+  actionLabel?: string | null;
+  beforeStatus?: string | null;
+  afterStatus?: string | null;
+  beforeResultLevel?: string | null;
+  afterResultLevel?: string | null;
+  actionRemark?: string | null;
+  nextCheckTime?: string | null;
+  actorId?: string | null;
+  actorName?: string | null;
+  actionTime?: string | null;
 }
 
 export interface SecuritySummaryRecord {
@@ -74,11 +124,36 @@ export interface SecurityInspectionPayload {
   nextCheckTime?: string;
 }
 
+export interface SecurityUserOption {
+  id: string;
+  username?: string | null;
+  name?: string | null;
+  mobile?: string | null;
+  status?: string | null;
+}
+
+const mapAction = (item: any): SecurityInspectionActionRecord => ({
+  id: String(item.id || ''),
+  actionType: item.actionType || null,
+  actionLabel: item.actionLabel || null,
+  beforeStatus: item.beforeStatus || null,
+  afterStatus: item.afterStatus || null,
+  beforeResultLevel: item.beforeResultLevel || null,
+  afterResultLevel: item.afterResultLevel || null,
+  actionRemark: item.actionRemark || null,
+  nextCheckTime: item.nextCheckTime || null,
+  actorId: item.actorId != null ? String(item.actorId) : null,
+  actorName: item.actorName || null,
+  actionTime: item.actionTime || null,
+});
+
 const mapRecord = (item: any): SecurityInspectionRecord => ({
   id: String(item.id || ''),
   inspectionNo: item.inspectionNo || null,
   objectType: item.objectType || '',
   objectId: item.objectId != null ? String(item.objectId) : null,
+  objectName: item.objectName || null,
+  objectLabel: item.objectLabel || null,
   title: item.title || '',
   checkScene: item.checkScene || null,
   checkType: item.checkType || null,
@@ -94,6 +169,8 @@ const mapRecord = (item: any): SecurityInspectionRecord => ({
   vehicleId: item.vehicleId != null ? String(item.vehicleId) : null,
   vehicleNo: item.vehicleNo || null,
   userId: item.userId != null ? String(item.userId) : null,
+  userName: item.userName || null,
+  userMobile: item.userMobile || null,
   inspectorId: item.inspectorId != null ? String(item.inspectorId) : null,
   inspectorName: item.inspectorName || null,
   rectifyOwner: item.rectifyOwner || null,
@@ -107,6 +184,66 @@ const mapRecord = (item: any): SecurityInspectionRecord => ({
   checkTime: item.checkTime || null,
   nextCheckTime: item.nextCheckTime || null,
   isOverdue: Boolean(item.isOverdue),
+  relatedProfile: item.relatedProfile
+    ? {
+        profileType: item.relatedProfile.profileType || null,
+        certificateCount:
+          item.relatedProfile.certificateCount != null ? Number(item.relatedProfile.certificateCount) : null,
+        expiringCertificateCount:
+          item.relatedProfile.expiringCertificateCount != null
+            ? Number(item.relatedProfile.expiringCertificateCount)
+            : null,
+        overdueFeeCount:
+          item.relatedProfile.overdueFeeCount != null ? Number(item.relatedProfile.overdueFeeCount) : null,
+        learningCount: item.relatedProfile.learningCount != null ? Number(item.relatedProfile.learningCount) : null,
+        completedLearningCount:
+          item.relatedProfile.completedLearningCount != null
+            ? Number(item.relatedProfile.completedLearningCount)
+            : null,
+        studyMinutes: item.relatedProfile.studyMinutes != null ? Number(item.relatedProfile.studyMinutes) : null,
+        lastStudyTime: item.relatedProfile.lastStudyTime || null,
+        insuranceCount:
+          item.relatedProfile.insuranceCount != null ? Number(item.relatedProfile.insuranceCount) : null,
+        activeInsuranceCount:
+          item.relatedProfile.activeInsuranceCount != null ? Number(item.relatedProfile.activeInsuranceCount) : null,
+        expiringInsuranceCount:
+          item.relatedProfile.expiringInsuranceCount != null
+            ? Number(item.relatedProfile.expiringInsuranceCount)
+            : null,
+        expiredInsuranceCount:
+          item.relatedProfile.expiredInsuranceCount != null ? Number(item.relatedProfile.expiredInsuranceCount) : null,
+        maintenanceCount:
+          item.relatedProfile.maintenanceCount != null ? Number(item.relatedProfile.maintenanceCount) : null,
+        latestMaintenanceDate: item.relatedProfile.latestMaintenanceDate || null,
+        maintenanceCostTotal:
+          item.relatedProfile.maintenanceCostTotal != null
+            ? Number(item.relatedProfile.maintenanceCostTotal)
+            : null,
+        documentCount: item.relatedProfile.documentCount != null ? Number(item.relatedProfile.documentCount) : null,
+        approvalDocumentCount:
+          item.relatedProfile.approvalDocumentCount != null
+            ? Number(item.relatedProfile.approvalDocumentCount)
+            : null,
+        operationDocumentCount:
+          item.relatedProfile.operationDocumentCount != null
+            ? Number(item.relatedProfile.operationDocumentCount)
+            : null,
+        deviceCount: item.relatedProfile.deviceCount != null ? Number(item.relatedProfile.deviceCount) : null,
+        onlineDeviceCount:
+          item.relatedProfile.onlineDeviceCount != null ? Number(item.relatedProfile.onlineDeviceCount) : null,
+        offlineDeviceCount:
+          item.relatedProfile.offlineDeviceCount != null ? Number(item.relatedProfile.offlineDeviceCount) : null,
+        latestDocumentTime: item.relatedProfile.latestDocumentTime || null,
+        openAlertCount: item.relatedProfile.openAlertCount != null ? Number(item.relatedProfile.openAlertCount) : null,
+        highRiskAlertCount:
+          item.relatedProfile.highRiskAlertCount != null ? Number(item.relatedProfile.highRiskAlertCount) : null,
+        certificateOwners: Array.isArray(item.relatedProfile.certificateOwners)
+          ? item.relatedProfile.certificateOwners.map((entry: any) => String(entry))
+          : [],
+      }
+    : null,
+  relatedProfileSummary: item.relatedProfileSummary || null,
+  actions: Array.isArray(item.actions) ? item.actions.map(mapAction) : [],
 });
 
 export async function fetchSecurityInspections(params: Record<string, any> = {}) {
@@ -119,8 +256,8 @@ export async function fetchSecurityInspectionDetail(id: string) {
   return mapRecord(res.data || {});
 }
 
-export async function fetchSecuritySummary() {
-  const res = await http.get<Partial<SecuritySummaryRecord>>('/security/inspections/summary');
+export async function fetchSecuritySummary(params: Record<string, any> = {}) {
+  const res = await http.get<Partial<SecuritySummaryRecord>>('/security/inspections/summary', { params });
   return {
     monthInspectionCount: Number(res.data.monthInspectionCount || 0),
     issueCount: Number(res.data.issueCount || 0),
@@ -146,4 +283,30 @@ export async function rectifySecurityInspection(
   payload: { status?: string; resultLevel?: string; rectifyRemark?: string; nextCheckTime?: string },
 ) {
   await http.post(`/security/inspections/${id}/rectify`, payload);
+}
+
+export async function deleteSecurityInspection(id: string) {
+  await http.delete(`/security/inspections/${id}`);
+}
+
+export async function exportSecurityInspections(params: Record<string, any> = {}) {
+  const response = await request.get('/security/inspections/export', {
+    params,
+    responseType: 'blob',
+  });
+  return response.data as Blob;
+}
+
+export async function fetchSecurityUsers(params: Record<string, any> = {}) {
+  const res = await http.get<any>('/users', { params });
+  const records = Array.isArray(res.data?.records) ? res.data.records : [];
+  return records.map(
+    (item: any): SecurityUserOption => ({
+      id: String(item.id || ''),
+      username: item.username || null,
+      name: item.name || null,
+      mobile: item.mobile || null,
+      status: item.status || null,
+    }),
+  );
 }

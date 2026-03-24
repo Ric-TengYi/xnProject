@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Card,
+  DatePicker,
   Descriptions,
   Drawer,
   Form,
@@ -18,13 +19,14 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import {
   closeAlert,
-  fetchAlertAnalytics,
+  fetchAlertAnalyticsByParams,
   fetchAlertDetail,
   fetchAlerts,
-  fetchAlertSummary,
+  fetchAlertSummaryByParams,
   fetchFenceStatus,
   fetchTopRiskTargets,
-  fetchTopRiskVehicles,
+  fetchTopRiskVehiclesByParams,
+  exportAlerts,
   generateAlerts,
   handleAlert,
   type AlertAnalyticsRecord,
@@ -32,6 +34,9 @@ import {
   type AlertSummaryRecord,
   type AlertTopRiskRecord,
 } from '../utils/alertApi';
+import type { Dayjs } from 'dayjs';
+
+const { RangePicker } = DatePicker;
 
 const levelOptions = [
   { label: '全部等级', value: 'ALL' },
@@ -64,6 +69,11 @@ const sourceOptions = [
   { label: 'VIDEO', value: 'VIDEO' },
   { label: 'WEB', value: 'WEB' },
   { label: 'MANUAL', value: 'MANUAL' },
+];
+
+const overdueOptions = [
+  { label: '全部时效', value: 'ALL' },
+  { label: '仅超期', value: 'Y' },
 ];
 
 const statusColorMap: Record<string, string> = {
@@ -108,6 +118,39 @@ const emptyAnalytics: AlertAnalyticsRecord = {
   },
 };
 
+const downloadBlob = (blob: Blob, fileName: string) => {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  window.URL.revokeObjectURL(url);
+};
+
+const formatRangeParams = (
+  params: Record<string, string>,
+  keyFrom: string,
+  keyTo: string,
+  range: [Dayjs, Dayjs] | null,
+) => {
+  if (!range) {
+    return;
+  }
+  params[keyFrom] = range[0].format('YYYY-MM-DDTHH:mm:ss');
+  params[keyTo] = range[1].format('YYYY-MM-DDTHH:mm:ss');
+};
+
+const formatJsonText = (value?: string | null) => {
+  if (!value) {
+    return '-';
+  }
+  try {
+    return JSON.stringify(JSON.parse(value), null, 2);
+  } catch {
+    return value;
+  }
+};
+
 const AlertsMonitor: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -116,7 +159,7 @@ const AlertsMonitor: React.FC = () => {
   const [summary, setSummary] = useState<AlertSummaryRecord>(emptySummary);
   const [analytics, setAnalytics] = useState<AlertAnalyticsRecord>(emptyAnalytics);
   const [records, setRecords] = useState<AlertRecord[]>([]);
-  const [topRisk, setTopRisk] = useState<any[]>([]);
+  const [topRisk, setTopRisk] = useState<AlertTopRiskRecord[]>([]);
   const [topContractRisk, setTopContractRisk] = useState<AlertTopRiskRecord[]>([]);
   const [topUserRisk, setTopUserRisk] = useState<AlertTopRiskRecord[]>([]);
   const [fences, setFences] = useState<any[]>([]);
@@ -132,7 +175,11 @@ const AlertsMonitor: React.FC = () => {
     targetType: 'ALL',
     status: 'ALL',
     sourceChannel: 'ALL',
+    ruleCode: '',
+    overdueOnly: 'ALL',
   });
+  const [occurRange, setOccurRange] = useState<[Dayjs, Dayjs] | null>(null);
+  const [resolveRange, setResolveRange] = useState<[Dayjs, Dayjs] | null>(null);
 
   const buildParams = () => {
     const params: Record<string, string> = {};
@@ -151,19 +198,28 @@ const AlertsMonitor: React.FC = () => {
     if (filters.sourceChannel !== 'ALL') {
       params.sourceChannel = filters.sourceChannel;
     }
+    if (filters.ruleCode.trim()) {
+      params.ruleCode = filters.ruleCode.trim().toUpperCase();
+    }
+    if (filters.overdueOnly === 'Y') {
+      params.overdueOnly = 'true';
+    }
+    formatRangeParams(params, 'occurTimeFrom', 'occurTimeTo', occurRange);
+    formatRangeParams(params, 'resolveTimeFrom', 'resolveTimeTo', resolveRange);
     return params;
   };
 
   const loadData = async () => {
     setLoading(true);
     try {
+      const params = buildParams();
       const [summaryData, analyticsData, alertList, topRiskList, topContractList, topUserList, fenceList] = await Promise.all([
-        fetchAlertSummary(),
-        fetchAlertAnalytics(),
-        fetchAlerts(buildParams()),
-        fetchTopRiskVehicles(),
-        fetchTopRiskTargets('CONTRACT'),
-        fetchTopRiskTargets('USER'),
+        fetchAlertSummaryByParams(params),
+        fetchAlertAnalyticsByParams(params),
+        fetchAlerts(params),
+        fetchTopRiskVehiclesByParams(params),
+        fetchTopRiskTargets('CONTRACT', params),
+        fetchTopRiskTargets('USER', params),
         fetchFenceStatus(),
       ]);
       setSummary(summaryData);
@@ -183,7 +239,17 @@ const AlertsMonitor: React.FC = () => {
 
   useEffect(() => {
     void loadData();
-  }, [filters.keyword, filters.level, filters.targetType, filters.status, filters.sourceChannel]);
+  }, [
+    filters.keyword,
+    filters.level,
+    filters.targetType,
+    filters.status,
+    filters.sourceChannel,
+    filters.ruleCode,
+    filters.overdueOnly,
+    occurRange,
+    resolveRange,
+  ]);
 
   const openDetail = async (record: AlertRecord) => {
     setDetailOpen(true);
@@ -269,6 +335,16 @@ const AlertsMonitor: React.FC = () => {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      downloadBlob(await exportAlerts(buildParams()), 'alerts_monitor.csv');
+      message.success('预警导出成功');
+    } catch (error) {
+      console.error(error);
+      message.error('预警导出失败');
+    }
+  };
+
   const columns: ColumnsType<AlertRecord> = useMemo(
     () => [
       {
@@ -286,6 +362,7 @@ const AlertsMonitor: React.FC = () => {
             <Space size={6} wrap>
               <Tag color="blue">{record.targetType || '-'}</Tag>
               <span>{record.vehicleNo || record.siteName || record.projectName || record.contractNo || '-'}</span>
+              {record.isOverdue ? <Tag color="red">超期</Tag> : null}
             </Space>
             <span style={{ color: 'var(--text-secondary)' }}>
               {record.projectName || '-'} / {record.siteName || '-'}
@@ -361,6 +438,9 @@ const AlertsMonitor: React.FC = () => {
           <p className="g-text-secondary mt-1">补实预警规则、实例闭环和告警模型覆盖情况</p>
         </div>
         <Space>
+          <Button onClick={() => void handleExport()}>
+            导出
+          </Button>
           <Button loading={loading} onClick={() => void loadData()}>
             刷新列表
           </Button>
@@ -371,7 +451,7 @@ const AlertsMonitor: React.FC = () => {
       </div>
 
       <Card className="glass-panel g-border-panel border">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4 xl:grid-cols-8">
           <Input
             allowClear
             value={filters.keyword}
@@ -382,6 +462,25 @@ const AlertsMonitor: React.FC = () => {
           <Select value={filters.level} options={levelOptions} onChange={(value) => setFilters((prev) => ({ ...prev, level: value }))} />
           <Select value={filters.status} options={statusOptions} onChange={(value) => setFilters((prev) => ({ ...prev, status: value }))} />
           <Select value={filters.sourceChannel} options={sourceOptions} onChange={(value) => setFilters((prev) => ({ ...prev, sourceChannel: value }))} />
+          <Input
+            allowClear
+            value={filters.ruleCode}
+            onChange={(event) => setFilters((prev) => ({ ...prev, ruleCode: event.target.value }))}
+            placeholder="规则编码，如 VEHICLE_ROUTE_DEVIATION"
+          />
+          <Select value={filters.overdueOnly} options={overdueOptions} onChange={(value) => setFilters((prev) => ({ ...prev, overdueOnly: value }))} />
+          <RangePicker
+            showTime
+            value={occurRange}
+            onChange={(value) => setOccurRange((value as [Dayjs, Dayjs] | null) || null)}
+            placeholder={['发生开始', '发生结束']}
+          />
+          <RangePicker
+            showTime
+            value={resolveRange}
+            onChange={(value) => setResolveRange((value as [Dayjs, Dayjs] | null) || null)}
+            placeholder={['关闭开始', '关闭结束']}
+          />
         </div>
       </Card>
 
@@ -424,9 +523,9 @@ const AlertsMonitor: React.FC = () => {
               renderItem={(item, index) => (
                 <List.Item>
                   <div className="flex w-full items-center justify-between gap-3">
-                    <div>
-                      <div>{index + 1}. {item.vehicleNo || '-'}</div>
-                      <div style={{ color: 'var(--text-secondary)' }}>{item.fleetName || '未关联车队'}</div>
+                      <div>
+                      <div>{index + 1}. {item.targetName || '-'}</div>
+                      <div style={{ color: 'var(--text-secondary)' }}>{item.extraName || '未关联车队'}</div>
                     </div>
                     <Tag color="red">{item.count || 0} 起</Tag>
                   </div>
@@ -524,6 +623,7 @@ const AlertsMonitor: React.FC = () => {
             <Space>
               <Tag color={statusColorMap[detail?.status || ''] || 'default'}>{detail?.status || '-'}</Tag>
               {detail?.level ? <Tag color={detail.level === 'L3' ? 'red' : detail.level === 'L2' ? 'orange' : 'blue'}>{detail.level}</Tag> : null}
+              {detail?.isOverdue ? <Tag color="red">超时未闭环</Tag> : null}
             </Space>
           </Descriptions.Item>
           <Descriptions.Item label="来源">{detail?.sourceChannel || '-'}</Descriptions.Item>
@@ -532,8 +632,12 @@ const AlertsMonitor: React.FC = () => {
           <Descriptions.Item label="持续时长">{detail?.durationMinutes != null ? `${detail.durationMinutes} 分钟` : '-'}</Descriptions.Item>
           <Descriptions.Item label="处置说明">{detail?.handleRemark || '-'}</Descriptions.Item>
           <Descriptions.Item label="预警内容">{detail?.content || '-'}</Descriptions.Item>
-          <Descriptions.Item label="快照">{detail?.snapshotJson || '-'}</Descriptions.Item>
-          <Descriptions.Item label="位置快照">{detail?.latestPositionJson || '-'}</Descriptions.Item>
+          <Descriptions.Item label="快照">
+            <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{formatJsonText(detail?.snapshotJson)}</pre>
+          </Descriptions.Item>
+          <Descriptions.Item label="位置快照">
+            <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{formatJsonText(detail?.latestPositionJson)}</pre>
+          </Descriptions.Item>
         </Descriptions>
         <div className="mt-4 flex justify-end gap-2">
           {detail && detail.status !== 'PROCESSING' && detail.status !== 'CLOSED' ? (

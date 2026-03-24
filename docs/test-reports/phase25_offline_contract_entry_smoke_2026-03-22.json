@@ -1,0 +1,48 @@
+{
+  "phase": 25,
+  "feature": "线下合同录入",
+  "date": "2026-03-22",
+  "environment": {
+    "backend": "mvn spring-boot:run -pl xngl-service-starter",
+    "frontend": "npm run dev -- --host 127.0.0.1",
+    "browser": "Google Chrome headless",
+    "account": "tenantId=1 / admin / admin"
+  },
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0
+  },
+  "cases": [
+    {
+      "name": "API login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "API offline contract create",
+      "status": "PASS",
+      "detail": "创建线下三方补录合同 HT-OFFLINE-API-1774150393 成功，合同 ID=47"
+    },
+    {
+      "name": "API offline status",
+      "status": "PASS",
+      "detail": "合同详情状态为 contractStatus=EFFECTIVE，approvalStatus=APPROVED"
+    },
+    {
+      "name": "API three-party binding",
+      "status": "PASS",
+      "detail": "详情回查 sourceType=OFFLINE，isThreeParty=true，partyId=6"
+    },
+    {
+      "name": "API pricing fields",
+      "status": "PASS",
+      "detail": "详情回查 unitPriceInside=18.8，unitPriceOutside=21.6"
+    },
+    {
+      "name": "UI offline entry modal",
+      "status": "PASS",
+      "detail": "合同清单页可打开线下合同录入弹窗，价格区域/区内单价/区外单价/三方合同字段可见"
+    }
+  ]
+}

@@ -11,6 +11,8 @@ public class VehicleRepairOrderUpsertDto {
   private String urgencyLevel;
   private String repairReason;
   private String repairContent;
+  private String diagnosisResult;
+  private String safetyImpact;
   private BigDecimal budgetAmount;
   private LocalDate applyDate;
   private String applicantName;

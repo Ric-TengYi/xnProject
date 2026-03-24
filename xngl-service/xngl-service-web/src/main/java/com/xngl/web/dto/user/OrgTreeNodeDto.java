@@ -14,8 +14,11 @@ public class OrgTreeNodeDto {
   private String orgCode;
   private String orgName;
   private String parentId;
+  private String orgType;
+  private String orgTypeLabel;
   private String leaderUserId;
   private String leaderName;
+  private String status;
   private int childrenCount;
   private List<OrgTreeNodeDto> children;
 }

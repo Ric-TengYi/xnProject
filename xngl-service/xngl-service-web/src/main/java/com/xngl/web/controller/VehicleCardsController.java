@@ -5,20 +5,27 @@ import com.xngl.infrastructure.persistence.entity.organization.Org;
 import com.xngl.infrastructure.persistence.entity.organization.User;
 import com.xngl.infrastructure.persistence.entity.vehicle.Vehicle;
 import com.xngl.infrastructure.persistence.entity.vehicle.VehicleCard;
+import com.xngl.infrastructure.persistence.entity.vehicle.VehicleCardTransaction;
 import com.xngl.infrastructure.persistence.mapper.OrgMapper;
 import com.xngl.infrastructure.persistence.mapper.VehicleCardMapper;
+import com.xngl.infrastructure.persistence.mapper.VehicleCardTransactionMapper;
 import com.xngl.infrastructure.persistence.mapper.VehicleMapper;
-import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
 import com.xngl.web.dto.vehicle.VehicleCardBindDto;
+import com.xngl.web.dto.vehicle.VehicleCardConsumeDto;
 import com.xngl.web.dto.vehicle.VehicleCardListItemDto;
 import com.xngl.web.dto.vehicle.VehicleCardRechargeDto;
 import com.xngl.web.dto.vehicle.VehicleCardSummaryDto;
+import com.xngl.web.dto.vehicle.VehicleCardTransactionListItemDto;
+import com.xngl.web.dto.vehicle.VehicleCardTransactionSummaryDto;
 import com.xngl.web.dto.vehicle.VehicleCardUpsertDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -30,6 +37,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -47,21 +57,25 @@ public class VehicleCardsController {
   private static final BigDecimal ZERO = BigDecimal.ZERO;
   private static final BigDecimal LOW_BALANCE_THRESHOLD = BigDecimal.valueOf(500);
   private static final DateTimeFormatter ISO_DATE_TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+  private static final DateTimeFormatter ISO_DATE = DateTimeFormatter.ISO_LOCAL_DATE;
 
   private final VehicleCardMapper vehicleCardMapper;
+  private final VehicleCardTransactionMapper transactionMapper;
   private final VehicleMapper vehicleMapper;
   private final OrgMapper orgMapper;
-  private final UserService userService;
+  private final UserContext userContext;
 
   public VehicleCardsController(
       VehicleCardMapper vehicleCardMapper,
+      VehicleCardTransactionMapper transactionMapper,
       VehicleMapper vehicleMapper,
       OrgMapper orgMapper,
-      UserService userService) {
+      UserContext userContext) {
     this.vehicleCardMapper = vehicleCardMapper;
+    this.transactionMapper = transactionMapper;
     this.vehicleMapper = vehicleMapper;
     this.orgMapper = orgMapper;
-    this.userService = userService;
+    this.userContext = userContext;
   }
 
   @GetMapping
@@ -94,6 +108,105 @@ public class VehicleCardsController {
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
     return ApiResult.ok(toSummary(loadCards(currentUser.getTenantId(), keyword, cardType, status, orgId)));
+  }
+
+  @GetMapping("/export")
+  public ResponseEntity<byte[]> export(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String cardType,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) Long orgId,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<VehicleCardListItemDto> rows =
+        loadCards(currentUser.getTenantId(), keyword, cardType, status, orgId);
+    return csvResponse("vehicle_cards.csv", buildCardCsv(rows));
+  }
+
+  @GetMapping("/transactions")
+  public ApiResult<PageResult<VehicleCardTransactionListItemDto>> transactions(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String cardType,
+      @RequestParam(required = false) String txnType,
+      @RequestParam(required = false) Long orgId,
+      @RequestParam(required = false) Long vehicleId,
+      @RequestParam(required = false) Long cardId,
+      @RequestParam(required = false) String dateFrom,
+      @RequestParam(required = false) String dateTo,
+      @RequestParam(defaultValue = "1") int pageNo,
+      @RequestParam(defaultValue = "20") int pageSize,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<VehicleCardTransactionListItemDto> rows =
+        new ArrayList<>(
+            loadTransactions(
+                currentUser.getTenantId(),
+                keyword,
+                cardType,
+                txnType,
+                orgId,
+                vehicleId,
+                cardId,
+                parseDate(dateFrom),
+                parseDate(dateTo)));
+    rows.sort(
+        Comparator.comparing(
+                VehicleCardTransactionListItemDto::getOccurredAt,
+                Comparator.nullsLast(String::compareTo))
+            .reversed());
+    return ApiResult.ok(paginate(rows, pageNo, pageSize));
+  }
+
+  @GetMapping("/transactions/summary")
+  public ApiResult<VehicleCardTransactionSummaryDto> transactionSummary(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String cardType,
+      @RequestParam(required = false) String txnType,
+      @RequestParam(required = false) Long orgId,
+      @RequestParam(required = false) Long vehicleId,
+      @RequestParam(required = false) Long cardId,
+      @RequestParam(required = false) String dateFrom,
+      @RequestParam(required = false) String dateTo,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    return ApiResult.ok(
+        toTransactionSummary(
+            loadTransactions(
+                currentUser.getTenantId(),
+                keyword,
+                cardType,
+                txnType,
+                orgId,
+                vehicleId,
+                cardId,
+                parseDate(dateFrom),
+                parseDate(dateTo))));
+  }
+
+  @GetMapping("/transactions/export")
+  public ResponseEntity<byte[]> exportTransactions(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String cardType,
+      @RequestParam(required = false) String txnType,
+      @RequestParam(required = false) Long orgId,
+      @RequestParam(required = false) Long vehicleId,
+      @RequestParam(required = false) Long cardId,
+      @RequestParam(required = false) String dateFrom,
+      @RequestParam(required = false) String dateTo,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<VehicleCardTransactionListItemDto> rows =
+        loadTransactions(
+            currentUser.getTenantId(),
+            keyword,
+            cardType,
+            txnType,
+            orgId,
+            vehicleId,
+            cardId,
+            parseDate(dateFrom),
+            parseDate(dateTo));
+    return csvResponse("vehicle_card_transactions.csv", buildTransactionCsv(rows));
   }
 
   @PostMapping
@@ -132,10 +245,49 @@ public class VehicleCardsController {
     if (amount.compareTo(ZERO) <= 0) {
       throw new BizException(400, "充值金额必须大于0");
     }
+    BigDecimal balanceBefore = defaultDecimal(entity.getBalance());
     entity.setBalance(defaultDecimal(entity.getBalance()).add(amount));
     entity.setTotalRecharge(defaultDecimal(entity.getTotalRecharge()).add(amount));
     entity.setStatus(resolveCardStatus(entity.getStatus(), entity.getBalance(), entity.getVehicleId()));
     vehicleCardMapper.updateById(entity);
+    saveTransaction(
+        entity,
+        "RECHARGE",
+        amount,
+        balanceBefore,
+        entity.getBalance(),
+        resolveUserName(currentUser),
+        trimToNull(body != null ? body.getRemark() : null));
+    return ApiResult.ok(loadCardDto(id, currentUser.getTenantId()));
+  }
+
+  @PostMapping("/{id}/consume")
+  public ApiResult<VehicleCardListItemDto> consume(
+      @PathVariable Long id,
+      @RequestBody VehicleCardConsumeDto body,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    VehicleCard entity = requireCard(id, currentUser.getTenantId());
+    BigDecimal amount = defaultDecimal(body != null ? body.getAmount() : null);
+    if (amount.compareTo(ZERO) <= 0) {
+      throw new BizException(400, "消费金额必须大于0");
+    }
+    BigDecimal balanceBefore = defaultDecimal(entity.getBalance());
+    if (balanceBefore.compareTo(amount) < 0) {
+      throw new BizException(400, "当前余额不足，无法确认消费");
+    }
+    entity.setBalance(balanceBefore.subtract(amount));
+    entity.setTotalConsume(defaultDecimal(entity.getTotalConsume()).add(amount));
+    entity.setStatus(resolveCardStatus(entity.getStatus(), entity.getBalance(), entity.getVehicleId()));
+    vehicleCardMapper.updateById(entity);
+    saveTransaction(
+        entity,
+        "CONSUME",
+        amount,
+        balanceBefore,
+        entity.getBalance(),
+        resolveUserName(currentUser),
+        trimToNull(body != null ? body.getRemark() : null));
     return ApiResult.ok(loadCardDto(id, currentUser.getTenantId()));
   }
 
@@ -166,6 +318,62 @@ public class VehicleCardsController {
     entity.setStatus("UNBOUND");
     vehicleCardMapper.updateById(entity);
     return ApiResult.ok(loadCardDto(id, currentUser.getTenantId()));
+  }
+
+  private List<VehicleCardTransactionListItemDto> loadTransactions(
+      Long tenantId,
+      String keyword,
+      String cardType,
+      String txnType,
+      Long orgId,
+      Long vehicleId,
+      Long cardId,
+      LocalDate dateFrom,
+      LocalDate dateTo) {
+    List<VehicleCardTransaction> rows =
+        transactionMapper.selectList(
+            new LambdaQueryWrapper<VehicleCardTransaction>()
+                .eq(VehicleCardTransaction::getTenantId, tenantId)
+                .eq(cardId != null, VehicleCardTransaction::getCardId, cardId)
+                .eq(
+                    StringUtils.hasText(cardType),
+                    VehicleCardTransaction::getCardType,
+                    StringUtils.hasText(cardType) ? cardType.trim().toUpperCase() : null)
+                .eq(
+                    StringUtils.hasText(txnType),
+                    VehicleCardTransaction::getTxnType,
+                    StringUtils.hasText(txnType) ? txnType.trim().toUpperCase() : null)
+                .eq(orgId != null, VehicleCardTransaction::getOrgId, orgId)
+                .eq(vehicleId != null, VehicleCardTransaction::getVehicleId, vehicleId)
+                .orderByDesc(VehicleCardTransaction::getOccurredAt)
+                .orderByDesc(VehicleCardTransaction::getId));
+    if (rows.isEmpty()) {
+      return Collections.emptyList();
+    }
+    Map<Long, Vehicle> vehicleMap =
+        vehicleMapper.selectBatchIds(
+                rows.stream()
+                    .map(VehicleCardTransaction::getVehicleId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toCollection(LinkedHashSet::new)))
+            .stream()
+            .filter(item -> item.getId() != null)
+            .collect(Collectors.toMap(Vehicle::getId, Function.identity(), (left, right) -> left));
+    LinkedHashSet<Long> orgIds = new LinkedHashSet<>();
+    rows.stream().map(VehicleCardTransaction::getOrgId).filter(Objects::nonNull).forEach(orgIds::add);
+    vehicleMap.values().stream().map(Vehicle::getOrgId).filter(Objects::nonNull).forEach(orgIds::add);
+    Map<Long, Org> orgMap =
+        orgIds.isEmpty()
+            ? Collections.emptyMap()
+            : orgMapper.selectBatchIds(orgIds).stream()
+                .filter(item -> item.getId() != null)
+                .collect(Collectors.toMap(Org::getId, Function.identity(), (left, right) -> left));
+    String keywordValue = trimToNull(keyword);
+    return rows.stream()
+        .map(item -> toTransactionDto(item, vehicleMap.get(item.getVehicleId()), orgMap))
+        .filter(item -> matchTransactionKeyword(item, keywordValue))
+        .filter(item -> matchOccurredDate(item.getOccurredAt(), dateFrom, dateTo))
+        .toList();
   }
 
   private List<VehicleCardListItemDto> loadCards(
@@ -225,11 +433,54 @@ public class VehicleCardsController {
         electricBalance);
   }
 
+  private VehicleCardTransactionSummaryDto toTransactionSummary(
+      List<VehicleCardTransactionListItemDto> rows) {
+    return new VehicleCardTransactionSummaryDto(
+        rows.size(),
+        (int) rows.stream().filter(item -> "RECHARGE".equalsIgnoreCase(item.getTxnType())).count(),
+        (int) rows.stream().filter(item -> "CONSUME".equalsIgnoreCase(item.getTxnType())).count(),
+        rows.stream()
+            .filter(item -> "RECHARGE".equalsIgnoreCase(item.getTxnType()))
+            .map(VehicleCardTransactionListItemDto::getAmount)
+            .filter(Objects::nonNull)
+            .reduce(ZERO, BigDecimal::add),
+        rows.stream()
+            .filter(item -> "CONSUME".equalsIgnoreCase(item.getTxnType()))
+            .map(VehicleCardTransactionListItemDto::getAmount)
+            .filter(Objects::nonNull)
+            .reduce(ZERO, BigDecimal::add));
+  }
+
   private VehicleCardListItemDto loadCardDto(Long id, Long tenantId) {
     VehicleCard entity = requireCard(id, tenantId);
     Map<Long, Vehicle> vehicleMap = loadVehicleMap(List.of(entity));
     Map<Long, Org> orgMap = loadOrgMap(List.of(entity), vehicleMap.values().stream().toList());
     return toDto(entity, vehicleMap.get(entity.getVehicleId()), orgMap);
+  }
+
+  private VehicleCardTransactionListItemDto toTransactionDto(
+      VehicleCardTransaction entity, Vehicle vehicle, Map<Long, Org> orgMap) {
+    VehicleCardTransactionListItemDto dto = new VehicleCardTransactionListItemDto();
+    dto.setId(entity.getId() != null ? String.valueOf(entity.getId()) : null);
+    dto.setCardId(entity.getCardId() != null ? String.valueOf(entity.getCardId()) : null);
+    dto.setCardNo(entity.getCardNo());
+    dto.setCardType(entity.getCardType());
+    dto.setCardTypeLabel(resolveCardTypeLabel(entity.getCardType()));
+    dto.setTxnType(entity.getTxnType());
+    dto.setTxnTypeLabel(resolveTxnTypeLabel(entity.getTxnType()));
+    Long effectiveOrgId =
+        vehicle != null && vehicle.getOrgId() != null ? vehicle.getOrgId() : entity.getOrgId();
+    dto.setOrgId(effectiveOrgId != null ? String.valueOf(effectiveOrgId) : null);
+    dto.setOrgName(resolveOrgName(orgMap.get(effectiveOrgId), effectiveOrgId));
+    dto.setVehicleId(vehicle != null && vehicle.getId() != null ? String.valueOf(vehicle.getId()) : null);
+    dto.setPlateNo(vehicle != null ? vehicle.getPlateNo() : null);
+    dto.setAmount(defaultDecimal(entity.getAmount()));
+    dto.setBalanceBefore(defaultDecimal(entity.getBalanceBefore()));
+    dto.setBalanceAfter(defaultDecimal(entity.getBalanceAfter()));
+    dto.setOccurredAt(formatDateTime(entity.getOccurredAt()));
+    dto.setOperatorName(entity.getOperatorName());
+    dto.setRemark(entity.getRemark());
+    return dto;
   }
 
   private Map<Long, Vehicle> loadVehicleMap(List<VehicleCard> cards) {
@@ -333,6 +584,31 @@ public class VehicleCardsController {
             vehicle != null ? vehicle.getId() : entity.getVehicleId()));
   }
 
+  private void saveTransaction(
+      VehicleCard card,
+      String txnType,
+      BigDecimal amount,
+      BigDecimal balanceBefore,
+      BigDecimal balanceAfter,
+      String operatorName,
+      String remark) {
+    VehicleCardTransaction entity = new VehicleCardTransaction();
+    entity.setTenantId(card.getTenantId());
+    entity.setCardId(card.getId());
+    entity.setCardNo(card.getCardNo());
+    entity.setCardType(card.getCardType());
+    entity.setTxnType(txnType);
+    entity.setOrgId(card.getOrgId());
+    entity.setVehicleId(card.getVehicleId());
+    entity.setAmount(defaultDecimal(amount));
+    entity.setBalanceBefore(defaultDecimal(balanceBefore));
+    entity.setBalanceAfter(defaultDecimal(balanceAfter));
+    entity.setOccurredAt(LocalDateTime.now());
+    entity.setOperatorName(operatorName);
+    entity.setRemark(remark);
+    transactionMapper.insert(entity);
+  }
+
   private String resolveCardStatus(String rawStatus, BigDecimal balance, Long vehicleId) {
     if (StringUtils.hasText(rawStatus) && "DISABLED".equalsIgnoreCase(rawStatus.trim())) {
       return "DISABLED";
@@ -354,6 +630,17 @@ public class VehicleCardsController {
     };
   }
 
+  private String resolveTxnTypeLabel(String txnType) {
+    if (!StringUtils.hasText(txnType)) {
+      return "未知";
+    }
+    return switch (txnType.trim().toUpperCase()) {
+      case "RECHARGE" -> "充值";
+      case "CONSUME" -> "消费";
+      default -> txnType;
+    };
+  }
+
   private String resolveStatusLabel(String status) {
     if (!StringUtils.hasText(status)) {
       return "未知";
@@ -365,6 +652,30 @@ public class VehicleCardsController {
       case "DISABLED" -> "停用";
       default -> status;
     };
+  }
+
+  private boolean matchTransactionKeyword(
+      VehicleCardTransactionListItemDto dto, String keyword) {
+    if (!StringUtils.hasText(keyword)) {
+      return true;
+    }
+    return contains(dto.getCardNo(), keyword)
+        || contains(dto.getPlateNo(), keyword)
+        || contains(dto.getOrgName(), keyword)
+        || contains(dto.getOperatorName(), keyword)
+        || contains(dto.getRemark(), keyword);
+  }
+
+  private boolean matchOccurredDate(String value, LocalDate from, LocalDate to) {
+    if (!StringUtils.hasText(value)) {
+      return from == null && to == null;
+    }
+    LocalDateTime dateTime = parseDateTime(value);
+    if (dateTime == null) {
+      return false;
+    }
+    LocalDate date = dateTime.toLocalDate();
+    return (from == null || !date.isBefore(from)) && (to == null || !date.isAfter(to));
   }
 
   private String resolveOrgName(Org org, Long orgId) {
@@ -402,22 +713,7 @@ public class VehicleCardsController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      if (user.getTenantId() == null) {
-        throw new BizException(403, "当前用户未绑定租户");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 
   private BigDecimal defaultDecimal(BigDecimal value) {
@@ -430,6 +726,35 @@ public class VehicleCardsController {
 
   private String trimToNull(String value) {
     return StringUtils.hasText(value) ? value.trim() : null;
+  }
+
+  private String resolveUserName(User user) {
+    if (user == null) {
+      return "系统";
+    }
+    return StringUtils.hasText(user.getName()) ? user.getName() : user.getUsername();
+  }
+
+  private LocalDate parseDate(String value) {
+    if (!StringUtils.hasText(value)) {
+      return null;
+    }
+    try {
+      return LocalDate.parse(value.trim(), ISO_DATE);
+    } catch (Exception ex) {
+      return null;
+    }
+  }
+
+  private LocalDateTime parseDateTime(String value) {
+    if (!StringUtils.hasText(value)) {
+      return null;
+    }
+    try {
+      return LocalDateTime.parse(value.trim(), ISO_DATE_TIME);
+    } catch (Exception ex) {
+      return null;
+    }
   }
 
   private Long parseLong(String value) {
@@ -445,5 +770,62 @@ public class VehicleCardsController {
 
   private String formatDateTime(LocalDateTime value) {
     return value != null ? value.format(ISO_DATE_TIME) : null;
+  }
+
+  private ResponseEntity<byte[]> csvResponse(String fileName, String content) {
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName)
+        .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+        .body(content.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private String buildCardCsv(List<VehicleCardListItemDto> rows) {
+    StringBuilder builder =
+        new StringBuilder("卡号,卡类型,所属单位,绑定车辆,当前余额,累计充值,累计消费,状态,发卡方,备注\n");
+    for (VehicleCardListItemDto row : rows) {
+      builder
+          .append(csv(row.getCardNo())).append(',')
+          .append(csv(row.getCardTypeLabel())).append(',')
+          .append(csv(row.getOrgName())).append(',')
+          .append(csv(row.getPlateNo())).append(',')
+          .append(csv(row.getBalance())).append(',')
+          .append(csv(row.getTotalRecharge())).append(',')
+          .append(csv(row.getTotalConsume())).append(',')
+          .append(csv(row.getStatusLabel())).append(',')
+          .append(csv(row.getProviderName())).append(',')
+          .append(csv(row.getRemark())).append('\n');
+    }
+    return builder.toString();
+  }
+
+  private String buildTransactionCsv(List<VehicleCardTransactionListItemDto> rows) {
+    StringBuilder builder =
+        new StringBuilder("发生时间,卡号,卡类型,流水类型,所属单位,绑定车辆,金额,变动前余额,变动后余额,操作人,备注\n");
+    for (VehicleCardTransactionListItemDto row : rows) {
+      builder
+          .append(csv(row.getOccurredAt())).append(',')
+          .append(csv(row.getCardNo())).append(',')
+          .append(csv(row.getCardTypeLabel())).append(',')
+          .append(csv(row.getTxnTypeLabel())).append(',')
+          .append(csv(row.getOrgName())).append(',')
+          .append(csv(row.getPlateNo())).append(',')
+          .append(csv(row.getAmount())).append(',')
+          .append(csv(row.getBalanceBefore())).append(',')
+          .append(csv(row.getBalanceAfter())).append(',')
+          .append(csv(row.getOperatorName())).append(',')
+          .append(csv(row.getRemark())).append('\n');
+    }
+    return builder.toString();
+  }
+
+  private String csv(Object value) {
+    if (value == null) {
+      return "";
+    }
+    String text = String.valueOf(value);
+    if (text.contains(",") || text.contains("\"") || text.contains("\n")) {
+      return '"' + text.replace("\"", "\"\"") + '"';
+    }
+    return text;
   }
 }

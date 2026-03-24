@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Card, Input, Button, Tag, Progress, Row, Col, Dropdown, Tooltip, Empty, Spin, message } from 'antd';
+import { Card, Input, Button, Tag, Progress, Row, Col, Dropdown, Tooltip, Empty, Spin, message, Modal, Form, InputNumber, Select, Space } from 'antd';
 import type { MenuProps } from 'antd';
 import { SearchOutlined, FilterOutlined, EnvironmentOutlined, MoreOutlined, PlusOutlined, VideoCameraOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { fetchSites, type SiteRecord } from '../utils/siteApi';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { createSite, fetchSites, type SiteCreatePayload, type SiteRecord } from '../utils/siteApi';
 
 interface SiteViewModel {
   id: string;
@@ -16,6 +16,9 @@ interface SiteViewModel {
   address: string;
   cameras: number;
   waitCount: number;
+  siteLevel: string;
+  parentSiteName?: string;
+  weighbridgeSiteName?: string;
 }
 
 const resolveSiteType = (site: SiteRecord) => {
@@ -60,6 +63,9 @@ const toViewModel = (site: SiteRecord): SiteViewModel => {
     address: site.address || '-',
     cameras: (Number(site.id || 0) % 5) + 1,
     waitCount: (Number(site.id || 0) * 3) % 18,
+    siteLevel: site.siteLevel === 'SECONDARY' ? '二级场地' : '一级场地',
+    parentSiteName: site.parentSiteName || undefined,
+    weighbridgeSiteName: site.weighbridgeSiteName || undefined,
   };
 };
 
@@ -67,18 +73,25 @@ const SitesManagement: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(false);
     const [sites, setSites] = useState<SiteViewModel[]>([]);
+    const [rawSites, setRawSites] = useState<SiteRecord[]>([]);
+    const [createOpen, setCreateOpen] = useState(false);
+    const [creating, setCreating] = useState(false);
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [form] = Form.useForm<SiteCreatePayload>();
 
     useEffect(() => {
         const loadSites = async () => {
             setLoading(true);
             try {
                 const data = await fetchSites();
+                setRawSites(data);
                 setSites(data.map(toViewModel));
             } catch (error) {
                 console.error(error);
                 message.error('获取场地列表失败');
                 setSites([]);
+                setRawSites([]);
             } finally {
                 setLoading(false);
             }
@@ -86,6 +99,65 @@ const SitesManagement: React.FC = () => {
 
         void loadSites();
     }, []);
+
+    useEffect(() => {
+        if (searchParams.get('create') === '1') {
+            setCreateOpen(true);
+        }
+    }, [searchParams]);
+
+    const reloadSites = async () => {
+        const data = await fetchSites();
+        setRawSites(data);
+        setSites(data.map(toViewModel));
+    };
+
+    const handleOpenCreate = () => {
+        form.setFieldsValue({
+            siteLevel: 'PRIMARY',
+            siteType: 'ENGINEERING',
+            settlementMode: 'UNIT_PRICE',
+            status: 1,
+            capacity: 0,
+        });
+        setCreateOpen(true);
+        const next = new URLSearchParams(searchParams);
+        next.set('create', '1');
+        setSearchParams(next, { replace: true });
+    };
+
+    const handleCloseCreate = () => {
+        setCreateOpen(false);
+        form.resetFields();
+        const next = new URLSearchParams(searchParams);
+        next.delete('create');
+        setSearchParams(next, { replace: true });
+    };
+
+    const handleCreate = async () => {
+        try {
+            const values = await form.validateFields();
+            setCreating(true);
+            const payload: SiteCreatePayload = {
+                ...values,
+                parentSiteId: values.parentSiteId ? Number(values.parentSiteId) : undefined,
+                weighbridgeSiteId: values.weighbridgeSiteId ? Number(values.weighbridgeSiteId) : undefined,
+            };
+            const created = await createSite(payload);
+            message.success(`场地 ${created.name} 已创建`);
+            handleCloseCreate();
+            await reloadSites();
+            navigate(`/sites/${created.id}`);
+        } catch (error: any) {
+            if (error?.errorFields) {
+                return;
+            }
+            console.error(error);
+            message.error(error?.message || '新增场地失败');
+        } finally {
+            setCreating(false);
+        }
+    };
 
     const getItems = (id: string): MenuProps['items'] => [
         { key: '1', label: '查看详情', onClick: () => navigate(`/sites/${id}`) },
@@ -142,7 +214,7 @@ const SitesManagement: React.FC = () => {
                     <Button icon={<FilterOutlined />} className="bg-white g-text-secondary g-border-panel border hover:g-text-primary hover:border-slate-500">
                         高级筛选
                     </Button>
-                    <Button type="primary" icon={<PlusOutlined />} className="g-btn-primary border-none shadow-[0_0_15px_rgba(37,99,235,0.4)]">
+                    <Button type="primary" icon={<PlusOutlined />} className="g-btn-primary border-none shadow-[0_0_15px_rgba(37,99,235,0.4)]" onClick={handleOpenCreate}>
                         新增场地
                     </Button>
                 </div>
@@ -178,6 +250,10 @@ const SitesManagement: React.FC = () => {
                                             <div className="flex justify-between items-start mb-4">
                                                 <div className="flex flex-col gap-2">
                                                     <Tag color={getTypeColor(site.type)} className="w-fit m-0 border-none bg-opacity-20">{site.type}</Tag>
+                                                    <Space size={6} wrap>
+                                                        <Tag color="geekblue" className="w-fit m-0 border-none bg-opacity-20">{site.siteLevel}</Tag>
+                                                        {site.weighbridgeSiteName ? <Tag color="gold">借用地磅: {site.weighbridgeSiteName}</Tag> : null}
+                                                    </Space>
                                                     <h3 className="text-lg font-bold g-text-primary m-0 truncate w-40" title={site.name}>{site.name}</h3>
                                                 </div>
                                                 <Tag color={getStatusColor(site.statusText)} className="border-none shadow-sm">{site.statusText}</Tag>
@@ -186,6 +262,9 @@ const SitesManagement: React.FC = () => {
                                             <p className="g-text-secondary text-sm mb-4 truncate" title={site.address}>
                                                 <EnvironmentOutlined className="mr-1" /> {site.address}
                                             </p>
+                                            {site.parentSiteName ? (
+                                                <p className="g-text-secondary text-xs mb-4">上级场地: {site.parentSiteName}</p>
+                                            ) : null}
 
                                             <div className="mb-2">
                                                 <div className="flex justify-between text-xs mb-1">
@@ -223,6 +302,82 @@ const SitesManagement: React.FC = () => {
                     </Row>
                 )}
             </Spin>
+            <Modal
+                title="新增场地"
+                open={createOpen}
+                onCancel={handleCloseCreate}
+                onOk={() => void handleCreate()}
+                confirmLoading={creating}
+                width={760}
+            >
+                <Form form={form} layout="vertical">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Form.Item name="name" label="场地名称" rules={[{ required: true, message: '请输入场地名称' }]}>
+                            <Input />
+                        </Form.Item>
+                        <Form.Item name="code" label="场地编码">
+                            <Input placeholder="不填则系统自动生成" />
+                        </Form.Item>
+                        <Form.Item name="siteType" label="场地类型" rules={[{ required: true, message: '请选择场地类型' }]}>
+                            <Select options={[
+                                { value: 'STATE_OWNED', label: '国有场地' },
+                                { value: 'COLLECTIVE', label: '集体场地' },
+                                { value: 'ENGINEERING', label: '工程场地' },
+                                { value: 'SHORT_BARGE', label: '短驳场地' },
+                            ]} />
+                        </Form.Item>
+                        <Form.Item name="siteLevel" label="场地层级" rules={[{ required: true, message: '请选择场地层级' }]}>
+                            <Select options={[
+                                { value: 'PRIMARY', label: '一级场地' },
+                                { value: 'SECONDARY', label: '二级场地' },
+                            ]} />
+                        </Form.Item>
+                        <Form.Item noStyle shouldUpdate={(prev, next) => prev.siteLevel !== next.siteLevel}>
+                            {({ getFieldValue }) => getFieldValue('siteLevel') === 'SECONDARY' ? (
+                                <Form.Item name="parentSiteId" label="上级场地" rules={[{ required: true, message: '请选择上级场地' }]}>
+                                    <Select
+                                        showSearch
+                                        optionFilterProp="label"
+                                        options={rawSites.map((site) => ({ value: site.id, label: `${site.name} (${site.code || site.id})` }))}
+                                    />
+                                </Form.Item>
+                            ) : <div />}
+                        </Form.Item>
+                        <Form.Item name="weighbridgeSiteId" label="借用地磅场地">
+                            <Select
+                                allowClear
+                                showSearch
+                                optionFilterProp="label"
+                                placeholder="无自有地磅时可配置借用场地"
+                                options={rawSites.map((site) => ({ value: site.id, label: `${site.name} (${site.code || site.id})` }))}
+                            />
+                        </Form.Item>
+                        <Form.Item name="managementArea" label="所属区域">
+                            <Input />
+                        </Form.Item>
+                        <Form.Item name="capacity" label="总容量(方)">
+                            <InputNumber min={0} className="w-full" />
+                        </Form.Item>
+                        <Form.Item name="settlementMode" label="结算方式">
+                            <Select options={[
+                                { value: 'MONTHLY_APPLY', label: '按月结算申请' },
+                                { value: 'RATIO_SERVICE_FEE', label: '按消纳费比例 + 平台服务费' },
+                                { value: 'UNIT_PRICE', label: '按单价结算' },
+                                { value: 'SERVICE_FEE', label: '按平台服务费结算' },
+                            ]} />
+                        </Form.Item>
+                        <Form.Item name="disposalUnitPrice" label="消纳费单价(元/方)">
+                            <InputNumber min={0} className="w-full" />
+                        </Form.Item>
+                        <Form.Item name="serviceFeeUnitPrice" label="服务费单价(元/方)">
+                            <InputNumber min={0} className="w-full" />
+                        </Form.Item>
+                        <Form.Item name="address" label="场地地址" className="md:col-span-2">
+                            <Input />
+                        </Form.Item>
+                    </div>
+                </Form>
+            </Modal>
         </div>
     );
 };

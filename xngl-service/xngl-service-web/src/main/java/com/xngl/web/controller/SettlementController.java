@@ -2,30 +2,39 @@ package com.xngl.web.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.xngl.infrastructure.persistence.entity.project.Project;
+import com.xngl.infrastructure.persistence.entity.contract.Contract;
 import com.xngl.infrastructure.persistence.entity.contract.SettlementItem;
 import com.xngl.infrastructure.persistence.entity.contract.SettlementOrder;
+import com.xngl.infrastructure.persistence.entity.contract.ContractTicket;
 import com.xngl.infrastructure.persistence.entity.site.Site;
 import com.xngl.infrastructure.persistence.entity.organization.User;
+import com.xngl.infrastructure.persistence.mapper.ContractTicketMapper;
 import com.xngl.infrastructure.persistence.mapper.ProjectMapper;
 import com.xngl.infrastructure.persistence.mapper.SiteMapper;
+import com.xngl.manager.contract.ContractService;
 import com.xngl.manager.contract.SettlementService;
 import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
 import com.xngl.web.dto.contract.ApprovalActionDto;
+import com.xngl.web.dto.contract.SettlementContractSummaryDto;
 import com.xngl.web.dto.contract.SettlementDetailDto;
 import com.xngl.web.dto.contract.SettlementItemDto;
 import com.xngl.web.dto.contract.SettlementLineDto;
 import com.xngl.web.dto.contract.SettlementStatsDto;
 import com.xngl.web.dto.contract.SettlementGenerateDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.math.RoundingMode;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -46,17 +55,23 @@ public class SettlementController {
   private static final DateTimeFormatter ISO_DATE_TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
   private final SettlementService settlementService;
-  private final UserService userService;
+  private final ContractService contractService;
+  private final UserContext userContext;
+  private final ContractTicketMapper contractTicketMapper;
   private final ProjectMapper projectMapper;
   private final SiteMapper siteMapper;
 
   public SettlementController(
       SettlementService settlementService,
-      UserService userService,
+      ContractService contractService,
+      UserContext userContext,
+      ContractTicketMapper contractTicketMapper,
       ProjectMapper projectMapper,
       SiteMapper siteMapper) {
     this.settlementService = settlementService;
-    this.userService = userService;
+    this.contractService = contractService;
+    this.userContext = userContext;
+    this.contractTicketMapper = contractTicketMapper;
     this.projectMapper = projectMapper;
     this.siteMapper = siteMapper;
   }
@@ -134,6 +149,7 @@ public class SettlementController {
   @PostMapping("/{id}/approve")
   public ApiResult<Void> approve(@PathVariable Long id, HttpServletRequest request) {
     User user = requireCurrentUser(request);
+    userContext.requireApprovalPermission(user);
     settlementService.approveSettlement(id, user.getTenantId());
     return ApiResult.ok(null);
   }
@@ -144,6 +160,7 @@ public class SettlementController {
       @RequestBody(required = false) ApprovalActionDto dto,
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
+    userContext.requireApprovalPermission(user);
     settlementService.rejectSettlement(
         id, user.getTenantId(), dto != null ? dto.getReason() : null);
     return ApiResult.ok(null);
@@ -152,14 +169,14 @@ public class SettlementController {
   @GetMapping("/stats")
   public ApiResult<SettlementStatsDto> stats(HttpServletRequest request) {
     User user = requireCurrentUser(request);
-    Map<String, Object> raw = settlementService.getSettlementStats(user.getTenantId());
+    var raw = settlementService.getSettlementStats(user.getTenantId());
     SettlementStatsDto stats = new SettlementStatsDto();
-    stats.setPendingAmount((BigDecimal) raw.get("pendingAmount"));
-    stats.setSettledAmount((BigDecimal) raw.get("settledAmount"));
-    stats.setTotalOrders((long) raw.get("totalOrders"));
-    stats.setDraftOrders((long) raw.get("draftOrders"));
-    stats.setPendingOrders((long) raw.get("pendingOrders"));
-    stats.setSettledOrders((long) raw.get("settledOrders"));
+    stats.setPendingAmount(raw.getPendingAmount());
+    stats.setSettledAmount(raw.getSettledAmount());
+    stats.setTotalOrders(raw.getTotalOrders());
+    stats.setDraftOrders(raw.getDraftOrders());
+    stats.setPendingOrders(raw.getPendingOrders());
+    stats.setSettledOrders(raw.getSettledOrders());
     return ApiResult.ok(stats);
   }
 
@@ -194,6 +211,8 @@ public class SettlementController {
 
   private SettlementDetailDto toDetailDto(
       SettlementOrder order, List<SettlementItem> items, Project project, Site site) {
+    Map<Long, ContractTicket> ticketMap = loadTicketMap(items);
+    Map<Long, Contract> contractMap = loadContractMapFromTickets(ticketMap, order.getTenantId());
     SettlementDetailDto dto = new SettlementDetailDto();
     dto.setId(stringValue(order.getId()));
     dto.setSettlementNo(order.getSettlementNo());
@@ -216,13 +235,19 @@ public class SettlementController {
     dto.setSettlementDate(formatDate(order.getSettlementDate()));
     dto.setProcessInstanceId(order.getProcessInstanceId());
     dto.setRemark(order.getRemark());
-    dto.setItems(items.stream().map(this::toLineDto).toList());
+    dto.setContractSummaries(buildContractSummaries(items, ticketMap, contractMap));
+    dto.setItems(items.stream().map(item -> toLineDto(item, ticketMap, contractMap)).toList());
     return dto;
   }
 
-  private SettlementLineDto toLineDto(SettlementItem item) {
+  private SettlementLineDto toLineDto(
+      SettlementItem item, Map<Long, ContractTicket> ticketMap, Map<Long, Contract> contractMap) {
+    ContractTicket ticket = resolveTicket(item, ticketMap);
+    Contract contract = ticket != null ? contractMap.get(ticket.getContractId()) : null;
     SettlementLineDto dto = new SettlementLineDto();
     dto.setId(stringValue(item.getId()));
+    dto.setContractId(ticket != null ? stringValue(ticket.getContractId()) : null);
+    dto.setContractNo(contract != null ? contract.getContractNo() : null);
     dto.setSourceRecordType(item.getSourceRecordType());
     dto.setSourceRecordId(stringValue(item.getSourceRecordId()));
     dto.setProjectId(stringValue(item.getProjectId()));
@@ -236,23 +261,93 @@ public class SettlementController {
     return dto;
   }
 
+  private Map<Long, ContractTicket> loadTicketMap(List<SettlementItem> items) {
+    List<Long> ticketIds =
+        items.stream()
+            .filter(item -> "CONTRACT_TICKET".equals(item.getSourceRecordType()))
+            .map(SettlementItem::getSourceRecordId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+    if (ticketIds.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    return contractTicketMapper.selectBatchIds(ticketIds).stream()
+        .filter(Objects::nonNull)
+        .collect(java.util.stream.Collectors.toMap(ContractTicket::getId, ticket -> ticket));
+  }
+
+  private Map<Long, Contract> loadContractMapFromTickets(
+      Map<Long, ContractTicket> ticketMap, Long tenantId) {
+    if (ticketMap.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    List<Long> contractIds =
+        ticketMap.values().stream()
+            .map(ContractTicket::getContractId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+    return contractService.listContractsByIds(contractIds, tenantId).stream()
+        .collect(java.util.stream.Collectors.toMap(Contract::getId, contract -> contract));
+  }
+
+  private ContractTicket resolveTicket(SettlementItem item, Map<Long, ContractTicket> ticketMap) {
+    if (item == null || !"CONTRACT_TICKET".equals(item.getSourceRecordType())) {
+      return null;
+    }
+    return ticketMap.get(item.getSourceRecordId());
+  }
+
+  private List<SettlementContractSummaryDto> buildContractSummaries(
+      List<SettlementItem> items,
+      Map<Long, ContractTicket> ticketMap,
+      Map<Long, Contract> contractMap) {
+    Map<Long, ContractAggregation> aggregations = new HashMap<>();
+    for (SettlementItem item : items) {
+      ContractTicket ticket = resolveTicket(item, ticketMap);
+      if (ticket == null || ticket.getContractId() == null) {
+        continue;
+      }
+      ContractAggregation aggregation =
+          aggregations.computeIfAbsent(ticket.getContractId(), key -> new ContractAggregation());
+      aggregation.itemCount += 1;
+      aggregation.totalVolume = aggregation.totalVolume.add(zeroIfNull(item.getVolume()));
+      aggregation.totalAmount = aggregation.totalAmount.add(zeroIfNull(item.getAmount()));
+    }
+    return aggregations.entrySet().stream()
+        .map(
+            entry -> {
+              ContractAggregation aggregation = entry.getValue();
+              BigDecimal averageUnitPrice =
+                  aggregation.totalVolume.compareTo(BigDecimal.ZERO) > 0
+                      ? aggregation.totalAmount.divide(aggregation.totalVolume, 2, RoundingMode.HALF_UP)
+                      : BigDecimal.ZERO;
+              Contract contract = contractMap.get(entry.getKey());
+              return new SettlementContractSummaryDto(
+                  stringValue(entry.getKey()),
+                  contract != null ? contract.getContractNo() : null,
+                  aggregation.itemCount,
+                  aggregation.totalVolume,
+                  aggregation.totalAmount,
+                  averageUnitPrice);
+            })
+        .sorted(Comparator.comparing(SettlementContractSummaryDto::getContractNo, Comparator.nullsLast(String::compareTo)))
+        .toList();
+  }
+
+  private BigDecimal zeroIfNull(BigDecimal value) {
+    return value != null ? value : BigDecimal.ZERO;
+  }
+
+  private static final class ContractAggregation {
+    private int itemCount;
+    private BigDecimal totalVolume = BigDecimal.ZERO;
+    private BigDecimal totalAmount = BigDecimal.ZERO;
+  }
+
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (userId == null || userId.isBlank()) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      if (user.getTenantId() == null) {
-        throw new BizException(403, "当前用户未绑定租户");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 
   private String formatDate(LocalDate value) {

@@ -7,4 +7,5 @@ import lombok.Data;
 public class VehicleCardRechargeDto {
 
   private BigDecimal amount;
+  private String remark;
 }

@@ -1,0 +1,74 @@
+{
+  "phase": "phase54",
+  "title": "场地资料与场地报表专项烟测",
+  "date": "2026-03-23",
+  "scope": [
+    "38 场地资料",
+    "86 消纳场地报表"
+  ],
+  "summary": {
+    "passed": 10,
+    "total": 10,
+    "status": "PASS"
+  },
+  "results": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "管理员账号登录成功，返回 token"
+    },
+    {
+      "name": "site_documents_construction_summary",
+      "status": "PASS",
+      "detail": "场地资料汇总支持 CONSTRUCTION 阶段，返回 2 类建设阶段资料"
+    },
+    {
+      "name": "site_documents_approval_filter",
+      "status": "PASS",
+      "detail": "场地资料汇总支持 approvalType=CONSTRUCTION 过滤"
+    },
+    {
+      "name": "site_documents_format_validation",
+      "status": "PASS",
+      "detail": "CONSTRUCTION_PLAN 上传 docx 被拒绝，返回业务码 400 和格式错误提示"
+    },
+    {
+      "name": "site_documents_create_construction",
+      "status": "PASS",
+      "detail": "建设阶段 BOUNDARY_SURVEY 资料新增成功并可回查"
+    },
+    {
+      "name": "site_report_custom_summary",
+      "status": "PASS",
+      "detail": "场地报表支持 CUSTOM 自定义时间范围汇总，统计周期返回 2026-03-01 ~ 2026-03-23"
+    },
+    {
+      "name": "site_report_custom_trend",
+      "status": "PASS",
+      "detail": "自定义短区间趋势按日展开，返回 2026-03-01 至 2026-03-05 共 5 个周期"
+    },
+    {
+      "name": "site_report_export_task",
+      "status": "PASS",
+      "detail": "场地报表导出任务生成并完成，文件名 site_reports_20260323105719.csv"
+    },
+    {
+      "name": "site_report_export_download",
+      "status": "PASS",
+      "detail": "导出文件下载成功，CSV 表头正确"
+    },
+    {
+      "name": "site_documents_cleanup",
+      "status": "PASS",
+      "detail": "烟测创建的临时建设阶段资料已删除"
+    }
+  ],
+  "verification": [
+    "mysql -h127.0.0.1 -P3306 -uroot -p'ForkliftDev2025' -D xngl < xngl-service/xngl-service-starter/src/main/resources/db/schema/patches/050_site_documents_lifecycle_seed.sql",
+    "cd xngl-service && mvn -q -DskipTests compile",
+    "cd xngl-service && mvn -q -DskipTests install",
+    "cd xngl-web && npm run build",
+    "cd xngl-service && mvn spring-boot:run -pl xngl-service-starter",
+    "python3 phase54 smoke"
+  ]
+}

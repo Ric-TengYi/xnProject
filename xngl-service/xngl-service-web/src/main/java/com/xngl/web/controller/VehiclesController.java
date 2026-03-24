@@ -6,21 +6,26 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xngl.infrastructure.persistence.entity.organization.Org;
 import com.xngl.infrastructure.persistence.entity.organization.User;
 import com.xngl.infrastructure.persistence.entity.vehicle.Vehicle;
+import com.xngl.infrastructure.persistence.entity.vehicle.VehicleTrackPoint;
 import com.xngl.infrastructure.persistence.mapper.OrgMapper;
 import com.xngl.infrastructure.persistence.mapper.VehicleMapper;
-import com.xngl.manager.user.UserService;
+import com.xngl.infrastructure.persistence.mapper.VehicleTrackPointMapper;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
 import com.xngl.web.dto.vehicle.VehicleCompanyCapacityDto;
 import com.xngl.web.dto.vehicle.VehicleDetailDto;
 import com.xngl.web.dto.vehicle.VehicleFleetSummaryDto;
+import com.xngl.web.dto.vehicle.VehicleTrackHistoryDto;
 import com.xngl.web.dto.vehicle.VehicleListItemDto;
 import com.xngl.web.dto.vehicle.VehicleStatsDto;
+import com.xngl.web.dto.vehicle.VehicleTrackPointDto;
 import com.xngl.web.dto.vehicle.VehicleUpsertDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -35,6 +40,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import lombok.Data;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -54,16 +63,19 @@ public class VehiclesController {
   private static final DateTimeFormatter ISO_DATE_TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
   private final VehicleMapper vehicleMapper;
+  private final VehicleTrackPointMapper vehicleTrackPointMapper;
   private final OrgMapper orgMapper;
-  private final UserService userService;
+  private final UserContext userContext;
 
   public VehiclesController(
       VehicleMapper vehicleMapper,
+      VehicleTrackPointMapper vehicleTrackPointMapper,
       OrgMapper orgMapper,
-      UserService userService) {
+      UserContext userContext) {
     this.vehicleMapper = vehicleMapper;
+    this.vehicleTrackPointMapper = vehicleTrackPointMapper;
     this.orgMapper = orgMapper;
-    this.userService = userService;
+    this.userContext = userContext;
   }
 
   @GetMapping
@@ -123,6 +135,24 @@ public class VehiclesController {
     return ApiResult.ok(new PageResult<>(page.getCurrent(), page.getSize(), page.getTotal(), records));
   }
 
+  @GetMapping("/export")
+  public ResponseEntity<byte[]> export(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) Integer status,
+      @RequestParam(required = false) Long orgId,
+      @RequestParam(required = false) String vehicleType,
+      @RequestParam(required = false) String useStatus,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<VehicleListItemDto> rows =
+        loadVehicleRows(currentUser.getTenantId(), keyword, status, orgId, vehicleType, useStatus);
+    String csv = buildVehicleCsv(rows);
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=vehicles.csv")
+        .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+        .body(csv.getBytes(StandardCharsets.UTF_8));
+  }
+
   @GetMapping("/{id}")
   public ApiResult<VehicleDetailDto> get(@PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
@@ -132,6 +162,41 @@ public class VehiclesController {
     }
     Org org = vehicle.getOrgId() != null ? orgMapper.selectById(vehicle.getOrgId()) : null;
     return ApiResult.ok(toDetail(vehicle, org));
+  }
+
+  @GetMapping("/{id}/track-history")
+  public ApiResult<VehicleTrackHistoryDto> trackHistory(
+      @PathVariable Long id,
+      @RequestParam(required = false) String startTime,
+      @RequestParam(required = false) String endTime,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    Vehicle vehicle = vehicleMapper.selectById(id);
+    if (vehicle == null || !Objects.equals(vehicle.getTenantId(), currentUser.getTenantId())) {
+      return ApiResult.fail(404, "车辆不存在");
+    }
+    LocalDateTime start = parseDateTime(startTime);
+    LocalDateTime end = parseDateTime(endTime);
+    LambdaQueryWrapper<VehicleTrackPoint> query =
+        new LambdaQueryWrapper<VehicleTrackPoint>()
+            .eq(VehicleTrackPoint::getTenantId, currentUser.getTenantId())
+            .eq(VehicleTrackPoint::getVehicleId, id)
+            .ge(start != null, VehicleTrackPoint::getLocateTime, start)
+            .le(end != null, VehicleTrackPoint::getLocateTime, end)
+            .orderByAsc(VehicleTrackPoint::getLocateTime)
+            .orderByAsc(VehicleTrackPoint::getId);
+    List<VehicleTrackPoint> points = vehicleTrackPointMapper.selectList(query);
+    if (points.isEmpty() && vehicle.getLng() != null && vehicle.getLat() != null) {
+      points = buildFallbackTrack(vehicle, start, end);
+    }
+    VehicleTrackHistoryDto dto = new VehicleTrackHistoryDto();
+    dto.setVehicleId(String.valueOf(vehicle.getId()));
+    dto.setPlateNo(vehicle.getPlateNo());
+    dto.setStartTime(formatDateTime(start));
+    dto.setEndTime(formatDateTime(end));
+    dto.setPoints(points.stream().map(this::toTrackPointDto).toList());
+    dto.setPointCount(dto.getPoints() != null ? dto.getPoints().size() : 0);
+    return ApiResult.ok(dto);
   }
 
   @GetMapping("/stats")
@@ -276,12 +341,86 @@ public class VehiclesController {
     return ApiResult.ok();
   }
 
+  @PutMapping("/batch-status")
+  public ApiResult<Map<String, Object>> batchUpdateStatus(
+      @RequestBody VehicleBatchStatusDto body, HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<Vehicle> vehicles = requireBatchVehicles(body != null ? body.getIds() : null, currentUser.getTenantId());
+    Integer nextStatus = body != null ? body.getStatus() : null;
+    if (nextStatus == null) {
+      throw new BizException(400, "目标状态不能为空");
+    }
+    for (Vehicle vehicle : vehicles) {
+      vehicle.setStatus(nextStatus);
+      vehicle.setUseStatus(resolveUseStatus(nextStatus));
+      vehicleMapper.updateById(vehicle);
+    }
+    return ApiResult.ok(Map.of("updated", vehicles.size(), "status", nextStatus));
+  }
+
+  @PostMapping("/batch-delete")
+  public ApiResult<Map<String, Object>> batchDelete(
+      @RequestBody VehicleBatchIdsDto body, HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<Vehicle> vehicles = requireBatchVehicles(body != null ? body.getIds() : null, currentUser.getTenantId());
+    for (Vehicle vehicle : vehicles) {
+      vehicleMapper.deleteById(vehicle.getId());
+    }
+    return ApiResult.ok(Map.of("deleted", vehicles.size()));
+  }
+
   private List<Vehicle> listTenantVehicles(Long tenantId) {
     return vehicleMapper.selectList(
         new LambdaQueryWrapper<Vehicle>()
             .eq(Vehicle::getTenantId, tenantId)
             .orderByDesc(Vehicle::getUpdateTime)
             .orderByDesc(Vehicle::getId));
+  }
+
+  private List<VehicleListItemDto> loadVehicleRows(
+      Long tenantId, String keyword, Integer status, Long orgId, String vehicleType, String useStatus) {
+    LambdaQueryWrapper<Vehicle> query =
+        new LambdaQueryWrapper<Vehicle>().eq(Vehicle::getTenantId, tenantId);
+    if (status != null) {
+      query.eq(Vehicle::getStatus, status);
+    }
+    if (orgId != null) {
+      query.eq(Vehicle::getOrgId, orgId);
+    }
+    if (StringUtils.hasText(vehicleType)) {
+      query.eq(Vehicle::getVehicleType, vehicleType.trim());
+    }
+    if (StringUtils.hasText(useStatus)) {
+      query.eq(Vehicle::getUseStatus, useStatus.trim().toUpperCase());
+    }
+    if (StringUtils.hasText(keyword)) {
+      String effectiveKeyword = keyword.trim();
+      LinkedHashSet<Long> orgIds = findOrgIdsByKeyword(tenantId, effectiveKeyword);
+      query.and(
+          wrapper -> {
+            wrapper
+                .like(Vehicle::getPlateNo, effectiveKeyword)
+                .or()
+                .like(Vehicle::getVin, effectiveKeyword)
+                .or()
+                .like(Vehicle::getDriverName, effectiveKeyword)
+                .or()
+                .like(Vehicle::getFleetName, effectiveKeyword)
+                .or()
+                .like(Vehicle::getBrand, effectiveKeyword)
+                .or()
+                .like(Vehicle::getModel, effectiveKeyword);
+            if (!orgIds.isEmpty()) {
+              wrapper.or().in(Vehicle::getOrgId, orgIds);
+            }
+          });
+    }
+    query.orderByDesc(Vehicle::getUpdateTime).orderByDesc(Vehicle::getId);
+    List<Vehicle> vehicles = vehicleMapper.selectList(query);
+    Map<Long, Org> orgMap = loadOrgMap(vehicles);
+    return vehicles.stream()
+        .map(vehicle -> toListItem(vehicle, orgMap.get(vehicle.getOrgId())))
+        .toList();
   }
 
   private Map<Long, Org> loadOrgMap(List<Vehicle> vehicles) {
@@ -331,6 +470,38 @@ public class VehiclesController {
     dto.setGpsTime(formatDateTime(vehicle.getGpsTime()));
     dto.setRemark(vehicle.getRemark());
     return dto;
+  }
+
+  private VehicleTrackPointDto toTrackPointDto(VehicleTrackPoint point) {
+    VehicleTrackPointDto dto = new VehicleTrackPointDto();
+    dto.setId(point.getId() != null ? String.valueOf(point.getId()) : null);
+    dto.setLng(point.getLng());
+    dto.setLat(point.getLat());
+    dto.setSpeed(point.getSpeed());
+    dto.setDirection(point.getDirection());
+    dto.setLocateTime(formatDateTime(point.getLocateTime()));
+    dto.setSourceType(point.getSourceType());
+    dto.setRemark(point.getRemark());
+    return dto;
+  }
+
+  private List<VehicleTrackPoint> buildFallbackTrack(
+      Vehicle vehicle, LocalDateTime start, LocalDateTime end) {
+    LocalDateTime baseTime = vehicle.getGpsTime() != null ? vehicle.getGpsTime() : LocalDateTime.now();
+    if (start != null && end != null && (baseTime.isBefore(start) || baseTime.isAfter(end))) {
+      return Collections.emptyList();
+    }
+    VehicleTrackPoint point = new VehicleTrackPoint();
+    point.setId(vehicle.getId());
+    point.setVehicleId(vehicle.getId());
+    point.setPlateNo(vehicle.getPlateNo());
+    point.setLng(vehicle.getLng());
+    point.setLat(vehicle.getLat());
+    point.setSpeed(vehicle.getCurrentSpeed());
+    point.setLocateTime(baseTime);
+    point.setSourceType("REALTIME");
+    point.setRemark("当前定位");
+    return List.of(point);
   }
 
   private void fillCommon(VehicleListItemDto dto, Vehicle vehicle, Org org) {
@@ -516,6 +687,36 @@ public class VehiclesController {
     return "休整";
   }
 
+  private String buildVehicleCsv(List<VehicleListItemDto> rows) {
+    StringBuilder builder =
+        new StringBuilder("车牌号,所属单位,车辆类型,品牌,型号,能源类型,司机,司机电话,车队,负责人,负责人电话,载重(吨),车辆状态,运行状态,当前速度(km/h),当前里程(km),保养到期日,年检到期日,保险到期日,预警状态,更新时间\n");
+    for (VehicleListItemDto row : rows) {
+      builder
+          .append(csv(row.getPlateNo())).append(',')
+          .append(csv(row.getOrgName())).append(',')
+          .append(csv(row.getVehicleType())).append(',')
+          .append(csv(row.getBrand())).append(',')
+          .append(csv(row.getModel())).append(',')
+          .append(csv(row.getEnergyType())).append(',')
+          .append(csv(row.getDriverName())).append(',')
+          .append(csv(row.getDriverPhone())).append(',')
+          .append(csv(row.getFleetName())).append(',')
+          .append(csv(row.getCaptainName())).append(',')
+          .append(csv(row.getCaptainPhone())).append(',')
+          .append(defaultDecimal(row.getLoadWeight())).append(',')
+          .append(csv(row.getStatusLabel())).append(',')
+          .append(csv(row.getRunningStatusLabel())).append(',')
+          .append(defaultDecimal(row.getCurrentSpeed())).append(',')
+          .append(defaultDecimal(row.getCurrentMileage())).append(',')
+          .append(csv(row.getNextMaintainDate())).append(',')
+          .append(csv(row.getAnnualInspectionExpireDate())).append(',')
+          .append(csv(row.getInsuranceExpireDate())).append(',')
+          .append(csv(row.getWarningLabel())).append(',')
+          .append(csv(row.getUpdateTime())).append('\n');
+    }
+    return builder.toString();
+  }
+
   private boolean hasWarning(Vehicle vehicle) {
     return !Objects.equals(resolveWarningLabel(vehicle), "正常");
   }
@@ -559,23 +760,62 @@ public class VehiclesController {
     return StringUtils.hasText(value) ? value.trim() : null;
   }
 
-  private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
+  private String resolveUseStatus(Integer status) {
+    if (status == null) {
+      return "ACTIVE";
+    }
+    return switch (status) {
+      case 2 -> "MAINTENANCE";
+      case 3, 5 -> "DISABLED";
+      case 4 -> "STANDBY";
+      default -> "ACTIVE";
+    };
+  }
+
+  private List<Vehicle> requireBatchVehicles(List<Long> ids, Long tenantId) {
+    LinkedHashSet<Long> validIds =
+        ids == null
+            ? new LinkedHashSet<>()
+            : ids.stream().filter(Objects::nonNull).collect(Collectors.toCollection(LinkedHashSet::new));
+    if (validIds.isEmpty()) {
+      throw new BizException(400, "请选择至少一条车辆记录");
+    }
+    List<Vehicle> vehicles = vehicleMapper.selectBatchIds(validIds);
+    if (vehicles.size() != validIds.size()
+        || vehicles.stream().anyMatch(item -> !Objects.equals(item.getTenantId(), tenantId))) {
+      throw new BizException(400, "存在无效车辆记录");
+    }
+    return vehicles;
+  }
+
+  private String defaultDecimal(BigDecimal value) {
+    return value != null ? value.stripTrailingZeros().toPlainString() : "";
+  }
+
+  private String csv(String value) {
+    if (value == null) {
+      return "";
+    }
+    String escaped = value.replace("\"", "\"\"");
+    if (escaped.contains(",") || escaped.contains("\n")) {
+      return "\"" + escaped + "\"";
+    }
+    return escaped;
+  }
+
+  private LocalDateTime parseDateTime(String value) {
+    if (!StringUtils.hasText(value)) {
+      return null;
     }
     try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      if (user.getTenantId() == null) {
-        throw new BizException(403, "当前用户未绑定租户");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
+      return LocalDateTime.parse(value.trim(), ISO_DATE_TIME);
+    } catch (Exception ex) {
+      throw new BizException(400, "时间格式错误，应为 yyyy-MM-ddTHH:mm:ss");
     }
+  }
+
+  private User requireCurrentUser(HttpServletRequest request) {
+    return userContext.requireCurrentUser(request);
   }
 
   private String formatDate(LocalDate value) {
@@ -584,5 +824,16 @@ public class VehiclesController {
 
   private String formatDateTime(LocalDateTime value) {
     return value != null ? value.format(ISO_DATE_TIME) : null;
+  }
+
+  @Data
+  public static class VehicleBatchIdsDto {
+    private List<Long> ids;
+  }
+
+  @Data
+  public static class VehicleBatchStatusDto {
+    private List<Long> ids;
+    private Integer status;
   }
 }

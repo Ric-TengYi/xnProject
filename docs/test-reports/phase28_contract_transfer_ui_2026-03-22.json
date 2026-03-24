@@ -1,0 +1,19 @@
+{
+  "results": [
+    {
+      "name": "UI page load",
+      "ok": true,
+      "detail": "内拨申请页面成功打开，标题可见"
+    },
+    {
+      "name": "UI create modal",
+      "ok": true,
+      "detail": "点击“发起内拨申请”可打开创建弹窗"
+    },
+    {
+      "name": "UI detail drawer",
+      "ok": true,
+      "detail": "点击表格“详情”可打开内拨申请详情抽屉"
+    }
+  ]
+}

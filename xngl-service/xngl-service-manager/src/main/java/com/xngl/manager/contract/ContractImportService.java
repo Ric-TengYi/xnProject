@@ -10,7 +10,7 @@ public interface ContractImportService {
 
   ContractImportBatch previewImport(Long tenantId, Long operatorId, String fileName, List<Map<String, String>> rows);
 
-  void commitImport(Long batchId, Long tenantId);
+  ContractImportCommitResult commitImport(Long batchId, Long tenantId);
 
   IPage<ContractImportBatch> pageBatches(Long tenantId, String status, int pageNo, int pageSize);
 

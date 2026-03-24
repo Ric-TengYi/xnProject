@@ -8,25 +8,29 @@ import com.xngl.infrastructure.persistence.entity.organization.User;
 import com.xngl.infrastructure.persistence.entity.project.Project;
 import com.xngl.infrastructure.persistence.entity.site.Site;
 import com.xngl.infrastructure.persistence.entity.vehicle.Vehicle;
+import com.xngl.infrastructure.persistence.entity.vehicle.VehicleTrackPoint;
 import com.xngl.infrastructure.persistence.mapper.ContractMapper;
 import com.xngl.infrastructure.persistence.mapper.ContractTicketMapper;
 import com.xngl.infrastructure.persistence.mapper.OrgMapper;
 import com.xngl.infrastructure.persistence.mapper.ProjectMapper;
 import com.xngl.infrastructure.persistence.mapper.VehicleMapper;
+import com.xngl.infrastructure.persistence.mapper.VehicleTrackPointMapper;
 import com.xngl.manager.site.SiteService;
-import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.report.DashboardOverviewDto;
+import com.xngl.web.dto.report.OrgAnalysisItemDto;
 import com.xngl.web.dto.report.ProjectAlertItemDto;
 import com.xngl.web.dto.report.ReportTrendItemDto;
 import com.xngl.web.dto.report.VehicleCapacityAnalysisDto;
 import com.xngl.web.dto.report.VehicleCapacityItemDto;
 import com.xngl.web.dto.report.VehicleCapacitySummaryDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -37,6 +41,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -59,25 +64,28 @@ public class AnalyticsController {
   private final ContractTicketMapper contractTicketMapper;
   private final ProjectMapper projectMapper;
   private final VehicleMapper vehicleMapper;
+  private final VehicleTrackPointMapper vehicleTrackPointMapper;
   private final OrgMapper orgMapper;
   private final SiteService siteService;
-  private final UserService userService;
+  private final UserContext userContext;
 
   public AnalyticsController(
       ContractMapper contractMapper,
       ContractTicketMapper contractTicketMapper,
       ProjectMapper projectMapper,
       VehicleMapper vehicleMapper,
+      VehicleTrackPointMapper vehicleTrackPointMapper,
       OrgMapper orgMapper,
       SiteService siteService,
-      UserService userService) {
+      UserContext userContext) {
     this.contractMapper = contractMapper;
     this.contractTicketMapper = contractTicketMapper;
     this.projectMapper = projectMapper;
     this.vehicleMapper = vehicleMapper;
+    this.vehicleTrackPointMapper = vehicleTrackPointMapper;
     this.orgMapper = orgMapper;
     this.siteService = siteService;
-    this.userService = userService;
+    this.userContext = userContext;
   }
 
   @GetMapping("/dashboard/overview")
@@ -91,6 +99,8 @@ public class AnalyticsController {
     Map<Long, Project> projectMap = loadProjectMap(contracts);
     Map<Long, Site> siteMap = loadSiteMap(contracts);
     List<Vehicle> vehicles = listTenantVehicles(user.getTenantId());
+    Map<Long, Org> analysisOrgMap = loadAnalysisOrgMap(projectMap.values(), vehicles);
+    Set<Long> activeOrgIds = resolveActiveOrgIds(projectMap.values(), vehicles, contracts, ticketsByContract, targetDate);
 
     BigDecimal dailyVolume = ZERO;
     BigDecimal monthlyVolume = ZERO;
@@ -123,12 +133,92 @@ public class AnalyticsController {
             countActiveSites(siteMap, contracts, ticketsByContract, targetDate),
             projectMap.size(),
             (int) projectMap.values().stream().filter(project -> !Objects.equals(project.getStatus(), 3)).count(),
+            analysisOrgMap.size(),
+            activeOrgIds.size(),
             vehicles.size(),
             (int) vehicles.stream().filter(vehicle -> "MOVING".equalsIgnoreCase(vehicle.getRunningStatus())).count(),
             dailyVolume,
             monthlyVolume,
             warningCount);
     return ApiResult.ok(dto);
+  }
+
+  @GetMapping("/dashboard/org-analysis")
+  public ApiResult<List<OrgAnalysisItemDto>> orgAnalysis(
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+      @RequestParam(defaultValue = "6") int limit,
+      HttpServletRequest request) {
+    User user = requireCurrentUser(request);
+    LocalDate targetDate = date != null ? date : LocalDate.now();
+    List<Contract> contracts = listTenantContracts(user.getTenantId());
+    List<Vehicle> vehicles = listTenantVehicles(user.getTenantId());
+    Map<Long, List<ContractTicket>> ticketsByContract = loadTicketsByContract(contracts);
+    Map<Long, Project> projectMap = loadProjectMap(contracts);
+    Map<Long, Org> orgMap = loadAnalysisOrgMap(projectMap.values(), vehicles);
+
+    Map<Long, Integer> activeProjectsByOrg = new LinkedHashMap<>();
+    for (Project project : projectMap.values()) {
+      if (project.getOrgId() == null || Objects.equals(project.getStatus(), 3)) {
+        continue;
+      }
+      activeProjectsByOrg.merge(project.getOrgId(), 1, Integer::sum);
+    }
+
+    Map<Long, List<Vehicle>> vehiclesByOrg =
+        vehicles.stream()
+            .filter(vehicle -> vehicle.getOrgId() != null)
+            .collect(Collectors.groupingBy(Vehicle::getOrgId, LinkedHashMap::new, Collectors.toList()));
+
+    Map<Long, BigDecimal> volumeByOrg = new LinkedHashMap<>();
+    for (Contract contract : contracts) {
+      Project project = contract.getProjectId() != null ? projectMap.get(contract.getProjectId()) : null;
+      if (project == null || project.getOrgId() == null) {
+        continue;
+      }
+      for (ContractTicket ticket : ticketsByContract.getOrDefault(contract.getId(), Collections.emptyList())) {
+        LocalDate ticketDate = resolveTicketDate(ticket);
+        if (ticketDate == null || ticketDate.isAfter(targetDate)) {
+          continue;
+        }
+        volumeByOrg.merge(project.getOrgId(), defaultDecimal(ticket.getVolume()), BigDecimal::add);
+      }
+    }
+
+    List<OrgAnalysisItemDto> rows =
+        orgMap.values().stream()
+            .map(
+                org -> {
+                  List<Vehicle> currentVehicles = vehiclesByOrg.getOrDefault(org.getId(), Collections.emptyList());
+                  int movingVehicles =
+                      (int)
+                          currentVehicles.stream()
+                              .filter(vehicle -> "MOVING".equalsIgnoreCase(vehicle.getRunningStatus()))
+                              .count();
+                  int warningCount =
+                      (int) currentVehicles.stream().filter(this::hasVehicleWarning).count();
+                  return new OrgAnalysisItemDto(
+                      String.valueOf(org.getId()),
+                      org.getOrgName(),
+                      activeProjectsByOrg.getOrDefault(org.getId(), 0),
+                      currentVehicles.size(),
+                      movingVehicles,
+                      volumeByOrg.getOrDefault(org.getId(), ZERO),
+                      warningCount,
+                      0);
+                })
+            .sorted(
+                Comparator.comparing(
+                        OrgAnalysisItemDto::getVolume, Comparator.nullsFirst(BigDecimal::compareTo))
+                    .reversed()
+                    .thenComparing(
+                        OrgAnalysisItemDto::getMovingVehicles,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+            .limit(Math.max(limit, 1))
+            .toList();
+    for (int i = 0; i < rows.size(); i++) {
+      rows.get(i).setRank(i + 1);
+    }
+    return ApiResult.ok(rows);
   }
 
   @GetMapping("/dashboard/trend")
@@ -250,11 +340,22 @@ public class AnalyticsController {
     PeriodWindow period = resolvePeriod(periodType, date);
     List<Vehicle> vehicles = listTenantVehicles(user.getTenantId());
     Map<Long, Org> orgMap = loadVehicleOrgMap(vehicles);
-
-    List<VehicleCapacityItemDto> records =
+    List<Vehicle> filteredVehicles =
         vehicles.stream()
             .filter(vehicle -> matchVehicleKeyword(vehicle, orgMap.get(vehicle.getOrgId()), keyword))
-            .map(vehicle -> toVehicleCapacityItem(vehicle, orgMap.get(vehicle.getOrgId()), period))
+            .toList();
+    Map<Long, List<VehicleTrackPoint>> trackPointsByVehicle =
+        loadTrackPointsByVehicle(user.getTenantId(), filteredVehicles, period);
+
+    List<VehicleCapacityItemDto> records =
+        filteredVehicles.stream()
+            .map(
+                vehicle ->
+                    toVehicleCapacityItem(
+                        vehicle,
+                        orgMap.get(vehicle.getOrgId()),
+                        period,
+                        trackPointsByVehicle.getOrDefault(vehicle.getId(), Collections.emptyList())))
             .sorted(
                 Comparator.comparing(
                         VehicleCapacityItemDto::getAverageVolume,
@@ -263,7 +364,7 @@ public class AnalyticsController {
             .toList();
 
     VehicleCapacitySummaryDto summary = toVehicleCapacitySummary(period, records);
-    List<ReportTrendItemDto> trend = buildVehicleTrend(period, vehicles);
+    List<ReportTrendItemDto> trend = buildVehicleTrend(user.getTenantId(), period, filteredVehicles);
     return ApiResult.ok(new VehicleCapacityAnalysisDto(summary, trend, records));
   }
 
@@ -333,6 +434,79 @@ public class AnalyticsController {
         .collect(Collectors.toMap(Org::getId, Function.identity(), (left, right) -> left));
   }
 
+  private Map<Long, Org> loadAnalysisOrgMap(Iterable<Project> projects, List<Vehicle> vehicles) {
+    LinkedHashSet<Long> orgIds = new LinkedHashSet<>();
+    for (Project project : projects) {
+      if (project != null && project.getOrgId() != null) {
+        orgIds.add(project.getOrgId());
+      }
+    }
+    vehicles.stream().map(Vehicle::getOrgId).filter(Objects::nonNull).forEach(orgIds::add);
+    if (orgIds.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    return orgMapper.selectBatchIds(orgIds).stream()
+        .filter(org -> org.getId() != null)
+        .collect(Collectors.toMap(Org::getId, Function.identity(), (left, right) -> left));
+  }
+
+  private Set<Long> resolveActiveOrgIds(
+      Iterable<Project> projects,
+      List<Vehicle> vehicles,
+      List<Contract> contracts,
+      Map<Long, List<ContractTicket>> ticketsByContract,
+      LocalDate targetDate) {
+    LinkedHashSet<Long> activeOrgIds = new LinkedHashSet<>();
+    for (Project project : projects) {
+      if (project != null && project.getOrgId() != null && !Objects.equals(project.getStatus(), 3)) {
+        activeOrgIds.add(project.getOrgId());
+      }
+    }
+    vehicles.stream()
+        .filter(vehicle -> vehicle.getOrgId() != null)
+        .filter(vehicle -> "MOVING".equalsIgnoreCase(vehicle.getRunningStatus()))
+        .forEach(vehicle -> activeOrgIds.add(vehicle.getOrgId()));
+    Map<Long, Project> projectMap = loadProjectMap(contracts);
+    for (Contract contract : contracts) {
+      Project project = contract.getProjectId() != null ? projectMap.get(contract.getProjectId()) : null;
+      if (project == null || project.getOrgId() == null) {
+        continue;
+      }
+      boolean active =
+          ticketsByContract.getOrDefault(contract.getId(), Collections.emptyList()).stream()
+              .map(this::resolveTicketDate)
+              .anyMatch(ticketDate -> ticketDate != null && !ticketDate.isAfter(targetDate));
+      if (active) {
+        activeOrgIds.add(project.getOrgId());
+      }
+    }
+    return activeOrgIds;
+  }
+
+  private Map<Long, List<VehicleTrackPoint>> loadTrackPointsByVehicle(
+      Long tenantId, List<Vehicle> vehicles, PeriodWindow period) {
+    LinkedHashSet<Long> vehicleIds =
+        vehicles.stream()
+            .map(Vehicle::getId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+    if (vehicleIds.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    LocalDateTime start = period.start().atStartOfDay();
+    LocalDateTime endExclusive = period.end().plusDays(1).atStartOfDay();
+    return vehicleTrackPointMapper.selectList(
+            new LambdaQueryWrapper<VehicleTrackPoint>()
+                .eq(VehicleTrackPoint::getTenantId, tenantId)
+                .in(VehicleTrackPoint::getVehicleId, vehicleIds)
+                .ge(VehicleTrackPoint::getLocateTime, start)
+                .lt(VehicleTrackPoint::getLocateTime, endExclusive)
+                .orderByAsc(VehicleTrackPoint::getVehicleId, VehicleTrackPoint::getLocateTime))
+        .stream()
+        .filter(point -> point.getVehicleId() != null)
+        .collect(Collectors.groupingBy(VehicleTrackPoint::getVehicleId, LinkedHashMap::new, Collectors.toList()));
+  }
+
   private int countActiveSites(
       Map<Long, Site> siteMap,
       List<Contract> contracts,
@@ -382,8 +556,9 @@ public class AnalyticsController {
     return usedBySite;
   }
 
-  private VehicleCapacityItemDto toVehicleCapacityItem(Vehicle vehicle, Org org, PeriodWindow period) {
-    VehicleMetrics metrics = calculateVehicleMetrics(vehicle, period);
+  private VehicleCapacityItemDto toVehicleCapacityItem(
+      Vehicle vehicle, Org org, PeriodWindow period, List<VehicleTrackPoint> trackPoints) {
+    VehicleMetrics metrics = calculateVehicleMetrics(vehicle, period, trackPoints);
     return new VehicleCapacityItemDto(
         String.valueOf(vehicle.getId()),
         vehicle.getPlateNo(),
@@ -421,15 +596,22 @@ public class AnalyticsController {
         energyConsumption);
   }
 
-  private List<ReportTrendItemDto> buildVehicleTrend(PeriodWindow current, List<Vehicle> vehicles) {
+  private List<ReportTrendItemDto> buildVehicleTrend(
+      Long tenantId, PeriodWindow current, List<Vehicle> vehicles) {
     List<ReportTrendItemDto> records = new ArrayList<>();
     for (int i = 5; i >= 0; i--) {
       PeriodWindow period = shiftPeriod(current, -i);
+      Map<Long, List<VehicleTrackPoint>> trackPointsByVehicle =
+          loadTrackPointsByVehicle(tenantId, vehicles, period);
       BigDecimal volume = ZERO;
       BigDecimal energy = ZERO;
       BigDecimal mileage = ZERO;
       for (Vehicle vehicle : vehicles) {
-        VehicleMetrics metrics = calculateVehicleMetrics(vehicle, period);
+        VehicleMetrics metrics =
+            calculateVehicleMetrics(
+                vehicle,
+                period,
+                trackPointsByVehicle.getOrDefault(vehicle.getId(), Collections.emptyList()));
         volume = volume.add(metrics.averageVolume());
         energy = energy.add(metrics.energyConsumption());
         mileage = mileage.add(metrics.loadedMileage().add(metrics.emptyMileage()));
@@ -445,7 +627,15 @@ public class AnalyticsController {
     return records;
   }
 
-  private VehicleMetrics calculateVehicleMetrics(Vehicle vehicle, PeriodWindow period) {
+  private VehicleMetrics calculateVehicleMetrics(
+      Vehicle vehicle, PeriodWindow period, List<VehicleTrackPoint> trackPoints) {
+    if (trackPoints != null && trackPoints.size() >= 2) {
+      return calculateTrackBackedMetrics(vehicle, trackPoints);
+    }
+    return calculateEstimatedVehicleMetrics(vehicle, period);
+  }
+
+  private VehicleMetrics calculateEstimatedVehicleMetrics(Vehicle vehicle, PeriodWindow period) {
     BigDecimal loadWeight = defaultDecimal(vehicle.getLoadWeight());
     double usageFactor = resolveUsageFactor(vehicle);
     double dateFactor = 0.86 + (period.seed() % 7) * 0.04;
@@ -454,6 +644,29 @@ public class AnalyticsController {
     BigDecimal emptyMileage = scale(loadedMileage, 0.54 + (vehicle.getId() % 3) * 0.08);
     double energyFactor = "ELECTRIC".equalsIgnoreCase(vehicle.getEnergyType()) ? 0.38 : 0.26;
     BigDecimal energyConsumption = scale(loadedMileage.add(emptyMileage), energyFactor);
+    return new VehicleMetrics(averageVolume, loadedMileage, emptyMileage, energyConsumption);
+  }
+
+  private VehicleMetrics calculateTrackBackedMetrics(
+      Vehicle vehicle, List<VehicleTrackPoint> trackPoints) {
+    double totalDistance = 0D;
+    for (int i = 1; i < trackPoints.size(); i++) {
+      totalDistance += haversineKm(trackPoints.get(i - 1), trackPoints.get(i));
+    }
+    BigDecimal totalMileage = decimalOf(totalDistance);
+    if (totalMileage.compareTo(ZERO) <= 0) {
+      return calculateEstimatedVehicleMetrics(vehicle, resolvePeriod("DAY", LocalDate.now()));
+    }
+    BigDecimal loadWeight = defaultDecimal(vehicle.getLoadWeight());
+    int tripSegments = Math.max(trackPoints.size() - 1, 1);
+    BigDecimal averageVolume = loadWeight.multiply(BigDecimal.valueOf(tripSegments)).setScale(2, RoundingMode.HALF_UP);
+    BigDecimal loadedRatio =
+        BigDecimal.valueOf("MOVING".equalsIgnoreCase(vehicle.getRunningStatus()) ? 0.68 : 0.58);
+    BigDecimal loadedMileage = totalMileage.multiply(loadedRatio).setScale(2, RoundingMode.HALF_UP);
+    BigDecimal emptyMileage = totalMileage.subtract(loadedMileage).max(ZERO).setScale(2, RoundingMode.HALF_UP);
+    BigDecimal energyFactor = BigDecimal.valueOf("ELECTRIC".equalsIgnoreCase(vehicle.getEnergyType()) ? 0.38 : 0.26);
+    BigDecimal energyConsumption =
+        totalMileage.multiply(energyFactor).setScale(2, RoundingMode.HALF_UP);
     return new VehicleMetrics(averageVolume, loadedMileage, emptyMileage, energyConsumption);
   }
 
@@ -589,6 +802,30 @@ public class AnalyticsController {
     return base.multiply(BigDecimal.valueOf(factor)).setScale(2, RoundingMode.HALF_UP);
   }
 
+  private BigDecimal decimalOf(double value) {
+    return BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP);
+  }
+
+  private double haversineKm(VehicleTrackPoint left, VehicleTrackPoint right) {
+    if (left.getLng() == null
+        || left.getLat() == null
+        || right.getLng() == null
+        || right.getLat() == null) {
+      return 0D;
+    }
+    double earthRadius = 6371.0088D;
+    double lat1 = Math.toRadians(left.getLat().doubleValue());
+    double lat2 = Math.toRadians(right.getLat().doubleValue());
+    double deltaLat = lat2 - lat1;
+    double deltaLng =
+        Math.toRadians(right.getLng().doubleValue() - left.getLng().doubleValue());
+    double a =
+        Math.pow(Math.sin(deltaLat / 2D), 2D)
+            + Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin(deltaLng / 2D), 2D);
+    double c = 2D * Math.atan2(Math.sqrt(a), Math.sqrt(1D - a));
+    return earthRadius * c;
+  }
+
   private BigDecimal rowsSum(List<BigDecimal> values) {
     return values.stream().filter(Objects::nonNull).reduce(ZERO, BigDecimal::add);
   }
@@ -604,22 +841,7 @@ public class AnalyticsController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      if (user.getTenantId() == null) {
-        throw new BizException(403, "当前用户未绑定租户");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 
   private record PeriodWindow(LocalDate start, LocalDate end, String label, String type, double scaleFactor, int seed) {}

@@ -56,6 +56,14 @@ export async function fetchVehicleModelDetail(id: string) {
   return mapRecord(res.data || {});
 }
 
+export async function exportVehicleModels(params: Record<string, any> = {}) {
+  const res = await http.get<Blob>('/vehicle-models/export', {
+    params,
+    responseType: 'blob',
+  });
+  return res.data;
+}
+
 export async function createVehicleModel(payload: VehicleModelPayload) {
   const res = await http.post<VehicleModelRecord>('/vehicle-models', payload);
   return mapRecord(res.data || {});

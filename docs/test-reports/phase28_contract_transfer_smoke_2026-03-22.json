@@ -1,0 +1,31 @@
+{
+  "results": [
+    {
+      "name": "API login",
+      "ok": true,
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "API create transfer",
+      "ok": true,
+      "detail": "内拨申请 NB202603221206505678 创建成功，状态 DRAFT"
+    },
+    {
+      "name": "API transfer list/detail",
+      "ok": true,
+      "detail": "列表与详情接口可回查新建内拨申请，包含源/目标合同号"
+    },
+    {
+      "name": "API approve transfer",
+      "ok": true,
+      "detail": "内拨申请 NB202603221206505678 审批通过后，源/目标合同金额与方量已联动调整"
+    },
+    {
+      "name": "API reject transfer",
+      "ok": true,
+      "detail": "内拨申请 NB202603221206507525 驳回成功并保留驳回原因"
+    }
+  ],
+  "applyId": "1",
+  "rejectId": "2"
+}

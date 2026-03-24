@@ -15,6 +15,8 @@ public class DashboardOverviewDto {
   private Integer activeSites;
   private Integer totalProjects;
   private Integer activeProjects;
+  private Integer totalOrgs;
+  private Integer activeOrgs;
   private Integer totalVehicles;
   private Integer movingVehicles;
   private BigDecimal dailyVolume;

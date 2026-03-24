@@ -7,7 +7,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication(scanBasePackages = "com.xngl")
 @EnableScheduling
-@MapperScan({"com.xngl.infrastructure.persistence.mapper", "com.xngl.manager.**.mapper", "com.xngl.miniprogram.mapper"})
+@MapperScan({"com.xngl.infrastructure.persistence.mapper", "com.xngl.manager.**.mapper"})
 public class XnglServiceApplication {
 
   public static void main(String[] args) {

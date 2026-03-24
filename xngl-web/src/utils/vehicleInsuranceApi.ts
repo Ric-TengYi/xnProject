@@ -1,4 +1,4 @@
-import http from './request';
+import http, { request } from './request';
 import type { PageResult } from './vehicleApi';
 
 export interface VehicleInsuranceRecord {
@@ -36,6 +36,11 @@ export interface VehicleInsuranceQueryParams {
   status?: string;
   orgId?: string;
   vehicleId?: string;
+  startDateFrom?: string;
+  startDateTo?: string;
+  endDateFrom?: string;
+  endDateTo?: string;
+  expiringWithinDays?: number;
   pageNo?: number;
   pageSize?: number;
 }
@@ -107,4 +112,16 @@ export async function createVehicleInsurance(payload: VehicleInsuranceUpsertPayl
 export async function updateVehicleInsurance(id: string, payload: VehicleInsuranceUpsertPayload) {
   const res = await http.put<VehicleInsuranceRecord>('/vehicle-insurances/' + id, payload);
   return mapRecord(res.data);
+}
+
+export async function deleteVehicleInsurance(id: string) {
+  await http.delete('/vehicle-insurances/' + id);
+}
+
+export async function exportVehicleInsurances(params: VehicleInsuranceQueryParams = {}) {
+  const response = await request.get('/vehicle-insurances/export', {
+    params,
+    responseType: 'blob',
+  });
+  return response.data as Blob;
 }

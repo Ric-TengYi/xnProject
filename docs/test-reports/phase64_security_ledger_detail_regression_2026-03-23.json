@@ -1,0 +1,48 @@
+{
+  "report": "phase64_security_ledger_detail_regression_2026-03-23",
+  "date": "2026-03-23",
+  "results": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "name": "security_create_runtime",
+      "status": "PASS",
+      "detail": "id=47, objectName=Demo Admin"
+    },
+    {
+      "name": "security_filter_runtime",
+      "status": "PASS",
+      "detail": "filtered_rows=1"
+    },
+    {
+      "name": "security_detail_timeline_runtime",
+      "status": "PASS",
+      "detail": "timeline_count=1"
+    },
+    {
+      "name": "security_rectify_runtime",
+      "status": "PASS",
+      "detail": "timeline_count=2"
+    },
+    {
+      "name": "security_export_runtime",
+      "status": "PASS",
+      "detail": "text/csv;charset=UTF-8"
+    },
+    {
+      "name": "security_delete_runtime",
+      "status": "PASS",
+      "detail": "deleted=47"
+    },
+    {
+      "name": "security_ledger_page_visible",
+      "status": "PASS",
+      "detail": "安全台账页面与详情时间线区块可见"
+    }
+  ],
+  "passed": 8,
+  "failed": 0
+}

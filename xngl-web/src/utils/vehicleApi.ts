@@ -47,6 +47,68 @@ export interface VehicleDetailRecord extends VehicleRecord {
   remark?: string | null;
 }
 
+export interface VehicleTrackPointRecord {
+  id?: string | null;
+  lng: number;
+  lat: number;
+  speed?: number | null;
+  direction?: number | null;
+  locateTime?: string | null;
+  sourceType?: string | null;
+  remark?: string | null;
+}
+
+export interface VehicleTrackHistoryRecord {
+  vehicleId?: string | null;
+  plateNo?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  pointCount?: number | null;
+  points: VehicleTrackPointRecord[];
+}
+
+export interface VehicleViolationRecord {
+  id: string;
+  vehicleId?: string | null;
+  plateNo: string;
+  orgId?: string | null;
+  orgName?: string | null;
+  violationType?: string | null;
+  triggerTime?: string | null;
+  triggerLocation?: string | null;
+  actionStatus?: string | null;
+  actionStatusLabel?: string | null;
+  penaltyResult?: string | null;
+  banStartTime?: string | null;
+  banEndTime?: string | null;
+  releaseTime?: string | null;
+  releaseReason?: string | null;
+  operatorName?: string | null;
+  remark?: string | null;
+}
+
+export interface VehicleViolationSummaryRecord {
+  totalCount: number;
+  pendingCount: number;
+  processedCount: number;
+  disabledCount: number;
+  releasedCount: number;
+  vehicleCount: number;
+}
+
+export interface VehicleViolationDetailRecord extends VehicleViolationRecord {
+  vehicleType?: string | null;
+  brand?: string | null;
+  model?: string | null;
+  driverName?: string | null;
+  driverPhone?: string | null;
+  fleetName?: string | null;
+  useStatus?: string | null;
+  status?: number | null;
+  currentSpeed?: number | null;
+  currentMileage?: number | null;
+}
+
 export interface VehicleStatsRecord {
   totalVehicles: number;
   activeVehicles: number;
@@ -129,6 +191,33 @@ export interface VehicleUpsertPayload {
   remark?: string;
 }
 
+export interface VehicleViolationQueryParams {
+  keyword?: string;
+  violationType?: string;
+  actionStatus?: string;
+  startTime?: string;
+  endTime?: string;
+  pageNo?: number;
+  pageSize?: number;
+}
+
+export interface VehicleDisablePayload {
+  vehicleId: number;
+  violationType: string;
+  triggerTime?: string;
+  triggerLocation?: string;
+  penaltyResult?: string;
+  banDays?: number;
+  banStartTime?: string;
+  banEndTime?: string;
+  remark?: string;
+}
+
+export interface VehicleBatchStatusPayload {
+  ids: number[];
+  status: number;
+}
+
 function toNumber(value?: number | null) {
   return Number(value || 0);
 }
@@ -188,6 +277,115 @@ export async function fetchVehicleDetail(id: string) {
   };
 }
 
+export async function fetchVehicleTrackHistory(
+  id: string,
+  params?: { startTime?: string; endTime?: string }
+) {
+  const res = await http.get<VehicleTrackHistoryRecord>(`/vehicles/${id}/track-history`, { params });
+  return {
+    vehicleId: res.data.vehicleId || null,
+    plateNo: res.data.plateNo || null,
+    startTime: res.data.startTime || null,
+    endTime: res.data.endTime || null,
+    pointCount: toNumber(res.data.pointCount),
+    points: Array.isArray(res.data.points)
+      ? res.data.points.map((item) => ({
+          id: item.id || null,
+          lng: Number(item.lng || 0),
+          lat: Number(item.lat || 0),
+          speed: item.speed != null ? Number(item.speed) : null,
+          direction: item.direction != null ? Number(item.direction) : null,
+          locateTime: item.locateTime || null,
+          sourceType: item.sourceType || null,
+          remark: item.remark || null,
+        }))
+      : [],
+  };
+}
+
+export async function fetchVehicleViolations(params: VehicleViolationQueryParams = {}) {
+  const res = await http.get<PageResult<VehicleViolationRecord>>('/vehicles/violations', { params });
+  return {
+    ...res.data,
+    records: (res.data.records || []).map((item) => ({
+      id: String(item.id || ''),
+      vehicleId: item.vehicleId || null,
+      plateNo: item.plateNo || '',
+      orgId: item.orgId || null,
+      orgName: item.orgName || null,
+      violationType: item.violationType || null,
+      triggerTime: item.triggerTime || null,
+      triggerLocation: item.triggerLocation || null,
+      actionStatus: item.actionStatus || null,
+      actionStatusLabel: item.actionStatusLabel || null,
+      penaltyResult: item.penaltyResult || null,
+      banStartTime: item.banStartTime || null,
+      banEndTime: item.banEndTime || null,
+      releaseTime: item.releaseTime || null,
+      releaseReason: item.releaseReason || null,
+      operatorName: item.operatorName || null,
+      remark: item.remark || null,
+    })),
+  };
+}
+
+export async function fetchVehicleViolationSummary(params: VehicleViolationQueryParams = {}) {
+  const res = await http.get<Partial<VehicleViolationSummaryRecord>>('/vehicles/violations/summary', { params });
+  return {
+    totalCount: toNumber(res.data.totalCount),
+    pendingCount: toNumber(res.data.pendingCount),
+    processedCount: toNumber(res.data.processedCount),
+    disabledCount: toNumber(res.data.disabledCount),
+    releasedCount: toNumber(res.data.releasedCount),
+    vehicleCount: toNumber(res.data.vehicleCount),
+  };
+}
+
+export async function fetchVehicleViolationDetail(id: string) {
+  const res = await http.get<VehicleViolationDetailRecord>(`/vehicles/violations/${id}`);
+  return {
+    id: String(res.data.id || ''),
+    vehicleId: res.data.vehicleId || null,
+    plateNo: res.data.plateNo || '',
+    orgId: res.data.orgId || null,
+    orgName: res.data.orgName || null,
+    violationType: res.data.violationType || null,
+    triggerTime: res.data.triggerTime || null,
+    triggerLocation: res.data.triggerLocation || null,
+    actionStatus: res.data.actionStatus || null,
+    actionStatusLabel: res.data.actionStatusLabel || null,
+    penaltyResult: res.data.penaltyResult || null,
+    banStartTime: res.data.banStartTime || null,
+    banEndTime: res.data.banEndTime || null,
+    releaseTime: res.data.releaseTime || null,
+    releaseReason: res.data.releaseReason || null,
+    operatorName: res.data.operatorName || null,
+    remark: res.data.remark || null,
+    vehicleType: res.data.vehicleType || null,
+    brand: res.data.brand || null,
+    model: res.data.model || null,
+    driverName: res.data.driverName || null,
+    driverPhone: res.data.driverPhone || null,
+    fleetName: res.data.fleetName || null,
+    useStatus: res.data.useStatus || null,
+    status: res.data.status ?? null,
+    currentSpeed: res.data.currentSpeed != null ? Number(res.data.currentSpeed) : null,
+    currentMileage: res.data.currentMileage != null ? Number(res.data.currentMileage) : null,
+  };
+}
+
+export async function disableVehicle(payload: VehicleDisablePayload) {
+  const res = await http.post<VehicleViolationRecord>('/vehicles/violations/disable', payload);
+  return res.data;
+}
+
+export async function releaseVehicleViolation(id: string, releaseReason: string) {
+  const res = await http.put<VehicleViolationRecord>(`/vehicles/violations/${id}/release`, {
+    releaseReason,
+  });
+  return res.data;
+}
+
 export async function createVehicle(payload: VehicleUpsertPayload) {
   const res = await http.post<VehicleDetailRecord>('/vehicles', payload);
   return fetchVehicleDetail(String(res.data.id));
@@ -200,6 +398,29 @@ export async function updateVehicle(id: string, payload: VehicleUpsertPayload) {
 
 export async function deleteVehicle(id: string) {
   await http.delete('/vehicles/' + id);
+}
+
+export async function exportVehicles(params: VehicleQueryParams = {}) {
+  const res = await http.get<Blob>('/vehicles/export', {
+    params,
+    responseType: 'blob',
+  });
+  return res.data;
+}
+
+export async function batchUpdateVehicleStatus(payload: VehicleBatchStatusPayload) {
+  const res = await http.put<{ updated: number; status: number }>('/vehicles/batch-status', payload);
+  return {
+    updated: Number(res.data.updated || 0),
+    status: Number(res.data.status || 0),
+  };
+}
+
+export async function batchDeleteVehicles(ids: number[]) {
+  const res = await http.post<{ deleted: number }>('/vehicles/batch-delete', { ids });
+  return {
+    deleted: Number(res.data.deleted || 0),
+  };
 }
 
 export async function fetchVehicleStats() {

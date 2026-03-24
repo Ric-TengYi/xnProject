@@ -30,4 +30,6 @@ public interface RoleService {
   List<Long> listMenuIdsByRoleId(Long roleId);
 
   void updateMenus(Long roleId, List<Long> menuIds);
+
+  List<Role> listByRoleCode(Long tenantId, String roleCode);
 }

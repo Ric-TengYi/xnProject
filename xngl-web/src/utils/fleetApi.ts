@@ -10,6 +10,15 @@ export interface FleetSummaryRecord {
   totalProfitAmount: number;
 }
 
+export interface FleetTrackingSummaryRecord {
+  totalVehicles: number;
+  movingVehicles: number;
+  stoppedVehicles: number;
+  offlineVehicles: number;
+  deliveringVehicles: number;
+  warningVehicles: number;
+}
+
 export interface FleetProfileRecord {
   id: string;
   orgId?: string | null;
@@ -85,6 +94,15 @@ export interface FleetFinanceRecord {
   remark?: string | null;
 }
 
+export interface FleetFinanceSummaryRecord {
+  totalRecords: number;
+  settledRecords: number;
+  totalRevenueAmount: number;
+  totalCostAmount: number;
+  totalProfitAmount: number;
+  totalOutstandingAmount: number;
+}
+
 export interface FleetReportItemRecord {
   fleetId?: string | null;
   fleetName: string;
@@ -96,6 +114,73 @@ export interface FleetReportItemRecord {
   revenueAmount: number;
   costAmount: number;
   profitAmount: number;
+}
+
+export interface FleetTrackingRecord {
+  vehicleId: string;
+  plateNo: string;
+  orgId?: string | null;
+  orgName?: string | null;
+  fleetId?: string | null;
+  fleetName?: string | null;
+  driverName?: string | null;
+  driverPhone?: string | null;
+  trackingStatus?: string | null;
+  trackingStatusLabel?: string | null;
+  runningStatus?: string | null;
+  runningStatusLabel?: string | null;
+  vehicleStatusLabel?: string | null;
+  warningLabel?: string | null;
+  currentSpeed: number;
+  currentMileage: number;
+  lng?: number | null;
+  lat?: number | null;
+  gpsTime?: string | null;
+  dispatchOrderNo?: string | null;
+  dispatchStatus?: string | null;
+  dispatchStatusLabel?: string | null;
+  relatedPlanNo?: string | null;
+  sourcePoint?: string | null;
+  destinationPoint?: string | null;
+  cargoType?: string | null;
+}
+
+export interface FleetTrackingStopRecord {
+  startTime?: string | null;
+  endTime?: string | null;
+  durationMinutes: number;
+  lng?: number | null;
+  lat?: number | null;
+  remark?: string | null;
+}
+
+export interface FleetTrackingHistoryRecord {
+  vehicleId?: string | null;
+  plateNo?: string | null;
+  fleetId?: string | null;
+  fleetName?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  dispatchOrderNo?: string | null;
+  relatedPlanNo?: string | null;
+  sourcePoint?: string | null;
+  destinationPoint?: string | null;
+  cargoType?: string | null;
+  pointCount: number;
+  totalDistanceKm: number;
+  maxSpeed: number;
+  averageSpeed: number;
+  points: Array<{
+    id?: string | null;
+    lng: number;
+    lat: number;
+    speed?: number | null;
+    direction?: number | null;
+    locateTime?: string | null;
+    sourceType?: string | null;
+    remark?: string | null;
+  }>;
+  stops: FleetTrackingStopRecord[];
 }
 
 export interface FleetProfileQueryParams {
@@ -126,6 +211,18 @@ export interface FleetFinanceRecordQueryParams {
   keyword?: string;
   status?: string;
   fleetId?: string;
+  contractNo?: string;
+  statementMonthFrom?: string;
+  statementMonthTo?: string;
+  unsettledOnly?: boolean;
+  pageNo?: number;
+  pageSize?: number;
+}
+
+export interface FleetTrackingQueryParams {
+  keyword?: string;
+  fleetId?: string;
+  status?: string;
   pageNo?: number;
   pageSize?: number;
 }
@@ -273,6 +370,88 @@ const mapReportItem = (record: Partial<FleetReportItemRecord>): FleetReportItemR
   profitAmount: toNumber(record.profitAmount),
 });
 
+const mapTrackingSummary = (
+  record: Partial<FleetTrackingSummaryRecord>
+): FleetTrackingSummaryRecord => ({
+  totalVehicles: toNumber(record.totalVehicles),
+  movingVehicles: toNumber(record.movingVehicles),
+  stoppedVehicles: toNumber(record.stoppedVehicles),
+  offlineVehicles: toNumber(record.offlineVehicles),
+  deliveringVehicles: toNumber(record.deliveringVehicles),
+  warningVehicles: toNumber(record.warningVehicles),
+});
+
+const mapTrackingRecord = (record: Partial<FleetTrackingRecord>): FleetTrackingRecord => ({
+  vehicleId: String(record.vehicleId || ''),
+  plateNo: record.plateNo || '',
+  orgId: record.orgId || null,
+  orgName: record.orgName || null,
+  fleetId: record.fleetId || null,
+  fleetName: record.fleetName || null,
+  driverName: record.driverName || null,
+  driverPhone: record.driverPhone || null,
+  trackingStatus: record.trackingStatus || null,
+  trackingStatusLabel: record.trackingStatusLabel || null,
+  runningStatus: record.runningStatus || null,
+  runningStatusLabel: record.runningStatusLabel || null,
+  vehicleStatusLabel: record.vehicleStatusLabel || null,
+  warningLabel: record.warningLabel || null,
+  currentSpeed: toNumber(record.currentSpeed),
+  currentMileage: toNumber(record.currentMileage),
+  lng: record.lng ?? null,
+  lat: record.lat ?? null,
+  gpsTime: record.gpsTime || null,
+  dispatchOrderNo: record.dispatchOrderNo || null,
+  dispatchStatus: record.dispatchStatus || null,
+  dispatchStatusLabel: record.dispatchStatusLabel || null,
+  relatedPlanNo: record.relatedPlanNo || null,
+  sourcePoint: record.sourcePoint || null,
+  destinationPoint: record.destinationPoint || null,
+  cargoType: record.cargoType || null,
+});
+
+const mapTrackingHistory = (
+  record: Partial<FleetTrackingHistoryRecord>
+): FleetTrackingHistoryRecord => ({
+  vehicleId: record.vehicleId || null,
+  plateNo: record.plateNo || null,
+  fleetId: record.fleetId || null,
+  fleetName: record.fleetName || null,
+  startTime: record.startTime || null,
+  endTime: record.endTime || null,
+  dispatchOrderNo: record.dispatchOrderNo || null,
+  relatedPlanNo: record.relatedPlanNo || null,
+  sourcePoint: record.sourcePoint || null,
+  destinationPoint: record.destinationPoint || null,
+  cargoType: record.cargoType || null,
+  pointCount: toNumber(record.pointCount),
+  totalDistanceKm: toNumber(record.totalDistanceKm),
+  maxSpeed: toNumber(record.maxSpeed),
+  averageSpeed: toNumber(record.averageSpeed),
+  points: Array.isArray(record.points)
+    ? record.points.map((item) => ({
+        id: item.id || null,
+        lng: Number(item.lng || 0),
+        lat: Number(item.lat || 0),
+        speed: item.speed != null ? Number(item.speed) : null,
+        direction: item.direction != null ? Number(item.direction) : null,
+        locateTime: item.locateTime || null,
+        sourceType: item.sourceType || null,
+        remark: item.remark || null,
+      }))
+    : [],
+  stops: Array.isArray(record.stops)
+    ? record.stops.map((item) => ({
+        startTime: item.startTime || null,
+        endTime: item.endTime || null,
+        durationMinutes: toNumber(item.durationMinutes),
+        lng: item.lng ?? null,
+        lat: item.lat ?? null,
+        remark: item.remark || null,
+      }))
+    : [],
+});
+
 export async function fetchFleetSummary() {
   const res = await http.get<Partial<FleetSummaryRecord>>('/fleet-management/summary');
   return {
@@ -363,6 +542,32 @@ export async function fetchFleetFinanceRecords(params: FleetFinanceRecordQueryPa
   };
 }
 
+export async function fetchFleetFinanceSummary(
+  params: Omit<FleetFinanceRecordQueryParams, 'pageNo' | 'pageSize'> = {}
+) {
+  const res = await http.get<Partial<FleetFinanceSummaryRecord>>('/fleet-management/finance-records/summary', {
+    params,
+  });
+  return {
+    totalRecords: toNumber(res.data.totalRecords),
+    settledRecords: toNumber(res.data.settledRecords),
+    totalRevenueAmount: toNumber(res.data.totalRevenueAmount),
+    totalCostAmount: toNumber(res.data.totalCostAmount),
+    totalProfitAmount: toNumber(res.data.totalProfitAmount),
+    totalOutstandingAmount: toNumber(res.data.totalOutstandingAmount),
+  };
+}
+
+export async function exportFleetFinanceRecords(
+  params: Omit<FleetFinanceRecordQueryParams, 'pageNo' | 'pageSize'> = {}
+) {
+  const res = await http.get<Blob>('/fleet-management/finance-records/export', {
+    params,
+    responseType: 'blob',
+  });
+  return res.data;
+}
+
 export async function createFleetFinanceRecord(payload: FleetFinanceRecordUpsertPayload) {
   const res = await http.post<FleetFinanceRecord>('/fleet-management/finance-records', payload);
   return mapFinanceRecord(res.data);
@@ -373,7 +578,58 @@ export async function updateFleetFinanceRecord(id: string, payload: FleetFinance
   return mapFinanceRecord(res.data);
 }
 
-export async function fetchFleetReport() {
-  const res = await http.get<FleetReportItemRecord[]>('/fleet-management/report');
+export async function fetchFleetReport(params?: {
+  keyword?: string;
+  orgId?: string;
+  statementMonthFrom?: string;
+  statementMonthTo?: string;
+}) {
+  const res = await http.get<FleetReportItemRecord[]>('/fleet-management/report', { params });
   return (Array.isArray(res.data) ? res.data : []).map(mapReportItem);
+}
+
+export async function exportFleetReport(params?: {
+  keyword?: string;
+  orgId?: string;
+  statementMonthFrom?: string;
+  statementMonthTo?: string;
+}) {
+  const res = await http.get<Blob>('/fleet-management/report/export', {
+    params,
+    responseType: 'blob',
+  });
+  return res.data;
+}
+
+export async function fetchFleetTrackingSummary(params: FleetTrackingQueryParams = {}) {
+  const res = await http.get<FleetTrackingSummaryRecord>('/fleet-management/tracking/summary', {
+    params,
+  });
+  return mapTrackingSummary(res.data);
+}
+
+export async function fetchFleetTracking(params: FleetTrackingQueryParams = {}) {
+  const res = await http.get<PageResult<FleetTrackingRecord>>('/fleet-management/tracking', {
+    params,
+  });
+  return {
+    ...res.data,
+    records: (res.data.records || []).map(mapTrackingRecord),
+  };
+}
+
+export async function fetchFleetTrackingHistory(
+  vehicleId: string,
+  params?: {
+    fleetId?: string;
+    startTime?: string;
+    endTime?: string;
+    minStopMinutes?: number;
+  }
+) {
+  const res = await http.get<FleetTrackingHistoryRecord>(
+    '/fleet-management/tracking/' + vehicleId + '/history',
+    { params }
+  );
+  return mapTrackingHistory(res.data);
 }

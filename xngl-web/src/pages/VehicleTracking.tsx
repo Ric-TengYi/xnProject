@@ -1,29 +1,43 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Card, Empty, Input, List, Select, Slider, Space, Spin, Tag, message } from 'antd';
+import { Badge, Button, Card, DatePicker, Empty, Input, List, Select, Slider, Space, Spin, Tag, message } from 'antd';
 import {
   SearchOutlined,
   EnvironmentOutlined,
   PlayCircleOutlined,
   PauseCircleOutlined,
   FastForwardOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
+import dayjs from 'dayjs';
+import type { Dayjs } from 'dayjs';
 import TiandituMap from '../components/TiandituMap';
 import type { MapMarker, MapPoint, MapPolyline } from '../components/TiandituMap';
-import { fetchVehicleDetail, fetchVehicles } from '../utils/vehicleApi';
-import type { VehicleDetailRecord } from '../utils/vehicleApi';
+import { fetchVehicleDetail, fetchVehicleTrackHistory, fetchVehicles } from '../utils/vehicleApi';
+import type { VehicleDetailRecord, VehicleTrackPointRecord } from '../utils/vehicleApi';
 
 const { Option } = Select;
+const { RangePicker } = DatePicker;
+
+type RangeValue = [Dayjs | null, Dayjs | null] | null;
 
 type TrackingVehicle = {
+  vehicleId: string;
   id: string;
   company: string;
   status: string;
   statusCode: 'moving' | 'stopped' | 'offline';
   speed: string;
   location: string;
+  gpsTime?: string | null;
   position: MapPoint;
-  path: MapPoint[];
+  hasPosition: boolean;
+};
+
+type TrackPoint = {
+  position: MapPoint;
+  locateTime?: string | null;
+  speed?: string;
 };
 
 const defaultCenter: MapPoint = [120.1551, 30.2741];
@@ -43,33 +57,42 @@ const interpolatePosition = (path: MapPoint[], progress: number): MapPoint => {
 
 const fallbackPoint = (index: number): MapPoint => [120.12 + index * 0.022, 30.21 + index * 0.018];
 
-const buildPath = (position: MapPoint, index: number): MapPoint[] => {
-  const offset = 0.012 + (index % 4) * 0.004;
-  return [
-    [position[0] - offset, position[1] - offset * 0.7],
-    [position[0] - offset * 0.45, position[1] - offset * 0.2],
-    position,
-    [position[0] + offset * 0.35, position[1] + offset * 0.55],
-    [position[0] + offset * 0.7, position[1] + offset * 0.95],
-  ];
+const buildRangeFromGpsTime = (gpsTime?: string | null): [Dayjs, Dayjs] => {
+  const base = gpsTime ? dayjs(gpsTime) : dayjs();
+  const safeBase = base.isValid() ? base : dayjs();
+  return [safeBase.startOf('day'), safeBase.endOf('day')];
+};
+
+const mapTrackPoints = (points: VehicleTrackPointRecord[], fallbackPosition: MapPoint, fallbackTime?: string | null): TrackPoint[] => {
+  if (!points.length) {
+    return [{ position: fallbackPosition, locateTime: fallbackTime || null, speed: undefined }];
+  }
+  return points.map((point) => ({
+    position: [point.lng, point.lat],
+    locateTime: point.locateTime || null,
+    speed: point.speed != null ? `${point.speed} km/h` : undefined,
+  }));
 };
 
 const resolveTrackingVehicle = (record: VehicleDetailRecord, index: number): TrackingVehicle => {
-  const position: MapPoint = record.lng != null && record.lat != null ? [record.lng, record.lat] : fallbackPoint(index);
+  const hasPosition = record.lng != null && record.lat != null;
+  const position: MapPoint = hasPosition ? [record.lng!, record.lat!] : fallbackPoint(index);
   const runningStatus = (record.runningStatus || '').toUpperCase();
   const statusCode: 'moving' | 'stopped' | 'offline' =
     runningStatus === 'MOVING' ? 'moving' : record.status === 3 ? 'offline' : 'stopped';
   const status = statusCode === 'moving' ? '行驶中' : statusCode === 'stopped' ? '静止' : '离线';
   const location = record.remark || record.orgName || record.fleetName || '平台车辆在线定位';
   return {
+    vehicleId: record.id,
     id: record.plateNo,
     company: record.orgName || '未归属单位',
     status,
     statusCode,
     speed: record.currentSpeed != null ? String(record.currentSpeed) + ' km/h' : '--',
     location,
+    gpsTime: record.gpsTime || null,
     position,
-    path: buildPath(position, index),
+    hasPosition,
   };
 };
 
@@ -82,6 +105,9 @@ const VehicleTracking: React.FC = () => {
   const [progress, setProgress] = useState(45);
   const [vehicles, setVehicles] = useState<TrackingVehicle[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
+  const [trackRange, setTrackRange] = useState<RangeValue>(null);
+  const [trackLoading, setTrackLoading] = useState(false);
+  const [trackPoints, setTrackPoints] = useState<TrackPoint[]>([]);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -108,9 +134,17 @@ const VehicleTracking: React.FC = () => {
         const detailRecords = await Promise.all(
           (page.records || []).map(async (record) => fetchVehicleDetail(record.id))
         );
-        const mapped = detailRecords.map((record, index) => resolveTrackingVehicle(record, index));
+        const mapped = detailRecords
+          .map((record, index) => resolveTrackingVehicle(record, index))
+          .sort((left, right) => {
+            const leftScore = (left.hasPosition ? 100 : 0) + (left.statusCode === 'moving' ? 10 : 0);
+            const rightScore = (right.hasPosition ? 100 : 0) + (right.statusCode === 'moving' ? 10 : 0);
+            return rightScore - leftScore || left.id.localeCompare(right.id);
+          });
+        const preferred = mapped.find((item) => item.hasPosition) || mapped[0] || null;
         setVehicles(mapped);
-        setSelectedVehicleId((current) => current || (mapped[0] ? mapped[0].id : ''));
+        setSelectedVehicleId((current) => current || (preferred ? preferred.vehicleId : ''));
+        setTrackRange(preferred ? buildRangeFromGpsTime(preferred.gpsTime) : null);
       } catch (error) {
         console.error(error);
         message.error('获取车辆追踪数据失败');
@@ -144,37 +178,102 @@ const VehicleTracking: React.FC = () => {
   }, [fleetFilter, keyword, statusFilter, vehicles]);
 
   useEffect(() => {
-    if (!filteredVehicles.some((vehicle) => vehicle.id === selectedVehicleId)) {
-      setSelectedVehicleId(filteredVehicles[0] ? filteredVehicles[0].id : '');
+    if (!filteredVehicles.some((vehicle) => vehicle.vehicleId === selectedVehicleId)) {
+      setSelectedVehicleId(filteredVehicles[0] ? filteredVehicles[0].vehicleId : '');
       setProgress(0);
     }
   }, [filteredVehicles, selectedVehicleId]);
 
   const selectedVehicle = useMemo(() => {
-    return filteredVehicles.find((vehicle) => vehicle.id === selectedVehicleId)
-      || vehicles.find((vehicle) => vehicle.id === selectedVehicleId)
+    return filteredVehicles.find((vehicle) => vehicle.vehicleId === selectedVehicleId)
+      || vehicles.find((vehicle) => vehicle.vehicleId === selectedVehicleId)
       || filteredVehicles[0]
       || vehicles[0]
       || null;
   }, [filteredVehicles, selectedVehicleId, vehicles]);
 
+  useEffect(() => {
+    if (!selectedVehicle) {
+      setTrackRange(null);
+      setTrackPoints([]);
+      return;
+    }
+    setTrackRange(buildRangeFromGpsTime(selectedVehicle.gpsTime));
+  }, [selectedVehicle?.vehicleId]);
+
+  const handleTrackQuery = async (vehicle = selectedVehicle, range = trackRange) => {
+    if (!vehicle || !range?.[0] || !range?.[1]) {
+      setTrackPoints([]);
+      return;
+    }
+    setTrackLoading(true);
+    try {
+      const history = await fetchVehicleTrackHistory(vehicle.vehicleId, {
+        startTime: range[0].startOf('day').format('YYYY-MM-DDTHH:mm:ss'),
+        endTime: range[1].endOf('day').format('YYYY-MM-DDTHH:mm:ss'),
+      });
+      setTrackPoints(mapTrackPoints(history.points, vehicle.position, vehicle.gpsTime));
+      setProgress(0);
+      setIsPlaying(false);
+    } catch (error) {
+      console.error(error);
+      message.error('获取车辆历史轨迹失败');
+      setTrackPoints(mapTrackPoints([], vehicle.position, vehicle.gpsTime));
+    } finally {
+      setTrackLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedVehicle && trackRange?.[0] && trackRange?.[1]) {
+      void handleTrackQuery(selectedVehicle, trackRange);
+    }
+  }, [selectedVehicle?.vehicleId, trackRange?.[0]?.valueOf(), trackRange?.[1]?.valueOf()]);
+
+  const historyPath = useMemo(() => trackPoints.map((item) => item.position), [trackPoints]);
+
+  const activeTrackPoint = useMemo(() => {
+    if (!trackPoints.length) {
+      return null;
+    }
+    const index = Math.min(
+      Math.round((Math.min(Math.max(progress, 0), 100) / 100) * Math.max(trackPoints.length - 1, 0)),
+      Math.max(trackPoints.length - 1, 0)
+    );
+    return trackPoints[index] || null;
+  }, [progress, trackPoints]);
+
   const activePosition = useMemo(() => {
-    return selectedVehicle ? interpolatePosition(selectedVehicle.path, progress) : defaultCenter;
-  }, [progress, selectedVehicle]);
+    if (!selectedVehicle) {
+      return defaultCenter;
+    }
+    if (historyPath.length > 1) {
+      return interpolatePosition(historyPath, progress);
+    }
+    return activeTrackPoint?.position || selectedVehicle.position || defaultCenter;
+  }, [activeTrackPoint, historyPath, progress, selectedVehicle]);
 
   const markers = useMemo<MapMarker[]>(() => {
     return filteredVehicles.map((vehicle) => ({
-      id: vehicle.id,
-      position: selectedVehicle && vehicle.id === selectedVehicle.id ? activePosition : vehicle.position,
+      id: vehicle.vehicleId,
+      position: selectedVehicle && vehicle.vehicleId === selectedVehicle.vehicleId ? activePosition : vehicle.position,
     }));
   }, [activePosition, filteredVehicles, selectedVehicle]);
 
   const polylines = useMemo<MapPolyline[]>(() => {
-    if (!selectedVehicle) {
+    if (!selectedVehicle || historyPath.length < 2) {
       return [];
     }
-    return [{ id: selectedVehicle.id + '-route', path: selectedVehicle.path, color: '#1677ff', weight: 5 }];
-  }, [selectedVehicle]);
+    return [{ id: selectedVehicle.vehicleId + '-route', path: historyPath, color: '#1677ff', weight: 5 }];
+  }, [historyPath, selectedVehicle]);
+
+  const firstTrackTime = trackPoints[0]?.locateTime ? dayjs(trackPoints[0].locateTime).format('HH:mm') : '--:--';
+  const lastTrackTime = trackPoints[trackPoints.length - 1]?.locateTime
+    ? dayjs(trackPoints[trackPoints.length - 1].locateTime).format('HH:mm')
+    : '--:--';
+  const currentTrackTime = activeTrackPoint?.locateTime
+    ? dayjs(activeTrackPoint.locateTime).format('YYYY-MM-DD HH:mm:ss')
+    : selectedVehicle?.gpsTime || '--';
 
   return (
     <div className="flex h-[calc(100vh-110px)] gap-6">
@@ -215,10 +314,10 @@ const VehicleTracking: React.FC = () => {
                   <List.Item
                     className={[
                       'px-4 py-3 hover:bg-white cursor-pointer border-b g-border-panel border transition-colors',
-                      item.id === (selectedVehicle && selectedVehicle.id) ? 'bg-white/80' : '',
+                      item.vehicleId === (selectedVehicle && selectedVehicle.vehicleId) ? 'bg-white/80' : '',
                     ].join(' ')}
                     onClick={() => {
-                      setSelectedVehicleId(item.id);
+                      setSelectedVehicleId(item.vehicleId);
                       setProgress(0);
                     }}
                   >
@@ -276,6 +375,9 @@ const VehicleTracking: React.FC = () => {
                   <div className="font-semibold g-text-primary">{progress}%</div>
                 </div>
               </div>
+              <div className="mt-3 text-xs g-text-secondary">
+                <HistoryOutlined /> 轨迹点 {trackPoints.length} 个
+              </div>
               <div className="text-xs g-text-secondary mt-3 leading-6"><EnvironmentOutlined /> {selectedVehicle.location}</div>
             </div>
           )}
@@ -284,45 +386,65 @@ const VehicleTracking: React.FC = () => {
             <div className="text-sm font-semibold g-text-primary mb-2">地图能力</div>
             <div className="space-y-2 text-xs g-text-secondary">
               <div>真实车辆列表接入</div>
-              <div>天地图位置分布</div>
-              <div>单车轨迹回放</div>
+              <div>天地图实时位置分布</div>
+              <div>单车历史轨迹查询与回放</div>
             </div>
           </div>
         </div>
 
         <Card className="glass-panel g-border-panel border" bodyStyle={{ padding: '16px 24px' }}>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <RangePicker
+                value={trackRange}
+                showTime
+                onChange={(value) => setTrackRange(value as RangeValue)}
+              />
+              <Button type="primary" loading={trackLoading} disabled={!selectedVehicle} onClick={() => void handleTrackQuery()}>
+                查询轨迹
+              </Button>
+              <Tag color={trackPoints.length > 1 ? 'processing' : 'default'}>
+                {trackPoints.length > 1 ? '历史轨迹已加载' : '当前区间无轨迹，显示实时定位'}
+              </Tag>
+            </div>
+
+            <div className="flex items-center gap-6">
             <Space size="large">
               <Button
                 type="primary"
                 shape="circle"
                 icon={isPlaying ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
                 size="large"
-                disabled={!selectedVehicle}
+                disabled={!selectedVehicle || trackPoints.length <= 1}
                 onClick={() => setIsPlaying(!isPlaying)}
                 className="g-btn-primary border-none"
               />
               <Button
                 shape="circle"
                 icon={<FastForwardOutlined />}
-                disabled={!selectedVehicle}
+                disabled={!selectedVehicle || trackPoints.length <= 1}
                 className="bg-white g-text-secondary border-slate-600 hover:g-text-primary"
                 onClick={() => setProgress((value) => Math.min(value + 10, 100))}
               />
             </Space>
             <div className="flex-1 flex items-center gap-4">
-              <span className="g-text-secondary text-sm">08:00</span>
+              <span className="g-text-secondary text-sm">{firstTrackTime}</span>
               <Slider
                 className="flex-1"
                 value={progress}
                 onChange={setProgress}
-                tooltip={{ formatter: (value) => '14:' + Math.floor((value || 0) * 0.6).toString().padStart(2, '0') }}
+                disabled={trackPoints.length <= 1}
+                tooltip={{
+                  formatter: () =>
+                    activeTrackPoint?.locateTime ? dayjs(activeTrackPoint.locateTime).format('HH:mm:ss') : '无轨迹点',
+                }}
               />
-              <span className="g-text-secondary text-sm">18:00</span>
+              <span className="g-text-secondary text-sm">{lastTrackTime}</span>
             </div>
             <div className="g-text-secondary text-sm">
-              当前时间: <span className="g-text-primary-link font-mono">14:30:00</span>
+              当前时间: <span className="g-text-primary-link font-mono">{currentTrackTime}</span>
             </div>
+          </div>
           </div>
         </Card>
       </motion.div>

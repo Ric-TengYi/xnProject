@@ -1,0 +1,126 @@
+{
+  "phase": "phase52_disposal_permit_manual_and_binding_smoke_2026-03-23",
+  "executedAt": "2026-03-23T10:27:00+08:00",
+  "modules": [
+    {
+      "id": 34,
+      "name": "处置证新增",
+      "scope": "手工新增、编辑、来源标记与主数据自动回填"
+    },
+    {
+      "id": 35,
+      "name": "处置证关联",
+      "scope": "项目/合同/场地/车辆关联校验，多维筛选与详情回查"
+    }
+  ],
+  "builds": [
+    {
+      "command": "cd xngl-service && mvn -pl xngl-service-starter -am compile -DskipTests",
+      "status": "PASS",
+      "detail": "处置证新增/关联模块后端编译通过"
+    },
+    {
+      "command": "cd xngl-web && npm run build",
+      "status": "PASS",
+      "detail": "处置证清单页面前端构建通过"
+    },
+    {
+      "command": "cd xngl-service && mvn -pl xngl-service-starter -am install -DskipTests",
+      "status": "PASS",
+      "detail": "处置证新增/关联模块后端安装打包通过"
+    }
+  ],
+  "runtime": [
+    {
+      "command": "cd xngl-service && mvn spring-boot:run -pl xngl-service-starter",
+      "status": "PASS",
+      "detail": "后端带处置证新增/关联增强接口重启成功"
+    }
+  ],
+  "checks": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": {
+        "userId": "6"
+      }
+    },
+    {
+      "name": "contract_pick",
+      "status": "PASS",
+      "detail": {
+        "contractId": "54",
+        "projectId": "1",
+        "siteId": "1"
+      }
+    },
+    {
+      "name": "vehicle_pick",
+      "status": "PASS",
+      "detail": {
+        "vehicleId": "8",
+        "plateNo": "浙A97610"
+      }
+    },
+    {
+      "name": "create_permit",
+      "status": "PASS",
+      "detail": {
+        "permitId": 2035906049197776897,
+        "permitNo": "PHASE52-P-1774232802",
+        "projectId": 1,
+        "siteId": 1,
+        "sourcePlatform": "MANUAL",
+        "bindStatus": "BOUND"
+      }
+    },
+    {
+      "name": "permit_detail_autofill",
+      "status": "PASS",
+      "detail": {
+        "projectId": 1,
+        "siteId": 1,
+        "sourcePlatform": "MANUAL",
+        "bindStatus": "BOUND"
+      }
+    },
+    {
+      "name": "filtered_query",
+      "status": "PASS",
+      "detail": {
+        "resultCount": 1,
+        "matchedPermitId": 2035906049197776897
+      }
+    },
+    {
+      "name": "update_permit",
+      "status": "PASS",
+      "detail": {
+        "permitType": "TRANSPORT",
+        "status": "EXPIRING",
+        "usedVolume": 22.2
+      }
+    },
+    {
+      "name": "mismatch_validation",
+      "status": "PASS",
+      "detail": {
+        "code": 400,
+        "message": "处置证关联合同与项目不匹配"
+      }
+    },
+    {
+      "name": "vehicle_validation",
+      "status": "PASS",
+      "detail": {
+        "code": 400,
+        "message": "绑定车辆不存在"
+      }
+    }
+  ],
+  "summary": {
+    "passed": 9,
+    "failed": 0,
+    "blocked": 0
+  }
+}

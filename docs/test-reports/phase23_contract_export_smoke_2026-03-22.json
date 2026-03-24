@@ -1,0 +1,50 @@
+{
+  "phase": 23,
+  "name": "contract_export_smoke",
+  "date": "2026-03-22",
+  "total": 7,
+  "passed": 7,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "admin_login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功并获取 JWT"
+    },
+    {
+      "name": "contract_list_query",
+      "status": "PASS",
+      "detail": "合同列表查询成功，拿到 contractNo=HT-005 作为筛选样本"
+    },
+    {
+      "name": "export_task_create",
+      "status": "PASS",
+      "detail": "POST /api/contracts/export 成功创建任务 taskId=10"
+    },
+    {
+      "name": "export_task_complete",
+      "status": "PASS",
+      "detail": "GET /api/export-tasks/10 返回 COMPLETED，文件名 contracts_20260322111249.csv"
+    },
+    {
+      "name": "export_download",
+      "status": "PASS",
+      "detail": "GET /api/export-tasks/10/download 返回 text/csv 文件流"
+    },
+    {
+      "name": "filtered_csv_content",
+      "status": "PASS",
+      "detail": "CSV 共 2 行，包含表头和关键字 HT-005 对应的合同数据"
+    },
+    {
+      "name": "frontend_entry_build",
+      "status": "PASS",
+      "detail": "ContractsManagement 已接入真实导出按钮；xngl-service mvn install、xngl-web npm run build 通过；/contracts dev 路由返回 200"
+    }
+  ],
+  "notes": [
+    "后端已补齐导出任务状态流转、CSV 生成与下载流接口。",
+    "导出文件保存于本机临时目录，并由 /api/export-tasks/{id}/download 统一下载。",
+    "页面自动化下载因本地 Playwright 浏览器环境受限未纳入本批自动化检查。"
+  ]
+}

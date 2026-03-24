@@ -1,0 +1,97 @@
+{
+  "phase": 58,
+  "date": "2026-03-23",
+  "summary": "18 / 18 PASS",
+  "results": [
+    {
+      "name": "health",
+      "status": "PASS",
+      "detail": "/api/health => UP"
+    },
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "vehicle_cards_list",
+      "status": "PASS",
+      "detail": "records=4"
+    },
+    {
+      "name": "vehicle_cards_summary",
+      "status": "PASS",
+      "detail": "totalCards=4, totalBalance=8806.05"
+    },
+    {
+      "name": "vehicle_cards_export",
+      "status": "PASS",
+      "detail": "bytes=612"
+    },
+    {
+      "name": "vehicle_card_recharge",
+      "status": "PASS",
+      "detail": "card=CARD-ELEC-0002, balance=272.21"
+    },
+    {
+      "name": "vehicle_card_consume",
+      "status": "PASS",
+      "detail": "card=CARD-ELEC-0002, balance=261.1"
+    },
+    {
+      "name": "vehicle_card_transactions_summary",
+      "status": "PASS",
+      "detail": "total=4, recharge=133.32, consume=22.22"
+    },
+    {
+      "name": "vehicle_card_transactions_list",
+      "status": "PASS",
+      "detail": "records=4"
+    },
+    {
+      "name": "vehicle_card_transactions_export",
+      "status": "PASS",
+      "detail": "bytes=643"
+    },
+    {
+      "name": "vehicle_personnel_expire_summary",
+      "status": "PASS",
+      "detail": "total=1, expiring=1"
+    },
+    {
+      "name": "vehicle_personnel_export",
+      "status": "PASS",
+      "detail": "bytes=690"
+    },
+    {
+      "name": "fleet_finance_summary",
+      "status": "PASS",
+      "detail": "totalRecords=2, profit=77900.0, outstanding=88000.0"
+    },
+    {
+      "name": "fleet_finance_export",
+      "status": "PASS",
+      "detail": "bytes=484"
+    },
+    {
+      "name": "fleet_report",
+      "status": "PASS",
+      "detail": "rows=9"
+    },
+    {
+      "name": "fleet_report_export",
+      "status": "PASS",
+      "detail": "bytes=664"
+    },
+    {
+      "name": "ui_vehicle_cards_route",
+      "status": "PASS",
+      "detail": "/vehicles/cards => 200"
+    },
+    {
+      "name": "ui_fleet_route",
+      "status": "PASS",
+      "detail": "/vehicles/fleet => 200"
+    }
+  ]
+}

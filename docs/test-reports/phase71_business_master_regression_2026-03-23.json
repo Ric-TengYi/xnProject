@@ -1,0 +1,63 @@
+{
+  "report": "phase71_business_master_regression_2026-03-23",
+  "date": "2026-03-23",
+  "results": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "name": "business_units_summary_query_runtime",
+      "status": "PASS",
+      "detail": "unit_id=13, total_units=8"
+    },
+    {
+      "name": "business_units_upsert_cleanup_runtime",
+      "status": "PASS",
+      "detail": "temp_unit_id=21"
+    },
+    {
+      "name": "business_projects_list_detail_runtime",
+      "status": "PASS",
+      "detail": "project_id=1, contracts=17"
+    },
+    {
+      "name": "business_project_payments_runtime",
+      "status": "PASS",
+      "detail": "project_id=1, before_total=0, payment_id=6"
+    },
+    {
+      "name": "business_disposal_permits_runtime",
+      "status": "PASS",
+      "detail": "permit_id=2035906049197776897, status=EXPIRING"
+    },
+    {
+      "name": "business_checkins_void_restore_runtime",
+      "status": "PASS",
+      "detail": "ticket_id=9, ticket_no=MD-20260323090251-B02E57"
+    },
+    {
+      "name": "business_disposals_query_runtime",
+      "status": "PASS",
+      "detail": "disposal_id=9, ticket_no=MD-20260323090251-B02E57"
+    },
+    {
+      "name": "business_sites_runtime",
+      "status": "PASS",
+      "detail": "site_id=1, map_layers=2"
+    },
+    {
+      "name": "business_vehicles_runtime",
+      "status": "PASS",
+      "detail": "vehicles=8, companies=4, fleets=7"
+    },
+    {
+      "name": "business_master_pages_visible",
+      "status": "PASS",
+      "detail": "单位管理 / 消纳项目清单 / 项目交款管理 / 处置证清单 / 打卡数据 / 消纳信息 / 消纳场地管理 / 全局消纳清单 / 场地基础信息 / 车辆与运力资源"
+    }
+  ],
+  "passed": 11,
+  "failed": 0
+}

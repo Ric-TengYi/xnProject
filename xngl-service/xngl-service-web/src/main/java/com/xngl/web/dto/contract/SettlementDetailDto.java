@@ -17,5 +17,6 @@ public class SettlementDetailDto extends SettlementItemDto {
   private String settlementDate;
   private String processInstanceId;
   private String remark;
+  private List<SettlementContractSummaryDto> contractSummaries;
   private List<SettlementLineDto> items;
 }

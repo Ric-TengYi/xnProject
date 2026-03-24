@@ -1,0 +1,45 @@
+{
+  "report": "phase81_alerts_security_acceptance_regression_2026-03-23",
+  "date": "2026-03-23",
+  "phaseCount": 4,
+  "passed": 33,
+  "failed": 0,
+  "results": [
+    {
+      "script": "phase64_security_ledger_detail_regression.py",
+      "status": "PASS",
+      "passed": 8,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS security_create_runtime: id=42, objectName=Demo Admin\nPASS security_filter_runtime: filtered_rows=1\nPASS security_detail_timeline_runtime: timeline_count=1\nPASS security_rectify_runtime: timeline_count=2\nPASS security_export_runtime: text/csv;charset=UTF-8\nPASS security_delete_runtime: deleted=42\nPASS security_ledger_page_visible: 安全台账页面与详情时间线区块可见\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase67_security_related_profile_regression.py",
+      "status": "PASS",
+      "passed": 8,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS security_person_profile_runtime: id=43, cert=1, learning=1\nPASS security_vehicle_profile_runtime: id=44, insurance=2, maintenance=1\nPASS security_site_profile_runtime: id=45, docs=7, devices=4\nPASS security_related_profile_detail_runtime: person/vehicle/site 详情安全档案已回填\nPASS security_related_profile_export_runtime: text/csv;charset=UTF-8\nPASS security_related_profile_ui_visible: 安全台账详情抽屉已展示对象安全档案区块\nPASS security_related_profile_cleanup_runtime: deleted=3\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase69_alerts_events_unified_regression.py",
+      "status": "PASS",
+      "passed": 13,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS manual_event_create_runtime: event_id=43\nPASS manual_event_update_runtime: phase69 事件联调-1774270257303-更新\nPASS manual_event_flow_runtime: audit_logs=8\nPASS manual_event_summary_export_runtime: text/csv;charset=UTF-8\nPASS alerts_generate_runtime: created=2, updated=2, closed=0\nPASS alerts_query_runtime: alert_id=22, total_rows=4\nPASS alerts_handle_close_runtime: 浙A12345 线路偏航预警\nPASS alerts_summary_analytics_export_runtime: summary_total=22, fences=8\nPASS alert_rule_flow_runtime: rule_id=17\nPASS alert_fence_flow_runtime: fence_id=13\nPASS alert_push_flow_runtime: push_id=14\nPASS alerts_events_pages_visible: 预警与监控中心 / 事件管理 / 预警配置 / 安全台账管理\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase76_message_linkage_regression.py",
+      "status": "PASS",
+      "passed": 4,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS event_message_runtime: event_id=44, message_count=3\nPASS security_message_runtime: inspection_id=46, message_count=1\nPASS message_jump_pages_visible: 事件消息跳转 / 安全台账消息跳转\n",
+      "stderr_tail": ""
+    }
+  ]
+}

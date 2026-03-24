@@ -1,0 +1,52 @@
+{
+  "date": "2026-03-21",
+  "total": 8,
+  "passed": 8,
+  "failed": 0,
+  "results": [
+    {
+      "name": "API login",
+      "passed": true,
+      "detail": "userId=6"
+    },
+    {
+      "name": "Checkin list query",
+      "passed": true,
+      "detail": "total=1 id=5 status=正常"
+    },
+    {
+      "name": "Checkin void api",
+      "passed": true,
+      "detail": "id=5 status=已作废 reason=phase15-auto-void"
+    },
+    {
+      "name": "Checkin void verify",
+      "passed": true,
+      "detail": "filteredTotal=1 exception=异常打卡"
+    },
+    {
+      "name": "Frontend route registration",
+      "passed": true,
+      "detail": "xngl-web/src/App.tsx:65"
+    },
+    {
+      "name": "Frontend menu registration",
+      "passed": true,
+      "detail": "xngl-web/src/layouts/MainLayout.tsx:62"
+    },
+    {
+      "name": "Frontend api bindings",
+      "passed": true,
+      "detail": "xngl-web/src/utils/checkinApi.ts:68 and xngl-web/src/utils/checkinApi.ts:76"
+    },
+    {
+      "name": "Build verification",
+      "passed": true,
+      "detail": "backend mvn -q -DskipTests install; frontend npm run build"
+    }
+  ],
+  "notes": [
+    "Temporary ticket row id=5 was created for API smoke and deleted after verification.",
+    "Local browser automation with system Chrome was not stable in this sandbox session; frontend integration was verified through build and source wiring checks."
+  ]
+}

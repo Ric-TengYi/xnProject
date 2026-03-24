@@ -1,0 +1,57 @@
+{
+  "date": "2026-03-21",
+  "total": 9,
+  "passed": 9,
+  "failed": 0,
+  "results": [
+    {
+      "name": "SQL patch apply",
+      "passed": true,
+      "detail": "035_message_center_foundation.sql executed successfully"
+    },
+    {
+      "name": "API login",
+      "passed": true,
+      "detail": "userId=6"
+    },
+    {
+      "name": "Message summary",
+      "passed": true,
+      "detail": "total=4 unread=3 read=1"
+    },
+    {
+      "name": "Message keyword query",
+      "passed": true,
+      "detail": "total=1 status=UNREAD priority=HIGH"
+    },
+    {
+      "name": "Message mark read",
+      "passed": true,
+      "detail": "status=READ readTime populated"
+    },
+    {
+      "name": "Message status filter",
+      "passed": true,
+      "detail": "filteredTotal=1 status=READ"
+    },
+    {
+      "name": "Frontend route registration",
+      "passed": true,
+      "detail": "xngl-web/src/App.tsx:98"
+    },
+    {
+      "name": "Frontend menu and api bindings",
+      "passed": true,
+      "detail": "xngl-web/src/layouts/MainLayout.tsx:97, xngl-web/src/utils/messageApi.ts:64"
+    },
+    {
+      "name": "Build verification",
+      "passed": true,
+      "detail": "backend mvn -q -DskipTests install; frontend npm run build"
+    }
+  ],
+  "notes": [
+    "Temporary smoke message row was created and deleted after verification.",
+    "Message center now serves current user scoped messages and ALL broadcasts."
+  ]
+}

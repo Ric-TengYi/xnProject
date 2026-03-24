@@ -1,0 +1,98 @@
+{
+  "date": "2026-03-23",
+  "phase": "Phase59",
+  "scope": [
+    "预警中心增强",
+    "事件管理增强",
+    "安全台账增强"
+  ],
+  "passed": 17,
+  "failed": 0,
+  "results": [
+    {
+      "name": "health",
+      "status": "PASS",
+      "detail": "/api/health => {'service': 'xngl-service', 'status': 'UP'}"
+    },
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "alerts_generate",
+      "status": "PASS",
+      "detail": "created=0, updated=4, closed=0"
+    },
+    {
+      "name": "alerts_list",
+      "status": "PASS",
+      "detail": "records=15"
+    },
+    {
+      "name": "alerts_filtered_summary",
+      "status": "PASS",
+      "detail": "filteredTotal=2, ruleCode=VEHICLE_ROUTE_DEVIATION"
+    },
+    {
+      "name": "alerts_detail",
+      "status": "PASS",
+      "detail": "alertId=15"
+    },
+    {
+      "name": "alerts_export",
+      "status": "PASS",
+      "detail": "bytes=767"
+    },
+    {
+      "name": "events_create",
+      "status": "PASS",
+      "detail": "eventId=31"
+    },
+    {
+      "name": "events_filtered_list",
+      "status": "PASS",
+      "detail": "records=1"
+    },
+    {
+      "name": "events_filtered_summary",
+      "status": "PASS",
+      "detail": "filteredTotal=1, overdue=1"
+    },
+    {
+      "name": "events_detail",
+      "status": "PASS",
+      "detail": "auditLogs=1"
+    },
+    {
+      "name": "events_export",
+      "status": "PASS",
+      "detail": "bytes=540"
+    },
+    {
+      "name": "security_create",
+      "status": "PASS",
+      "detail": "inspectionId=20"
+    },
+    {
+      "name": "security_filtered_list",
+      "status": "PASS",
+      "detail": "records=1"
+    },
+    {
+      "name": "security_filtered_summary",
+      "status": "PASS",
+      "detail": "overdueRectify=1, failCount=1"
+    },
+    {
+      "name": "security_detail",
+      "status": "PASS",
+      "detail": "title=Plan3安全台账烟测-1774245388"
+    },
+    {
+      "name": "security_export",
+      "status": "PASS",
+      "detail": "bytes=596"
+    }
+  ]
+}

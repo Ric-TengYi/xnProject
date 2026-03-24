@@ -1,0 +1,24 @@
+{
+  "results": [
+    {
+      "name": "API login",
+      "ok": true,
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "API site map layers",
+      "ok": true,
+      "detail": "场地图层返回 1 个场地，首个场地设备 3 个"
+    },
+    {
+      "name": "API sites list geo fields",
+      "ok": true,
+      "detail": "场地列表已返回经纬度字段，首个坐标 120.17652, 30.25784"
+    },
+    {
+      "name": "API site detail boundary and devices",
+      "ok": true,
+      "detail": "场地详情返回红线和 3 个设备点位"
+    }
+  ]
+}

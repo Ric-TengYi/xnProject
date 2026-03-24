@@ -19,14 +19,23 @@ import com.xngl.web.dto.contract.ContractDetailDto;
 import com.xngl.web.dto.contract.ContractItemDto;
 import com.xngl.web.dto.contract.ContractStatsDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Map;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -46,11 +55,13 @@ public class ContractsController {
   private static final DateTimeFormatter ISO_DATE_TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
   private final ContractService contractService;
-  private final UserService userService;
+  private final UserContext userContext;
+  @org.springframework.beans.factory.annotation.Value("${app.contract.doc-dir:/data/xngl/contract-docs}")
+  private String contractDocDir;
 
-  public ContractsController(ContractService contractService, UserService userService) {
+  public ContractsController(ContractService contractService, UserContext userContext) {
     this.contractService = contractService;
-    this.userService = userService;
+    this.userContext = userContext;
   }
 
   @GetMapping
@@ -103,14 +114,15 @@ public class ContractsController {
   @PostMapping("/{id}/submit")
   public ApiResult<Void> submit(@PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    contractService.submitContract(id, currentUser.getTenantId());
+    contractService.submitContract(id, currentUser.getTenantId(), currentUser.getId());
     return ApiResult.ok();
   }
 
   @PostMapping("/{id}/approve")
   public ApiResult<Void> approve(@PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    contractService.approveContract(id, currentUser.getTenantId());
+    userContext.requireApprovalPermission(currentUser);
+    contractService.approveContract(id, currentUser.getTenantId(), currentUser.getId());
     return ApiResult.ok();
   }
 
@@ -118,23 +130,24 @@ public class ContractsController {
   public ApiResult<Void> reject(@PathVariable Long id,
       @RequestBody(required = false) ApprovalActionDto dto, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    userContext.requireApprovalPermission(currentUser);
     String reason = dto != null ? dto.getReason() : null;
-    contractService.rejectContract(id, currentUser.getTenantId(), reason);
+    contractService.rejectContract(id, currentUser.getTenantId(), currentUser.getId(), reason);
     return ApiResult.ok();
   }
 
   @GetMapping("/stats")
   public ApiResult<ContractStatsDto> stats(HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    Map<String, Object> raw = contractService.getContractStats(currentUser.getTenantId());
+    var raw = contractService.getContractStats(currentUser.getTenantId());
     ContractStatsDto dto = new ContractStatsDto();
-    dto.setTotalContracts(toLong(raw.get("totalContracts")));
-    dto.setEffectiveContracts(toLong(raw.get("effectiveContracts")));
-    dto.setMonthlyReceiptAmount(toBigDecimal(raw.get("monthlyReceiptAmount")));
-    dto.setMonthlyReceiptCount(toLong(raw.get("monthlyReceiptCount")));
-    dto.setPendingReceiptAmount(toBigDecimal(raw.get("pendingReceiptAmount")));
-    dto.setTotalSettlementOrders(toLong(raw.get("totalSettlementOrders")));
-    dto.setPendingSettlementOrders(toLong(raw.get("pendingSettlementOrders")));
+    dto.setTotalContracts(raw.getTotalContracts());
+    dto.setEffectiveContracts(raw.getEffectiveContracts());
+    dto.setMonthlyReceiptAmount(raw.getMonthlyReceiptAmount());
+    dto.setMonthlyReceiptCount(raw.getMonthlyReceiptCount());
+    dto.setPendingReceiptAmount(raw.getPendingReceiptAmount());
+    dto.setTotalSettlementOrders(raw.getTotalSettlementOrders());
+    dto.setPendingSettlementOrders(raw.getPendingSettlementOrders());
     return ApiResult.ok(dto);
   }
 
@@ -207,6 +220,38 @@ public class ContractsController {
     User currentUser = requireCurrentUser(request);
     List<ContractMaterialVo> materials = contractService.getContractMaterials(id, currentUser.getTenantId());
     return ApiResult.ok(materials);
+  }
+
+  @GetMapping("/{id}/materials/{materialId}/download")
+  public ResponseEntity<Resource> downloadMaterial(
+      @PathVariable Long id, @PathVariable Long materialId, HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    var material = contractService.getContractMaterial(materialId, id, currentUser.getTenantId());
+    if (!StringUtils.hasText(material.getFileUrl())) {
+      throw new BizException(404, "办事材料文件不存在");
+    }
+    Path path = Path.of(material.getFileUrl()).normalize();
+    Path allowedDir = Path.of(contractDocDir).normalize();
+    if (!path.startsWith(allowedDir)) {
+      throw new BizException(403, "文件路径不合法");
+    }
+    if (!Files.exists(path) || !Files.isRegularFile(path)) {
+      throw new BizException(404, "办事材料文件不存在");
+    }
+    FileSystemResource resource = new FileSystemResource(path);
+    ContentDisposition disposition =
+        ContentDisposition.attachment()
+            .filename(path.getFileName().toString())
+            .build();
+    try {
+      return ResponseEntity.ok()
+          .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+          .contentType(MediaType.parseMediaType("text/plain;charset=UTF-8"))
+          .contentLength(Files.size(path))
+          .body(resource);
+    } catch (IOException ex) {
+      throw new BizException(500, "读取办事材料失败");
+    }
   }
 
   @GetMapping("/{id}/invoices")
@@ -296,6 +341,7 @@ public class ContractsController {
     c.setSiteId(parseLong(dto.getSiteId()));
     c.setConstructionOrgId(parseLong(dto.getConstructionOrgId()));
     c.setTransportOrgId(parseLong(dto.getTransportOrgId()));
+    c.setPartyId(parseLong(dto.getPartyId()));
     c.setSiteOperatorOrgId(parseLong(dto.getSiteOperatorOrgId()));
     c.setSignDate(parseDate(dto.getSignDate()));
     c.setEffectiveDate(parseDate(dto.getEffectiveDate()));
@@ -312,22 +358,7 @@ public class ContractsController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (userId == null || userId.isBlank()) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      if (user.getTenantId() == null) {
-        throw new BizException(403, "当前用户未绑定租户");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 
   private String resolveContractNo(Contract contract) {
@@ -365,20 +396,4 @@ public class ContractsController {
     return LocalDate.parse(value.trim(), ISO_DATE);
   }
 
-  private long toLong(Object value) {
-    if (value instanceof Number n) {
-      return n.longValue();
-    }
-    return 0L;
-  }
-
-  private BigDecimal toBigDecimal(Object value) {
-    if (value instanceof BigDecimal bd) {
-      return bd;
-    }
-    if (value instanceof Number n) {
-      return BigDecimal.valueOf(n.doubleValue());
-    }
-    return BigDecimal.ZERO;
-  }
 }

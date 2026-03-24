@@ -1,0 +1,9 @@
+{
+  "results": [
+    {
+      "name": "Smoke execution",
+      "ok": false,
+      "detail": "500 Server Error:  for url: http://127.0.0.1:8090/api/sites/1/documents"
+    }
+  ]
+}

@@ -4,15 +4,17 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.xngl.infrastructure.persistence.entity.organization.User;
 import com.xngl.manager.sysparam.entity.SysParam;
 import com.xngl.manager.sysparam.mapper.SysParamMapper;
-import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.user.StatusUpdateDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
+import com.xngl.web.support.CsvExportSupport;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import lombok.Data;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,11 +31,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class SysParamsController {
 
   private final SysParamMapper mapper;
-  private final UserService userService;
+  private final UserContext userContext;
 
-  public SysParamsController(SysParamMapper mapper, UserService userService) {
+  public SysParamsController(SysParamMapper mapper, UserContext userContext) {
     this.mapper = mapper;
-    this.userService = userService;
+    this.userContext = userContext;
   }
 
   @GetMapping
@@ -64,6 +66,46 @@ public class SysParamsController {
         Comparator.comparing(SysParam::getParamType, Comparator.nullsLast(String::compareTo))
             .thenComparing(SysParam::getParamKey, Comparator.nullsLast(String::compareTo)));
     return ApiResult.ok(rows);
+  }
+
+  @GetMapping("/export")
+  public ResponseEntity<byte[]> export(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String paramType,
+      HttpServletRequest request) {
+    User user = requireCurrentUser(request);
+    String keywordValue = trimToNull(keyword);
+    String typeValue = trimToNull(paramType);
+    List<SysParam> rows =
+        mapper.selectList(
+            new LambdaQueryWrapper<SysParam>()
+                .eq(SysParam::getTenantId, user.getTenantId())
+                .eq(StringUtils.hasText(typeValue), SysParam::getParamType, typeValue)
+                .and(
+                    StringUtils.hasText(keywordValue),
+                    wrapper ->
+                        wrapper
+                            .like(SysParam::getParamKey, keywordValue)
+                            .or()
+                            .like(SysParam::getParamName, keywordValue)
+                            .or()
+                            .like(SysParam::getRemark, keywordValue))
+                .orderByAsc(SysParam::getParamType)
+                .orderByAsc(SysParam::getParamKey));
+    return CsvExportSupport.csvResponse(
+        "sys_params",
+        List.of("参数键", "参数名称", "参数值", "参数类型", "状态", "备注"),
+        rows.stream()
+            .map(
+                row ->
+                    List.of(
+                        CsvExportSupport.value(row.getParamKey()),
+                        CsvExportSupport.value(row.getParamName()),
+                        CsvExportSupport.value(row.getParamValue()),
+                        CsvExportSupport.value(row.getParamType()),
+                        CsvExportSupport.value(row.getStatus()),
+                        CsvExportSupport.value(row.getRemark())))
+            .toList());
   }
 
   @PostMapping
@@ -149,19 +191,7 @@ public class SysParamsController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null || user.getTenantId() == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 
   @Data

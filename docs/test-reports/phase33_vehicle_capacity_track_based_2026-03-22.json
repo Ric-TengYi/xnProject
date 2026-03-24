@@ -1,0 +1,24 @@
+{
+  "results": [
+    {
+      "name": "API login",
+      "ok": true,
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "API track-backed mileage",
+      "ok": true,
+      "detail": "浙A12345 日报返回荷载里程 1.34 km、空载里程 0.63 km"
+    },
+    {
+      "name": "API keyword trend consistency",
+      "ok": true,
+      "detail": "按车牌筛选后趋势 activeCount=1，与列表车辆数一致"
+    },
+    {
+      "name": "API fleet capacity summary",
+      "ok": true,
+      "detail": "全量运力分析返回 8 台车辆"
+    }
+  ]
+}

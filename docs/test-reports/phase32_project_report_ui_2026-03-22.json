@@ -1,0 +1,24 @@
+{
+  "results": [
+    {
+      "name": "UI page load",
+      "ok": true,
+      "detail": "项目报表页面成功打开"
+    },
+    {
+      "name": "UI report controls",
+      "ok": true,
+      "detail": "页面可见导出、刷新和关键字查询控件"
+    },
+    {
+      "name": "UI report table",
+      "ok": true,
+      "detail": "项目报表表格已加载并展示真实项目记录"
+    },
+    {
+      "name": "UI summary cards",
+      "ok": true,
+      "detail": "统计卡片与趋势区域已渲染"
+    }
+  ]
+}

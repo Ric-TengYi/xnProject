@@ -7,24 +7,30 @@ import com.xngl.infrastructure.persistence.entity.contract.Contract;
 import com.xngl.infrastructure.persistence.entity.organization.Org;
 import com.xngl.infrastructure.persistence.entity.organization.User;
 import com.xngl.infrastructure.persistence.entity.project.Project;
+import com.xngl.infrastructure.persistence.entity.site.Site;
 import com.xngl.infrastructure.persistence.entity.vehicle.Vehicle;
 import com.xngl.infrastructure.persistence.mapper.ContractMapper;
 import com.xngl.infrastructure.persistence.mapper.OrgMapper;
 import com.xngl.infrastructure.persistence.mapper.ProjectMapper;
+import com.xngl.infrastructure.persistence.mapper.SiteMapper;
 import com.xngl.infrastructure.persistence.mapper.VehicleMapper;
-import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
+import com.xngl.web.dto.unit.UnitContractItemDto;
 import com.xngl.web.dto.unit.UnitDetailDto;
 import com.xngl.web.dto.unit.UnitListItemDto;
+import com.xngl.web.dto.unit.UnitProjectStatDto;
+import com.xngl.web.dto.unit.UnitSiteContractGroupDto;
 import com.xngl.web.dto.unit.UnitSummaryDto;
 import com.xngl.web.dto.unit.UnitUpsertDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -32,6 +38,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.math.BigDecimal;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -52,21 +59,24 @@ public class UnitsController {
 
   private final OrgMapper orgMapper;
   private final ProjectMapper projectMapper;
+  private final SiteMapper siteMapper;
   private final ContractMapper contractMapper;
   private final VehicleMapper vehicleMapper;
-  private final UserService userService;
+  private final UserContext userContext;
 
   public UnitsController(
       OrgMapper orgMapper,
       ProjectMapper projectMapper,
+      SiteMapper siteMapper,
       ContractMapper contractMapper,
       VehicleMapper vehicleMapper,
-      UserService userService) {
+      UserContext userContext) {
     this.orgMapper = orgMapper;
     this.projectMapper = projectMapper;
+    this.siteMapper = siteMapper;
     this.contractMapper = contractMapper;
     this.vehicleMapper = vehicleMapper;
-    this.userService = userService;
+    this.userContext = userContext;
   }
 
   @GetMapping
@@ -147,6 +157,104 @@ public class UnitsController {
     }
     UnitMetrics metrics = loadMetrics(currentUser.getTenantId(), List.of(org));
     return ApiResult.ok(toDetail(org, metrics));
+  }
+
+  @GetMapping("/{id}/projects")
+  public ApiResult<List<UnitProjectStatDto>> listProjects(
+      @PathVariable Long id, HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    ensureUnitExists(id, currentUser.getTenantId());
+    List<Contract> contracts = listContractsByUnit(currentUser.getTenantId(), id);
+    if (contracts.isEmpty()) {
+      return ApiResult.ok(Collections.emptyList());
+    }
+    Map<Long, Project> projectMap =
+        projectMapper.selectBatchIds(
+                contracts.stream()
+                    .map(Contract::getProjectId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toCollection(LinkedHashSet::new)))
+            .stream()
+            .collect(Collectors.toMap(Project::getId, project -> project, (left, right) -> left));
+
+    Map<Long, UnitProjectStatDto> result = new java.util.LinkedHashMap<>();
+    for (Contract contract : contracts) {
+      if (contract.getProjectId() == null) {
+        continue;
+      }
+      Project project = projectMap.get(contract.getProjectId());
+      UnitProjectStatDto dto =
+          result.computeIfAbsent(
+              contract.getProjectId(),
+              key -> {
+                UnitProjectStatDto item = new UnitProjectStatDto();
+                item.setProjectId(String.valueOf(key));
+                item.setProjectName(project != null ? project.getName() : "项目#" + key);
+                item.setProjectCode(project != null ? project.getCode() : null);
+                item.setContractCount(0L);
+                item.setContractAmount(BigDecimal.ZERO);
+                item.setAgreedVolume(BigDecimal.ZERO);
+                return item;
+              });
+      dto.setContractCount(dto.getContractCount() + 1);
+      dto.setContractAmount(sum(dto.getContractAmount(), contract.getContractAmount()));
+      dto.setAgreedVolume(sum(dto.getAgreedVolume(), contract.getAgreedVolume()));
+    }
+    return ApiResult.ok(new ArrayList<>(result.values()));
+  }
+
+  @GetMapping("/{id}/contract-groups")
+  public ApiResult<List<UnitSiteContractGroupDto>> listContractGroups(
+      @PathVariable Long id,
+      @RequestParam(required = false) Long projectId,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    ensureUnitExists(id, currentUser.getTenantId());
+    List<Contract> contracts = listContractsByUnit(currentUser.getTenantId(), id);
+    if (projectId != null) {
+      contracts =
+          contracts.stream()
+              .filter(contract -> Objects.equals(contract.getProjectId(), projectId))
+              .toList();
+    }
+    if (contracts.isEmpty()) {
+      return ApiResult.ok(Collections.emptyList());
+    }
+
+    Map<Long, Site> siteMap =
+        siteMapper.selectBatchIds(
+                contracts.stream()
+                    .map(Contract::getSiteId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toCollection(LinkedHashSet::new)))
+            .stream()
+            .collect(Collectors.toMap(Site::getId, site -> site, (left, right) -> left));
+
+    Map<String, UnitSiteContractGroupDto> groups = new java.util.LinkedHashMap<>();
+    for (Contract contract : contracts) {
+      String groupKey = contract.getSiteId() != null ? String.valueOf(contract.getSiteId()) : "UNKNOWN";
+      Site site = contract.getSiteId() != null ? siteMap.get(contract.getSiteId()) : null;
+      UnitSiteContractGroupDto group =
+          groups.computeIfAbsent(
+              groupKey,
+              key -> {
+                UnitSiteContractGroupDto item = new UnitSiteContractGroupDto();
+                item.setSiteId("UNKNOWN".equals(key) ? null : key);
+                item.setSiteName(site != null ? site.getName() : "未配置场地");
+                item.setContractCount(0L);
+                item.setContractAmount(BigDecimal.ZERO);
+                item.setAgreedVolume(BigDecimal.ZERO);
+                item.setReceivedAmount(BigDecimal.ZERO);
+                item.setContracts(new ArrayList<>());
+                return item;
+              });
+      group.setContractCount(group.getContractCount() + 1);
+      group.setContractAmount(sum(group.getContractAmount(), contract.getContractAmount()));
+      group.setAgreedVolume(sum(group.getAgreedVolume(), contract.getAgreedVolume()));
+      group.setReceivedAmount(sum(group.getReceivedAmount(), contract.getReceivedAmount()));
+      group.getContracts().add(toUnitContractItem(contract, group.getSiteName()));
+    }
+    return ApiResult.ok(new ArrayList<>(groups.values()));
   }
 
   @PostMapping
@@ -297,6 +405,54 @@ public class UnitsController {
     return value != null ? value.format(ISO_DATE_TIME) : null;
   }
 
+  private Org ensureUnitExists(Long unitId, Long tenantId) {
+    Org org = orgMapper.selectById(unitId);
+    if (org == null
+        || !Objects.equals(org.getTenantId(), tenantId)
+        || !SUPPORTED_TYPES.contains(org.getOrgType())) {
+      throw new BizException(404, "单位不存在");
+    }
+    return org;
+  }
+
+  private List<Contract> listContractsByUnit(Long tenantId, Long unitId) {
+    return contractMapper.selectList(
+        new LambdaQueryWrapper<Contract>()
+            .eq(Contract::getTenantId, tenantId)
+            .and(
+                wrapper ->
+                    wrapper
+                        .eq(Contract::getConstructionOrgId, unitId)
+                        .or()
+                        .eq(Contract::getTransportOrgId, unitId)
+                        .or()
+                        .eq(Contract::getSiteOperatorOrgId, unitId)
+                        .or()
+                        .eq(Contract::getPartyId, unitId))
+            .orderByDesc(Contract::getUpdateTime)
+            .orderByDesc(Contract::getId));
+  }
+
+  private UnitContractItemDto toUnitContractItem(Contract contract, String siteName) {
+    UnitContractItemDto dto = new UnitContractItemDto();
+    dto.setId(contract.getId() != null ? String.valueOf(contract.getId()) : null);
+    dto.setContractNo(contract.getContractNo());
+    dto.setName(contract.getName());
+    dto.setContractType(contract.getContractType());
+    dto.setContractStatus(contract.getContractStatus());
+    dto.setSourceType(contract.getSourceType());
+    dto.setSiteId(contract.getSiteId() != null ? String.valueOf(contract.getSiteId()) : null);
+    dto.setSiteName(siteName);
+    dto.setContractAmount(contract.getContractAmount());
+    dto.setReceivedAmount(contract.getReceivedAmount());
+    dto.setAgreedVolume(contract.getAgreedVolume());
+    return dto;
+  }
+
+  private BigDecimal sum(BigDecimal left, BigDecimal right) {
+    return (left != null ? left : BigDecimal.ZERO).add(right != null ? right : BigDecimal.ZERO);
+  }
+
   private UnitMetrics loadMetrics(Long tenantId, List<Org> orgs) {
     UnitMetrics metrics = new UnitMetrics();
     LinkedHashSet<Long> orgIds =
@@ -360,22 +516,7 @@ public class UnitsController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      if (user.getTenantId() == null) {
-        throw new BizException(403, "当前用户未绑定租户");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 
   private static class UnitMetrics {

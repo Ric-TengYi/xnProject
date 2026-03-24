@@ -59,19 +59,30 @@ public class RoleServiceImpl implements RoleService {
   }
 
   @Override
+  @Transactional(rollbackFor = Exception.class)
   public long create(Role role) {
+    if (!StringUtils.hasText(role.getStatus())) {
+      role.setStatus("ENABLED");
+    }
+    if (!StringUtils.hasText(role.getDataScopeTypeDefault())) {
+      role.setDataScopeTypeDefault("ORG_AND_CHILDREN");
+    }
     roleMapper.insert(role);
+    ensureDefaultDataScopeRule(role);
     return role.getId();
   }
 
   @Override
+  @Transactional(rollbackFor = Exception.class)
   public void update(Role role) {
     roleMapper.updateById(role);
+    ensureDefaultDataScopeRule(role);
   }
 
   @Override
   @Transactional(rollbackFor = Exception.class)
   public void delete(Long id) {
+    dataScopeRuleMapper.deletePhysicalByRoleId(id);
     roleMapper.deleteById(id);
   }
 
@@ -132,13 +143,15 @@ public class RoleServiceImpl implements RoleService {
   public void updateDataScopeRules(Long roleId, List<DataScopeRule> rules) {
     Role role = roleMapper.selectById(roleId);
     if (role == null) return;
-    dataScopeRuleMapper.delete(
-        new LambdaQueryWrapper<DataScopeRule>().eq(DataScopeRule::getRoleId, roleId));
+    dataScopeRuleMapper.deletePhysicalByRoleId(roleId);
     if (!CollectionUtils.isEmpty(rules)) {
       for (DataScopeRule r : rules) {
         r.setId(null);
         r.setTenantId(role.getTenantId());
         r.setRoleId(roleId);
+        r.setRuleType(null);
+        r.setRuleValue(null);
+        r.setResourceCode(null);
         dataScopeRuleMapper.insert(r);
       }
     }
@@ -170,5 +183,33 @@ public class RoleServiceImpl implements RoleService {
         roleMenuRelMapper.insert(rel);
       }
     }
+  }
+
+  private void ensureDefaultDataScopeRule(Role role) {
+    if (role.getId() == null || role.getTenantId() == null || !StringUtils.hasText(role.getDataScopeTypeDefault())) {
+      return;
+    }
+    long count =
+        dataScopeRuleMapper.selectCount(
+            new LambdaQueryWrapper<DataScopeRule>().eq(DataScopeRule::getRoleId, role.getId()));
+    if (count > 0) {
+      return;
+    }
+    DataScopeRule rule = new DataScopeRule();
+    rule.setTenantId(role.getTenantId());
+    rule.setRoleId(role.getId());
+    rule.setBizModule("ALL");
+    rule.setScopeType(role.getDataScopeTypeDefault());
+    rule.setScopeValue("[]");
+    dataScopeRuleMapper.insert(rule);
+  }
+
+  @Override
+  public List<Role> listByRoleCode(Long tenantId, String roleCode) {
+    if (tenantId == null || !StringUtils.hasText(roleCode)) return List.of();
+    return roleMapper.selectList(
+        new LambdaQueryWrapper<Role>()
+            .eq(Role::getTenantId, tenantId)
+            .eq(Role::getRoleCode, roleCode));
   }
 }

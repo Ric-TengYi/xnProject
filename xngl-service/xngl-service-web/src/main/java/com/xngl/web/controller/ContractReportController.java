@@ -14,6 +14,7 @@ import com.xngl.web.dto.contract.MonthlyTrendDto;
 import com.xngl.web.dto.contract.MonthlyTypeDto;
 import com.xngl.web.dto.contract.UnitStatItemDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -40,16 +41,19 @@ public class ContractReportController {
   private final ContractReportService reportService;
   private final ExportTaskService exportTaskService;
   private final UserService userService;
+  private final UserContext userContext;
   private final ObjectMapper objectMapper;
 
   public ContractReportController(
       ContractReportService reportService,
       ExportTaskService exportTaskService,
       UserService userService,
+      UserContext userContext,
       ObjectMapper objectMapper) {
     this.reportService = reportService;
     this.exportTaskService = exportTaskService;
     this.userService = userService;
+    this.userContext = userContext;
     this.objectMapper = objectMapper;
   }
 
@@ -260,21 +264,6 @@ public class ContractReportController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (userId == null || userId.isBlank()) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      if (user.getTenantId() == null) {
-        throw new BizException(403, "当前用户未绑定租户");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 }

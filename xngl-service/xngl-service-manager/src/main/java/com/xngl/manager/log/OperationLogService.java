@@ -12,9 +12,18 @@ public interface OperationLogService {
   IPage<OperationLog> page(
       Long tenantId,
       Long userId,
+      String keyword,
       String module,
       LocalDateTime startTime,
       LocalDateTime endTime,
       int pageNo,
       int pageSize);
+
+  java.util.List<OperationLog> list(
+      Long tenantId,
+      Long userId,
+      String keyword,
+      String module,
+      LocalDateTime startTime,
+      LocalDateTime endTime);
 }

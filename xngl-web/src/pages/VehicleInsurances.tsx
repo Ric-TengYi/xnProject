@@ -8,6 +8,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popconfirm,
   Row,
   Select,
   Space,
@@ -22,6 +23,8 @@ import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import {
   createVehicleInsurance,
+  deleteVehicleInsurance,
+  exportVehicleInsurances,
   fetchVehicleInsurances,
   fetchVehicleInsuranceSummary,
   updateVehicleInsurance,
@@ -30,6 +33,8 @@ import {
   type VehicleInsuranceUpsertPayload,
 } from '../utils/vehicleInsuranceApi';
 import { fetchVehicleCompanyCapacity, fetchVehicles } from '../utils/vehicleApi';
+
+const { RangePicker } = DatePicker;
 
 type InsuranceFormValues = {
   vehicleId: string;
@@ -59,6 +64,13 @@ const statusColorMap: Record<string, string> = {
   CANCELLED: 'default',
 };
 
+const expiringOptions = [
+  { label: '全部到期范围', value: 'all' },
+  { label: '7天内到期', value: '7' },
+  { label: '30天内到期', value: '30' },
+  { label: '60天内到期', value: '60' },
+];
+
 const defaultSummary: VehicleInsuranceSummaryRecord = {
   totalPolicies: 0,
   activePolicies: 0,
@@ -79,6 +91,8 @@ const VehicleInsurances: React.FC = () => {
   const [status, setStatus] = useState('all');
   const [orgId, setOrgId] = useState<string | undefined>(undefined);
   const [vehicleId, setVehicleId] = useState<string | undefined>(undefined);
+  const [effectiveRange, setEffectiveRange] = useState<[Dayjs, Dayjs] | null>(null);
+  const [expiringWithinDays, setExpiringWithinDays] = useState('all');
   const [pageNo, setPageNo] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
@@ -94,8 +108,11 @@ const VehicleInsurances: React.FC = () => {
       status: status === 'all' ? undefined : status,
       orgId,
       vehicleId,
+      endDateFrom: effectiveRange?.[0]?.format('YYYY-MM-DD'),
+      endDateTo: effectiveRange?.[1]?.format('YYYY-MM-DD'),
+      expiringWithinDays: expiringWithinDays === 'all' ? undefined : Number(expiringWithinDays),
     }),
-    [keyword, orgId, status, vehicleId]
+    [effectiveRange, expiringWithinDays, keyword, orgId, status, vehicleId]
   );
 
   const loadList = async () => {
@@ -166,7 +183,24 @@ const VehicleInsurances: React.FC = () => {
     setStatus('all');
     setOrgId(undefined);
     setVehicleId(undefined);
+    setEffectiveRange(null);
+    setExpiringWithinDays('all');
     setPageNo(1);
+  };
+
+  const handleExport = async () => {
+    try {
+      const blob = await exportVehicleInsurances(queryParams);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'vehicle_insurances.csv';
+      link.click();
+      window.URL.revokeObjectURL(url);
+      message.success('保险台账已导出');
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const openCreate = () => {
@@ -235,6 +269,18 @@ const VehicleInsurances: React.FC = () => {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteVehicleInsurance(id);
+      message.success('保险记录已删除');
+      setPageNo(1);
+      await Promise.all([loadSummary(), loadList()]);
+    } catch (error) {
+      console.error(error);
+      message.error('删除保险记录失败');
+    }
+  };
+
   const columns: ColumnsType<VehicleInsuranceRecord> = [
     {
       title: '车牌号',
@@ -300,9 +346,16 @@ const VehicleInsurances: React.FC = () => {
       title: '操作',
       key: 'action',
       render: (_, record) => (
-        <Button type="link" size="small" onClick={() => openEdit(record)}>
-          编辑
-        </Button>
+        <Space size={0}>
+          <Button type="link" size="small" onClick={() => openEdit(record)}>
+            编辑
+          </Button>
+          <Popconfirm title="确认删除当前保单记录？" onConfirm={() => void handleDelete(record.id)}>
+            <Button type="link" size="small" danger>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
@@ -390,8 +443,28 @@ const VehicleInsurances: React.FC = () => {
               }}
               className="w-72"
             />
+            <RangePicker
+              value={effectiveRange}
+              onChange={(value) => {
+                setEffectiveRange(value as [Dayjs, Dayjs] | null);
+                setPageNo(1);
+              }}
+              placeholder={['到期开始', '到期结束']}
+            />
+            <Select
+              value={expiringWithinDays}
+              options={expiringOptions}
+              onChange={(value) => {
+                setExpiringWithinDays(value);
+                setPageNo(1);
+              }}
+              className="w-36"
+            />
           </Space>
-          <Button onClick={handleReset}>重置</Button>
+          <Space>
+            <Button onClick={handleReset}>重置</Button>
+            <Button onClick={() => void handleExport()}>导出台账</Button>
+          </Space>
         </div>
 
         <Table

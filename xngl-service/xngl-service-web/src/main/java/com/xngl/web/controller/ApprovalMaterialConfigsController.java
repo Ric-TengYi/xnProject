@@ -4,17 +4,19 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.xngl.infrastructure.persistence.entity.organization.User;
 import com.xngl.infrastructure.persistence.entity.system.ApprovalMaterialConfig;
 import com.xngl.infrastructure.persistence.mapper.ApprovalMaterialConfigMapper;
-import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.user.ApprovalMaterialConfigCreateUpdateDto;
 import com.xngl.web.dto.user.ApprovalMaterialConfigDetailDto;
 import com.xngl.web.dto.user.ApprovalMaterialConfigListItemDto;
 import com.xngl.web.dto.user.StatusUpdateDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
+import com.xngl.web.support.CsvExportSupport;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,30 +33,85 @@ import org.springframework.web.bind.annotation.RestController;
 public class ApprovalMaterialConfigsController {
 
   private final ApprovalMaterialConfigMapper approvalMaterialConfigMapper;
-  private final UserService userService;
+  private final UserContext userContext;
 
   public ApprovalMaterialConfigsController(
-      ApprovalMaterialConfigMapper approvalMaterialConfigMapper, UserService userService) {
+      ApprovalMaterialConfigMapper approvalMaterialConfigMapper, UserContext userContext) {
     this.approvalMaterialConfigMapper = approvalMaterialConfigMapper;
-    this.userService = userService;
+    this.userContext = userContext;
   }
 
   @GetMapping
   public ApiResult<List<ApprovalMaterialConfigListItemDto>> list(
+      @RequestParam(required = false) String keyword,
       @RequestParam(required = false) String processKey,
       @RequestParam(required = false) String status,
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
+    String keywordValue = trimToNull(keyword);
     List<ApprovalMaterialConfig> rows =
         approvalMaterialConfigMapper.selectList(
             new LambdaQueryWrapper<ApprovalMaterialConfig>()
                 .eq(ApprovalMaterialConfig::getTenantId, user.getTenantId())
                 .eq(StringUtils.hasText(processKey), ApprovalMaterialConfig::getProcessKey, processKey)
                 .eq(StringUtils.hasText(status), ApprovalMaterialConfig::getStatus, status)
+                .and(
+                    StringUtils.hasText(keywordValue),
+                    wrapper ->
+                        wrapper
+                            .like(ApprovalMaterialConfig::getMaterialCode, keywordValue)
+                            .or()
+                            .like(ApprovalMaterialConfig::getMaterialName, keywordValue)
+                            .or()
+                            .like(ApprovalMaterialConfig::getMaterialType, keywordValue))
                 .orderByAsc(ApprovalMaterialConfig::getProcessKey)
                 .orderByAsc(ApprovalMaterialConfig::getSortOrder)
                 .orderByAsc(ApprovalMaterialConfig::getId));
     return ApiResult.ok(rows.stream().map(this::toListItem).collect(Collectors.toList()));
+  }
+
+  @GetMapping("/export")
+  public ResponseEntity<byte[]> export(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String processKey,
+      @RequestParam(required = false) String status,
+      HttpServletRequest request) {
+    User user = requireCurrentUser(request);
+    String keywordValue = trimToNull(keyword);
+    List<ApprovalMaterialConfig> rows =
+        approvalMaterialConfigMapper.selectList(
+            new LambdaQueryWrapper<ApprovalMaterialConfig>()
+                .eq(ApprovalMaterialConfig::getTenantId, user.getTenantId())
+                .eq(StringUtils.hasText(processKey), ApprovalMaterialConfig::getProcessKey, processKey)
+                .eq(StringUtils.hasText(status), ApprovalMaterialConfig::getStatus, status)
+                .and(
+                    StringUtils.hasText(keywordValue),
+                    wrapper ->
+                        wrapper
+                            .like(ApprovalMaterialConfig::getMaterialCode, keywordValue)
+                            .or()
+                            .like(ApprovalMaterialConfig::getMaterialName, keywordValue)
+                            .or()
+                            .like(ApprovalMaterialConfig::getMaterialType, keywordValue))
+                .orderByAsc(ApprovalMaterialConfig::getProcessKey)
+                .orderByAsc(ApprovalMaterialConfig::getSortOrder)
+                .orderByAsc(ApprovalMaterialConfig::getId));
+    return CsvExportSupport.csvResponse(
+        "approval_material_configs",
+        List.of("流程编码", "材料编码", "材料名称", "材料类型", "是否必填", "排序", "状态", "备注"),
+        rows.stream()
+            .map(
+                row ->
+                    List.of(
+                        CsvExportSupport.value(row.getProcessKey()),
+                        CsvExportSupport.value(row.getMaterialCode()),
+                        CsvExportSupport.value(row.getMaterialName()),
+                        CsvExportSupport.value(row.getMaterialType()),
+                        row.getRequiredFlag() != null && row.getRequiredFlag() == 1 ? "是" : "否",
+                        CsvExportSupport.value(row.getSortOrder()),
+                        CsvExportSupport.value(row.getStatus()),
+                        CsvExportSupport.value(row.getRemark())))
+            .toList());
   }
 
   @GetMapping("/{id}")
@@ -184,18 +241,6 @@ public class ApprovalMaterialConfigsController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null || user.getTenantId() == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 }

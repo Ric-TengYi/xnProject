@@ -1,0 +1,117 @@
+{
+  "phase": "phase53_contract_apply_change_extension_smoke_2026-03-23",
+  "executedAt": "2026-03-23T10:38:00+08:00",
+  "modules": [
+    {
+      "id": 10,
+      "name": "消纳合同发起",
+      "scope": "在线普通/三方合同创建、提交审批与退回原因回查"
+    },
+    {
+      "id": 11,
+      "name": "变更合同发起",
+      "scope": "场地+方量变更申请、提交、审批通过后合同回写"
+    },
+    {
+      "id": 12,
+      "name": "消纳延期",
+      "scope": "延期申请、提交、审批通过后到期日和方量回写"
+    }
+  ],
+  "builds": [
+    {
+      "command": "cd xngl-service && mvn -pl xngl-service-starter -am compile -DskipTests",
+      "status": "PASS",
+      "detail": "合同申请/变更/延期后端编译通过"
+    },
+    {
+      "command": "cd xngl-web && npm run build",
+      "status": "PASS",
+      "detail": "合同管理页在线申请/变更/延期入口前端构建通过"
+    }
+  ],
+  "runtime": [],
+  "checks": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": {
+        "userId": "6"
+      }
+    },
+    {
+      "name": "base_contract",
+      "status": "PASS",
+      "detail": {
+        "contractId": "54",
+        "contractNo": "HT-MSG-1774153918",
+        "projectId": "1",
+        "siteId": "1"
+      }
+    },
+    {
+      "name": "change_target_site",
+      "status": "PASS",
+      "detail": {
+        "siteId": "2",
+        "siteName": "自动化二级场地-182458"
+      }
+    },
+    {
+      "name": "online_normal_submit",
+      "status": "PASS",
+      "detail": {
+        "contractId": "55",
+        "contractNo": "ON-1774233394-A",
+        "sourceType": "ONLINE",
+        "contractStatus": "APPROVING",
+        "approvalStatus": "APPROVING"
+      }
+    },
+    {
+      "name": "online_three_party_reject",
+      "status": "PASS",
+      "detail": {
+        "contractId": "56",
+        "contractType": "DISPOSAL_THREE_PARTY",
+        "isThreeParty": true,
+        "contractStatus": "REJECTED",
+        "rejectReason": "资料不完整，需补充三方说明"
+      }
+    },
+    {
+      "name": "change_apply_approve",
+      "status": "PASS",
+      "detail": {
+        "applyId": "1",
+        "siteId": "2",
+        "agreedVolume": 878.0,
+        "changeVersion": 1
+      }
+    },
+    {
+      "name": "extension_apply_approve",
+      "status": "PASS",
+      "detail": {
+        "applyId": "1",
+        "expireDate": "2027-01-15",
+        "agreedVolume": 903.0
+      }
+    },
+    {
+      "name": "application_list_query",
+      "status": "PASS",
+      "detail": {
+        "changeCount": 1,
+        "extensionCount": 1,
+        "latestChange": "APPROVED",
+        "latestExtension": "APPROVED"
+      }
+    }
+  ],
+  "summary": {
+    "passed": 8,
+    "failed": 0,
+    "blocked": 0
+  }
+}

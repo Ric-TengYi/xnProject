@@ -1,0 +1,72 @@
+{
+  "phase": "phase56",
+  "title": "预警中心规则增强专项烟测",
+  "date": "2026-03-23",
+  "scope": [
+    "53-62 预警中心增强"
+  ],
+  "summary": {
+    "passed": 10,
+    "total": 10,
+    "status": "PASS"
+  },
+  "results": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "管理员账号登录成功"
+    },
+    {
+      "name": "alert_rules_loaded",
+      "status": "PASS",
+      "detail": "SITE_CAPACITY_WARN 与 VEHICLE_ROUTE_DEVIATION 规则均存在"
+    },
+    {
+      "name": "alert_summary_filtered",
+      "status": "PASS",
+      "detail": "按 targetType=VEHICLE 过滤后汇总只保留车辆口径"
+    },
+    {
+      "name": "alert_analytics_filtered",
+      "status": "PASS",
+      "detail": "按 targetType=VEHICLE 过滤后 targetBuckets 仅包含 VEHICLE"
+    },
+    {
+      "name": "site_rule_threshold_override",
+      "status": "PASS",
+      "detail": "临时将 SITE_CAPACITY_WARN 阈值下调到 0 以验证自动预警触发"
+    },
+    {
+      "name": "alert_generate_site_vehicle",
+      "status": "PASS",
+      "detail": "自动生成接口已覆盖 SITE 和 VEHICLE，返回 createdCount=4, closedCount=2"
+    },
+    {
+      "name": "site_capacity_alert_generated",
+      "status": "PASS",
+      "detail": "按关键字 SITE_CAPACITY_WARN 可查到 3 条场地容量预警"
+    },
+    {
+      "name": "vehicle_route_alert_generated",
+      "status": "PASS",
+      "detail": "按关键字 VEHICLE_ROUTE_DEVIATION 可查到 3 条车辆线路偏航预警"
+    },
+    {
+      "name": "top_risk_filtered",
+      "status": "PASS",
+      "detail": "Top Risk 按 targetType=VEHICLE、status=PENDING 过滤正常"
+    },
+    {
+      "name": "site_rule_threshold_restore",
+      "status": "PASS",
+      "detail": "SITE_CAPACITY_WARN 阈值已恢复到原始配置"
+    }
+  ],
+  "verification": [
+    "cd xngl-service && mvn -q -DskipTests compile",
+    "cd xngl-service && mvn -q -DskipTests install",
+    "cd xngl-web && npm run build",
+    "cd xngl-service && mvn spring-boot:run -pl xngl-service-starter",
+    "python3 phase56 smoke"
+  ]
+}

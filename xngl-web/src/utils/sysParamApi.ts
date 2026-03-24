@@ -57,3 +57,11 @@ export async function updateSysParamStatus(id: string, status: string) {
 export async function deleteSysParam(id: string) {
   await http.delete(`/sys-params/${id}`);
 }
+
+export async function exportSysParams(params: Record<string, any> = {}) {
+  const res = await http.get<Blob>('/sys-params/export', {
+    params,
+    responseType: 'blob',
+  });
+  return res.data;
+}

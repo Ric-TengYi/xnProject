@@ -1,0 +1,185 @@
+{
+  "phase": "phase51_gov_portal_weighbridge_smoke_2026-03-23",
+  "executedAt": "2026-03-23T09:55:00+08:00",
+  "modules": [
+    {
+      "id": 33,
+      "name": "处置证同步",
+      "scope": "政务网 mock 同步处置证/准运证与同步日志落库"
+    },
+    {
+      "id": 92,
+      "name": "政务网数据对接",
+      "scope": "平台对接中心政务网配置、同步统计与日志查询"
+    },
+    {
+      "id": 94,
+      "name": "地磅数据对接",
+      "scope": "地磅记录同步、本地控制指令与同步日志回查"
+    }
+  ],
+  "builds": [
+    {
+      "command": "cd xngl-web && npm run build",
+      "status": "PASS",
+      "detail": "平台对接中心与处置证页面前端构建通过"
+    },
+    {
+      "command": "mysql -h127.0.0.1 -P3306 -uroot -p'ForkliftDev2025' -D xngl < xngl-service/xngl-service-starter/src/main/resources/db/schema/patches/049_gov_portal_and_weighbridge_sync.sql",
+      "status": "PASS",
+      "detail": "049 patch 落库成功"
+    },
+    {
+      "command": "cd xngl-service && mvn -pl xngl-service-starter -am install -DskipTests",
+      "status": "PASS",
+      "detail": "政务网/地磅模块后端安装打包通过"
+    }
+  ],
+  "runtime": [
+    {
+      "command": "cd xngl-service && mvn spring-boot:run -pl xngl-service-starter",
+      "status": "PASS",
+      "detail": "后端带政务网/地磅接口重启成功"
+    }
+  ],
+  "checks": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": {
+        "userId": "6",
+        "tenantId": "1"
+      }
+    },
+    {
+      "name": "integration_overview_before",
+      "status": "PASS",
+      "detail": {
+        "enabledCount": 1,
+        "totalCount": 5,
+        "videoChannelCount": 2,
+        "onlineDamSiteCount": 1,
+        "activeSsoTicketCount": 0,
+        "govSyncCount": 0,
+        "weighbridgeRecordCount": 0
+      }
+    },
+    {
+      "name": "integration_configs",
+      "status": "PASS",
+      "detail": {
+        "configCodes": [
+          "SSO",
+          "VIDEO",
+          "DAM_MONITOR",
+          "GOV_PORTAL",
+          "WEIGHBRIDGE"
+        ]
+      }
+    },
+    {
+      "name": "site_pick",
+      "status": "PASS",
+      "detail": {
+        "siteId": 1,
+        "siteName": "场地-001",
+        "siteCount": 2
+      }
+    },
+    {
+      "name": "gov_sync",
+      "status": "PASS",
+      "detail": {
+        "batchNo": "GOV-20260323095450-C43572",
+        "syncMode": "MANUAL",
+        "totalCount": 2,
+        "createdCount": 2,
+        "updatedCount": 0,
+        "successCount": 2,
+        "failCount": 0,
+        "syncTime": "2026-03-23T09:54:50.170066"
+      }
+    },
+    {
+      "name": "gov_sync_logs",
+      "status": "PASS",
+      "detail": {
+        "count": 1,
+        "matchedBatch": "GOV-20260323095450-C43572"
+      }
+    },
+    {
+      "name": "disposal_permit_list",
+      "status": "PASS",
+      "detail": {
+        "count": 2,
+        "firstPermitNo": "P-TRANSPORT-1-1",
+        "sourcePlatform": "GOV_PORTAL",
+        "syncBatchNo": "GOV-20260323095450-C43572"
+      }
+    },
+    {
+      "name": "disposal_permit_detail",
+      "status": "PASS",
+      "detail": {
+        "permitId": 2035898030007513089,
+        "externalRefNo": "GOV-TRANSPORT-1-1",
+        "lastSyncTime": "2026-03-23T09:54:50"
+      }
+    },
+    {
+      "name": "weighbridge_record_sync",
+      "status": "PASS",
+      "detail": {
+        "recordId": "1",
+        "ticketNo": "WB-20260323095450",
+        "netWeight": 24.4,
+        "estimatedVolume": 15.25
+      }
+    },
+    {
+      "name": "weighbridge_record_list",
+      "status": "PASS",
+      "detail": {
+        "count": 1,
+        "matchedTicket": "WB-20260323095450"
+      }
+    },
+    {
+      "name": "weighbridge_control_command",
+      "status": "PASS",
+      "detail": {
+        "logId": "3",
+        "batchNo": "CTRL-20260323095450-738398",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "name": "weighbridge_sync_logs",
+      "status": "PASS",
+      "detail": {
+        "count": 2,
+        "matchedControlBatch": "CTRL-20260323095450-738398",
+        "matchedRecordBatch": "WB-20260323095450"
+      }
+    },
+    {
+      "name": "integration_overview_after",
+      "status": "PASS",
+      "detail": {
+        "enabledCount": 1,
+        "totalCount": 5,
+        "videoChannelCount": 2,
+        "onlineDamSiteCount": 1,
+        "activeSsoTicketCount": 0,
+        "govSyncCount": 1,
+        "weighbridgeRecordCount": 1
+      }
+    }
+  ],
+  "summary": {
+    "passed": 13,
+    "failed": 0,
+    "blocked": 0
+  }
+}

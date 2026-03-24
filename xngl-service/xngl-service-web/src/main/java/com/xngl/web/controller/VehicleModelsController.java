@@ -4,15 +4,19 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.xngl.infrastructure.persistence.entity.organization.User;
 import com.xngl.infrastructure.persistence.entity.vehicle.VehicleModel;
 import com.xngl.infrastructure.persistence.mapper.VehicleModelMapper;
-import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.user.StatusUpdateDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
 import lombok.Data;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,11 +33,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class VehicleModelsController {
 
   private final VehicleModelMapper vehicleModelMapper;
-  private final UserService userService;
+  private final UserContext userContext;
 
-  public VehicleModelsController(VehicleModelMapper vehicleModelMapper, UserService userService) {
+  public VehicleModelsController(VehicleModelMapper vehicleModelMapper, UserContext userContext) {
     this.vehicleModelMapper = vehicleModelMapper;
-    this.userService = userService;
+    this.userContext = userContext;
   }
 
   @GetMapping
@@ -64,6 +68,37 @@ public class VehicleModelsController {
                 .orderByAsc(VehicleModel::getModelName)
                 .orderByAsc(VehicleModel::getId));
     return ApiResult.ok(rows);
+  }
+
+  @GetMapping("/export")
+  public ResponseEntity<byte[]> export(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String status,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<VehicleModel> rows =
+        vehicleModelMapper.selectList(
+            new LambdaQueryWrapper<VehicleModel>()
+                .eq(VehicleModel::getTenantId, currentUser.getTenantId())
+                .eq(StringUtils.hasText(trimToNull(status)), VehicleModel::getStatus, trimToNull(status))
+                .and(
+                    StringUtils.hasText(trimToNull(keyword)),
+                    wrapper ->
+                        wrapper
+                            .like(VehicleModel::getModelCode, trimToNull(keyword))
+                            .or()
+                            .like(VehicleModel::getBrand, trimToNull(keyword))
+                            .or()
+                            .like(VehicleModel::getModelName, trimToNull(keyword))
+                            .or()
+                            .like(VehicleModel::getVehicleType, trimToNull(keyword)))
+                .orderByAsc(VehicleModel::getBrand)
+                .orderByAsc(VehicleModel::getModelName)
+                .orderByAsc(VehicleModel::getId));
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=vehicle_models.csv")
+        .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+        .body(buildCsv(rows).getBytes(StandardCharsets.UTF_8));
   }
 
   @GetMapping("/{id}")
@@ -168,20 +203,43 @@ public class VehicleModelsController {
     return StringUtils.hasText(value) ? value.trim() : null;
   }
 
+  private String buildCsv(List<VehicleModel> rows) {
+    StringBuilder builder =
+        new StringBuilder("车型编码,品牌,车型名称,车辆类型,轴数,座位数,自重(吨),载重(吨),能源类型,状态,备注\n");
+    for (VehicleModel row : rows) {
+      builder
+          .append(csv(row.getModelCode())).append(',')
+          .append(csv(row.getBrand())).append(',')
+          .append(csv(row.getModelName())).append(',')
+          .append(csv(row.getVehicleType())).append(',')
+          .append(row.getAxleCount() != null ? row.getAxleCount() : "").append(',')
+          .append(row.getSeatCount() != null ? row.getSeatCount() : "").append(',')
+          .append(decimalText(row.getDeadWeight())).append(',')
+          .append(decimalText(row.getLoadWeight())).append(',')
+          .append(csv(row.getEnergyType())).append(',')
+          .append(csv(row.getStatus())).append(',')
+          .append(csv(row.getRemark())).append('\n');
+    }
+    return builder.toString();
+  }
+
+  private String csv(String value) {
+    if (value == null) {
+      return "";
+    }
+    String escaped = value.replace("\"", "\"\"");
+    if (escaped.contains(",") || escaped.contains("\n")) {
+      return "\"" + escaped + "\"";
+    }
+    return escaped;
+  }
+
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null || user.getTenantId() == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
+  }
+
+  private String decimalText(BigDecimal value) {
+    return value != null ? value.stripTrailingZeros().toPlainString() : "";
   }
 
   @Data

@@ -12,6 +12,8 @@ import com.xngl.infrastructure.persistence.mapper.ContractChangeApplyMapper;
 import com.xngl.infrastructure.persistence.mapper.ContractExtensionApplyMapper;
 import com.xngl.infrastructure.persistence.mapper.ContractMapper;
 import com.xngl.infrastructure.persistence.mapper.ContractTransferApplyMapper;
+import com.xngl.manager.message.ApprovalMessageCommand;
+import com.xngl.manager.message.MessageRecordService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -40,6 +42,7 @@ public class ContractApplyServiceImpl implements ContractApplyService {
   private final ContractChangeApplyMapper changeApplyMapper;
   private final ContractExtensionApplyMapper extensionApplyMapper;
   private final ContractTransferApplyMapper transferApplyMapper;
+  private final MessageRecordService messageRecordService;
   private final ObjectMapper objectMapper;
 
   public ContractApplyServiceImpl(
@@ -47,11 +50,13 @@ public class ContractApplyServiceImpl implements ContractApplyService {
       ContractChangeApplyMapper changeApplyMapper,
       ContractExtensionApplyMapper extensionApplyMapper,
       ContractTransferApplyMapper transferApplyMapper,
+      MessageRecordService messageRecordService,
       ObjectMapper objectMapper) {
     this.contractMapper = contractMapper;
     this.changeApplyMapper = changeApplyMapper;
     this.extensionApplyMapper = extensionApplyMapper;
     this.transferApplyMapper = transferApplyMapper;
+    this.messageRecordService = messageRecordService;
     this.objectMapper = objectMapper;
   }
 
@@ -385,6 +390,17 @@ public class ContractApplyServiceImpl implements ContractApplyService {
 
     contractMapper.updateById(sourceUpdate);
     contractMapper.updateById(targetUpdate);
+    messageRecordService.pushApprovalResult(
+        new ApprovalMessageCommand(
+            apply.getTenantId(),
+            apply.getApplicantId(),
+            "内拨申请已通过",
+            "内拨申请 " + apply.getTransferNo() + " 已审批通过，请关注合同额度变更结果。",
+            "审批通知",
+            "/contracts/transfers?transferId=" + apply.getId(),
+            "CONTRACT_TRANSFER",
+            String.valueOf(apply.getId()),
+            "内拨审批"));
   }
 
   @Override
@@ -397,6 +413,17 @@ public class ContractApplyServiceImpl implements ContractApplyService {
     update.setApprovalStatus(REJECTED);
     update.setReason(buildRejectReason(apply.getReason(), reason));
     transferApplyMapper.updateById(update);
+    messageRecordService.pushApprovalResult(
+        new ApprovalMessageCommand(
+            apply.getTenantId(),
+            apply.getApplicantId(),
+            "内拨申请已驳回",
+            "内拨申请 " + apply.getTransferNo() + " 已被驳回，原因：" + (StringUtils.hasText(reason) ? reason.trim() : "请查看详情"),
+            "审批通知",
+            "/contracts/transfers?transferId=" + apply.getId(),
+            "CONTRACT_TRANSFER",
+            String.valueOf(apply.getId()),
+            "内拨审批"));
   }
 
   // ==================== Private helpers ====================

@@ -3,6 +3,7 @@ package com.xngl.manager.contract;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.extension.toolkit.Db;
 import com.xngl.infrastructure.persistence.entity.contract.Contract;
 import com.xngl.infrastructure.persistence.entity.contract.ContractTicket;
 import com.xngl.infrastructure.persistence.entity.contract.SettlementItem;
@@ -13,6 +14,8 @@ import com.xngl.infrastructure.persistence.mapper.ContractTicketMapper;
 import com.xngl.infrastructure.persistence.mapper.SettlementItemMapper;
 import com.xngl.infrastructure.persistence.mapper.SettlementOrderMapper;
 import com.xngl.infrastructure.persistence.mapper.SiteMapper;
+import com.xngl.manager.message.ApprovalMessageCommand;
+import com.xngl.manager.message.MessageRecordService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -20,7 +23,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -56,18 +58,21 @@ public class SettlementServiceImpl implements SettlementService {
   private final ContractMapper contractMapper;
   private final ContractTicketMapper contractTicketMapper;
   private final SiteMapper siteMapper;
+  private final MessageRecordService messageRecordService;
 
   public SettlementServiceImpl(
       SettlementOrderMapper settlementOrderMapper,
       SettlementItemMapper settlementItemMapper,
       ContractMapper contractMapper,
       ContractTicketMapper contractTicketMapper,
-      SiteMapper siteMapper) {
+      SiteMapper siteMapper,
+      MessageRecordService messageRecordService) {
     this.settlementOrderMapper = settlementOrderMapper;
     this.settlementItemMapper = settlementItemMapper;
     this.contractMapper = contractMapper;
     this.contractTicketMapper = contractTicketMapper;
     this.siteMapper = siteMapper;
+    this.messageRecordService = messageRecordService;
   }
 
   @Override
@@ -220,6 +225,7 @@ public class SettlementServiceImpl implements SettlementService {
     update.setSettlementStatus(STATUS_SETTLED);
     update.setSettlementDate(LocalDate.now());
     settlementOrderMapper.updateById(update);
+    pushSettlementMessage(order, "结算审批已通过", "结算单 " + order.getSettlementNo() + " 已审批通过。");
   }
 
   @Override
@@ -240,50 +246,56 @@ public class SettlementServiceImpl implements SettlementService {
           StringUtils.hasText(existingRemark) ? existingRemark + " | " + rejectNote : rejectNote);
     }
     settlementOrderMapper.updateById(update);
+    pushSettlementMessage(
+        order,
+        "结算审批已驳回",
+        "结算单 " + order.getSettlementNo() + " 已被驳回，原因：" + (StringUtils.hasText(reason) ? reason.trim() : "请查看详情") + "。");
   }
 
   @Override
-  public Map<String, Object> getSettlementStats(Long tenantId) {
-    LambdaQueryWrapper<SettlementOrder> baseQuery = new LambdaQueryWrapper<>();
+  public SettlementStatsResult getSettlementStats(Long tenantId) {
+    long totalOrders = countByCondition(tenantId, null, null);
+    long draftOrders = countByCondition(tenantId, "settlementStatus", STATUS_DRAFT);
+    long pendingOrders = countByCondition(tenantId, "approvalStatus", STATUS_APPROVING);
+    long settledOrders = countByCondition(tenantId, "settlementStatus", STATUS_SETTLED);
+
+    BigDecimal pendingAmount = sumPayableByCondition(tenantId, "approvalStatus", STATUS_APPROVING);
+    BigDecimal settledAmount = sumPayableByCondition(tenantId, "settlementStatus", STATUS_SETTLED);
+
+    return new SettlementStatsResult(pendingAmount, settledAmount, totalOrders, draftOrders, pendingOrders, settledOrders);
+  }
+
+  private long countByCondition(Long tenantId, String field, String value) {
+    LambdaQueryWrapper<SettlementOrder> query = new LambdaQueryWrapper<>();
     if (tenantId != null) {
-      baseQuery.eq(SettlementOrder::getTenantId, tenantId);
+      query.eq(SettlementOrder::getTenantId, tenantId);
     }
-    List<SettlementOrder> allOrders = settlementOrderMapper.selectList(baseQuery);
+    if ("settlementStatus".equals(field) && value != null) {
+      query.eq(SettlementOrder::getSettlementStatus, value);
+    }
+    if ("approvalStatus".equals(field) && value != null) {
+      query.eq(SettlementOrder::getApprovalStatus, value);
+    }
+    return settlementOrderMapper.selectCount(query);
+  }
 
-    long totalOrders = allOrders.size();
-    long draftOrders =
-        allOrders.stream()
-            .filter(o -> STATUS_DRAFT.equals(o.getSettlementStatus()))
-            .count();
-    long pendingOrders =
-        allOrders.stream()
-            .filter(o -> STATUS_APPROVING.equals(o.getApprovalStatus()))
-            .count();
-    long settledOrders =
-        allOrders.stream()
-            .filter(o -> STATUS_SETTLED.equals(o.getSettlementStatus()))
-            .count();
-
-    BigDecimal pendingAmount =
-        allOrders.stream()
-            .filter(o -> STATUS_APPROVING.equals(o.getApprovalStatus()))
-            .map(o -> o.getPayableAmount() != null ? o.getPayableAmount() : ZERO)
-            .reduce(ZERO, BigDecimal::add);
-
-    BigDecimal settledAmount =
-        allOrders.stream()
-            .filter(o -> STATUS_SETTLED.equals(o.getSettlementStatus()))
-            .map(o -> o.getPayableAmount() != null ? o.getPayableAmount() : ZERO)
-            .reduce(ZERO, BigDecimal::add);
-
-    Map<String, Object> stats = new HashMap<>();
-    stats.put("pendingAmount", pendingAmount);
-    stats.put("settledAmount", settledAmount);
-    stats.put("totalOrders", totalOrders);
-    stats.put("draftOrders", draftOrders);
-    stats.put("pendingOrders", pendingOrders);
-    stats.put("settledOrders", settledOrders);
-    return stats;
+  private BigDecimal sumPayableByCondition(Long tenantId, String field, String value) {
+    LambdaQueryWrapper<SettlementOrder> query = new LambdaQueryWrapper<>();
+    if (tenantId != null) {
+      query.eq(SettlementOrder::getTenantId, tenantId);
+    }
+    if ("settlementStatus".equals(field) && value != null) {
+      query.eq(SettlementOrder::getSettlementStatus, value);
+    }
+    if ("approvalStatus".equals(field) && value != null) {
+      query.eq(SettlementOrder::getApprovalStatus, value);
+    }
+    query.isNotNull(SettlementOrder::getPayableAmount);
+    List<SettlementOrder> orders = settlementOrderMapper.selectList(
+        query.select(SettlementOrder::getPayableAmount));
+    return orders.stream()
+        .map(o -> safeAmount(o.getPayableAmount()))
+        .reduce(ZERO, BigDecimal::add);
   }
 
   private void validatePeriod(LocalDate periodStart, LocalDate periodEnd) {
@@ -489,8 +501,8 @@ public class SettlementServiceImpl implements SettlementService {
     }
     for (SettlementItem item : items) {
       item.setSettlementOrderId(order.getId());
-      settlementItemMapper.insert(item);
     }
+    Db.saveBatch(items, 200);
   }
 
   private BigDecimal safeAmount(BigDecimal value) {
@@ -525,19 +537,42 @@ public class SettlementServiceImpl implements SettlementService {
   }
 
   private boolean isTenantAccessible(Long expectedTenantId, Long actualTenantId) {
-    return expectedTenantId == null
-        || actualTenantId == null
-        || expectedTenantId.equals(actualTenantId);
+    if (expectedTenantId == null) {
+      return true; // 超管场景，不限制租户
+    }
+    return actualTenantId != null && expectedTenantId.equals(actualTenantId);
   }
 
   private String generateSettlementNo() {
-    String timePart = LocalDateTime.now().format(NO_TIME_FORMAT);
-    int random = ThreadLocalRandom.current().nextInt(1000, 10000);
-    return "JS" + timePart + random;
+    for (int attempt = 0; attempt < 3; attempt++) {
+      String timePart = LocalDateTime.now().format(NO_TIME_FORMAT);
+      int random = ThreadLocalRandom.current().nextInt(100000, 1000000);
+      String no = "JS" + timePart + random;
+      Long existing = settlementOrderMapper.selectCount(
+          new LambdaQueryWrapper<SettlementOrder>().eq(SettlementOrder::getSettlementNo, no));
+      if (existing == 0) {
+        return no;
+      }
+    }
+    throw new ContractServiceException(500, "结算单号生成失败，请重试");
   }
 
   private String trimToNull(String value) {
     return StringUtils.hasText(value) ? value.trim() : null;
+  }
+
+  private void pushSettlementMessage(SettlementOrder order, String title, String content) {
+    messageRecordService.pushApprovalResult(
+        new ApprovalMessageCommand(
+            order.getTenantId(),
+            order.getCreatorId(),
+            title,
+            content,
+            "审批通知",
+            "/contracts/settlements?settlementId=" + order.getId(),
+            "SETTLEMENT",
+            String.valueOf(order.getId()),
+            "结算审批"));
   }
 
   private record SettlementSummary(BigDecimal totalVolume, BigDecimal unitPrice, BigDecimal totalAmount) {}

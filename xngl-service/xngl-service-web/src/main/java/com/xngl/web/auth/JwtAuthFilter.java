@@ -30,7 +30,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
       return true;
     }
-    List<String> skip = List.of("/api/auth/login", "/api/health", "/swagger-ui", "/v3/api-docs");
+    List<String> skip =
+        List.of(
+            "/api/auth/login",
+            "/api/auth/sso/exchange",
+            "/api/mini/auth/send-sms-code",
+            "/api/mini/auth/login",
+            "/api/mini/auth/openid-login",
+            "/api/health",
+            "/swagger-ui",
+            "/v3/api-docs");
     return skip.stream().anyMatch(path::startsWith);
   }
 

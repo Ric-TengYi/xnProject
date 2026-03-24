@@ -1,0 +1,43 @@
+{
+  "phase": 26,
+  "feature": "单位统计",
+  "date": "2026-03-22",
+  "environment": {
+    "backend": "mvn spring-boot:run -pl xngl-service-starter",
+    "frontend": "npm run dev -- --host 127.0.0.1",
+    "browser": "Google Chrome headless",
+    "account": "tenantId=1 / admin / admin"
+  },
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0
+  },
+  "cases": [
+    {
+      "name": "API login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "API unit detail",
+      "status": "PASS",
+      "detail": "/api/units/13 返回单位详情成功"
+    },
+    {
+      "name": "API unit projects",
+      "status": "PASS",
+      "detail": "/api/units/13/projects 返回 1 条项目统计，项目名 项目-001"
+    },
+    {
+      "name": "API unit contract groups",
+      "status": "PASS",
+      "detail": "/api/units/13/contract-groups?projectId=1 返回 1 个场地分组，且包含合同明细数组"
+    },
+    {
+      "name": "UI unit statistics drawer",
+      "status": "PASS",
+      "detail": "单位管理页打开 测试建设单位8917 详情抽屉后，项目列表与合同明细（按消纳场地汇总）区块可见"
+    }
+  ]
+}

@@ -5,12 +5,15 @@ import com.xngl.infrastructure.persistence.entity.system.ApprovalActorRule;
 import com.xngl.manager.approval.ApprovalActorRuleService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
+import com.xngl.web.support.CsvExportSupport;
 import com.xngl.web.dto.user.*;
+import java.util.ArrayList;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.http.ResponseEntity;
 
 @RestController
 @RequestMapping("/api/approval-actor-rules")
@@ -25,16 +28,41 @@ public class ApprovalActorRulesController {
   @GetMapping
   public ApiResult<PageResult<ApprovalActorRuleListItemDto>> list(
       @RequestParam(required = false) Long tenantId,
+      @RequestParam(required = false) String keyword,
       @RequestParam(required = false) String processKey,
       @RequestParam(required = false) String status,
       @RequestParam(defaultValue = "1") int pageNo,
       @RequestParam(defaultValue = "20") int pageSize) {
     IPage<ApprovalActorRule> page =
-        approvalActorRuleService.page(tenantId, processKey, status, pageNo, pageSize);
+        approvalActorRuleService.page(tenantId, keyword, processKey, status, pageNo, pageSize);
     List<ApprovalActorRuleListItemDto> records =
         page.getRecords().stream().map(this::toListItem).collect(Collectors.toList());
     return ApiResult.ok(
         new PageResult<>(page.getCurrent(), page.getSize(), page.getTotal(), records));
+  }
+
+  @GetMapping("/export")
+  public ResponseEntity<byte[]> export(
+      @RequestParam(required = false) Long tenantId,
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String processKey,
+      @RequestParam(required = false) String status) {
+    List<ApprovalActorRule> rows = approvalActorRuleService.list(tenantId, keyword, processKey, status);
+    List<List<?>> exportRows = new ArrayList<>();
+    for (ApprovalActorRule row : rows) {
+      exportRows.add(
+          List.of(
+              CsvExportSupport.value(StringUtils.hasText(row.getProcessKey()) ? row.getProcessKey() : row.getBizType()),
+              CsvExportSupport.value(StringUtils.hasText(row.getRuleName()) ? row.getRuleName() : row.getBizType()),
+              CsvExportSupport.value(StringUtils.hasText(row.getRuleType()) ? row.getRuleType() : row.getActorType()),
+              CsvExportSupport.value(StringUtils.hasText(row.getRuleExpression()) ? row.getRuleExpression() : row.getActorRefId()),
+              CsvExportSupport.value(row.getPriority()),
+              CsvExportSupport.value(StringUtils.hasText(row.getStatus()) ? row.getStatus() : "ENABLED")));
+    }
+    return CsvExportSupport.csvResponse(
+        "approval_actor_rules",
+        List.of("流程编码", "规则名称", "规则类型", "规则表达式", "优先级", "状态"),
+        exportRows);
   }
 
   @GetMapping("/{id}")

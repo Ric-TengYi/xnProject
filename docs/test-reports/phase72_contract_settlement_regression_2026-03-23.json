@@ -1,0 +1,38 @@
+{
+  "report": "phase72_contract_settlement_regression_2026-03-23",
+  "date": "2026-03-23",
+  "results": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "name": "contracts_list_detail_assets_runtime",
+      "status": "PASS",
+      "detail": "contract_id=54, approvals=2, materials=2"
+    },
+    {
+      "name": "contracts_receipts_create_cancel_cleanup_runtime",
+      "status": "PASS",
+      "detail": "receipt_id=42, before=0, after_cancel=1"
+    },
+    {
+      "name": "contracts_reports_runtime",
+      "status": "PASS",
+      "detail": "export_task_id=36, trend_months=12"
+    },
+    {
+      "name": "site_settlements_runtime",
+      "status": "PASS",
+      "detail": "existing_site_settlement=21, temp_site_settlement=31"
+    },
+    {
+      "name": "contracts_settlement_pages_visible",
+      "status": "PASS",
+      "detail": "合同与财务结算 / 合同详情: / 合同入账管理 / 月报统计 / 结算管理"
+    }
+  ],
+  "passed": 6,
+  "failed": 0
+}

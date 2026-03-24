@@ -1,12 +1,20 @@
 package com.xngl.web.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.xngl.infrastructure.persistence.entity.contract.Contract;
 import com.xngl.infrastructure.persistence.entity.organization.User;
+import com.xngl.infrastructure.persistence.entity.project.Project;
+import com.xngl.infrastructure.persistence.entity.site.Site;
+import com.xngl.infrastructure.persistence.entity.vehicle.Vehicle;
+import com.xngl.infrastructure.persistence.mapper.ContractMapper;
+import com.xngl.infrastructure.persistence.mapper.ProjectMapper;
+import com.xngl.infrastructure.persistence.mapper.SiteMapper;
+import com.xngl.infrastructure.persistence.mapper.VehicleMapper;
 import com.xngl.manager.disposal.entity.DisposalPermit;
 import com.xngl.manager.disposal.mapper.DisposalPermitMapper;
-import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -29,11 +37,25 @@ import org.springframework.web.bind.annotation.RestController;
 public class DisposalPermitsController {
 
   private final DisposalPermitMapper permitMapper;
-  private final UserService userService;
+  private final ContractMapper contractMapper;
+  private final ProjectMapper projectMapper;
+  private final SiteMapper siteMapper;
+  private final VehicleMapper vehicleMapper;
+  private final UserContext userContext;
 
-  public DisposalPermitsController(DisposalPermitMapper permitMapper, UserService userService) {
+  public DisposalPermitsController(
+      DisposalPermitMapper permitMapper,
+      ContractMapper contractMapper,
+      ProjectMapper projectMapper,
+      SiteMapper siteMapper,
+      VehicleMapper vehicleMapper,
+      UserContext userContext) {
     this.permitMapper = permitMapper;
-    this.userService = userService;
+    this.contractMapper = contractMapper;
+    this.projectMapper = projectMapper;
+    this.siteMapper = siteMapper;
+    this.vehicleMapper = vehicleMapper;
+    this.userContext = userContext;
   }
 
   @GetMapping
@@ -42,11 +64,19 @@ public class DisposalPermitsController {
       @RequestParam(required = false) String permitType,
       @RequestParam(required = false) String status,
       @RequestParam(required = false) Long contractId,
+      @RequestParam(required = false) Long projectId,
+      @RequestParam(required = false) Long siteId,
+      @RequestParam(required = false) String vehicleNo,
+      @RequestParam(required = false) String bindStatus,
+      @RequestParam(required = false) String sourcePlatform,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
     String keywordValue = trimToNull(keyword);
     String typeValue = trimToNull(permitType);
     String statusValue = trimToNull(status);
+    String vehicleNoValue = normalizePlateNo(vehicleNo);
+    String bindStatusValue = normalizeUpper(bindStatus);
+    String sourcePlatformValue = normalizeUpper(sourcePlatform);
     List<DisposalPermit> rows =
         permitMapper.selectList(
             new LambdaQueryWrapper<DisposalPermit>()
@@ -57,10 +87,20 @@ public class DisposalPermitsController {
                         wrapper
                             .like(DisposalPermit::getPermitNo, keywordValue)
                             .or()
-                            .like(DisposalPermit::getVehicleNo, keywordValue))
+                            .like(DisposalPermit::getVehicleNo, keywordValue)
+                            .or()
+                            .like(DisposalPermit::getExternalRefNo, keywordValue))
                 .eq(StringUtils.hasText(typeValue), DisposalPermit::getPermitType, typeValue)
                 .eq(StringUtils.hasText(statusValue), DisposalPermit::getStatus, statusValue)
-                .eq(contractId != null, DisposalPermit::getContractId, contractId));
+                .eq(contractId != null, DisposalPermit::getContractId, contractId)
+                .eq(projectId != null, DisposalPermit::getProjectId, projectId)
+                .eq(siteId != null, DisposalPermit::getSiteId, siteId)
+                .eq(StringUtils.hasText(vehicleNoValue), DisposalPermit::getVehicleNo, vehicleNoValue)
+                .eq(StringUtils.hasText(bindStatusValue), DisposalPermit::getBindStatus, bindStatusValue)
+                .eq(
+                    StringUtils.hasText(sourcePlatformValue),
+                    DisposalPermit::getSourcePlatform,
+                    sourcePlatformValue));
     rows.sort(
         Comparator.comparing(DisposalPermit::getUpdateTime, Comparator.nullsLast(Comparator.naturalOrder()))
             .reversed()
@@ -130,20 +170,58 @@ public class DisposalPermitsController {
         && body.getUsedVolume().compareTo(body.getApprovedVolume()) > 0) {
       throw new BizException(400, "已用方量不能大于核准方量");
     }
+
+    Contract contract = resolveContract(tenantId, body.getContractId());
+    Project project = resolveProject(body.getProjectId());
+    Site site = resolveSite(body.getSiteId());
+    Vehicle vehicle = resolveVehicle(tenantId, body.getVehicleNo());
+
+    if (contract != null) {
+      if (body.getProjectId() != null && !Objects.equals(contract.getProjectId(), body.getProjectId())) {
+        throw new BizException(400, "处置证关联合同与项目不匹配");
+      }
+      if (body.getSiteId() != null && !Objects.equals(contract.getSiteId(), body.getSiteId())) {
+        throw new BizException(400, "处置证关联合同与场地不匹配");
+      }
+    }
+
+    if (site != null && body.getProjectId() != null && site.getProjectId() != null
+        && !Objects.equals(site.getProjectId(), body.getProjectId())) {
+      throw new BizException(400, "处置证关联场地与项目不匹配");
+    }
+
+    if (vehicle == null && StringUtils.hasText(body.getVehicleNo())) {
+      throw new BizException(400, "绑定车辆不存在");
+    }
+
+    if (project == null && body.getProjectId() != null) {
+      throw new BizException(404, "关联项目不存在");
+    }
+    if (site == null && body.getSiteId() != null) {
+      throw new BizException(404, "指定场地不存在");
+    }
   }
 
   private void apply(DisposalPermit permit, PermitUpsertRequest body) {
+    Contract contract = resolveContract(permit.getTenantId(), body.getContractId());
+    Long effectiveProjectId =
+        body.getProjectId() != null ? body.getProjectId() : (contract != null ? contract.getProjectId() : null);
+    Long effectiveSiteId =
+        body.getSiteId() != null ? body.getSiteId() : (contract != null ? contract.getSiteId() : null);
     permit.setPermitNo(body.getPermitNo().trim());
     permit.setPermitType(defaultValue(body.getPermitType(), "DISPOSAL"));
-    permit.setProjectId(body.getProjectId());
+    permit.setProjectId(effectiveProjectId);
     permit.setContractId(body.getContractId());
-    permit.setSiteId(body.getSiteId());
-    permit.setVehicleNo(trimToNull(body.getVehicleNo()));
+    permit.setSiteId(effectiveSiteId);
+    permit.setVehicleNo(normalizePlateNo(body.getVehicleNo()));
     permit.setIssueDate(body.getIssueDate());
     permit.setExpireDate(body.getExpireDate());
     permit.setApprovedVolume(defaultDecimal(body.getApprovedVolume()));
     permit.setUsedVolume(defaultDecimal(body.getUsedVolume()));
     permit.setBindStatus(StringUtils.hasText(body.getVehicleNo()) ? "BOUND" : "UNBOUND");
+    if (!StringUtils.hasText(permit.getSourcePlatform())) {
+      permit.setSourcePlatform("MANUAL");
+    }
     permit.setRemark(trimToNull(body.getRemark()));
     if (StringUtils.hasText(body.getStatus())) {
       permit.setStatus(body.getStatus().trim().toUpperCase());
@@ -180,20 +258,47 @@ public class DisposalPermitsController {
     return StringUtils.hasText(value) ? value.trim() : null;
   }
 
+  private String normalizeUpper(String value) {
+    return StringUtils.hasText(value) ? value.trim().toUpperCase() : null;
+  }
+
+  private String normalizePlateNo(String value) {
+    return StringUtils.hasText(value) ? value.trim().toUpperCase() : null;
+  }
+
+  private Contract resolveContract(Long tenantId, Long contractId) {
+    if (contractId == null) {
+      return null;
+    }
+    Contract contract = contractMapper.selectById(contractId);
+    if (contract == null || !Objects.equals(contract.getTenantId(), tenantId)) {
+      throw new BizException(404, "关联合同不存在");
+    }
+    return contract;
+  }
+
+  private Project resolveProject(Long projectId) {
+    return projectId != null ? projectMapper.selectById(projectId) : null;
+  }
+
+  private Site resolveSite(Long siteId) {
+    return siteId != null ? siteMapper.selectById(siteId) : null;
+  }
+
+  private Vehicle resolveVehicle(Long tenantId, String vehicleNo) {
+    String normalizedVehicleNo = normalizePlateNo(vehicleNo);
+    if (!StringUtils.hasText(normalizedVehicleNo)) {
+      return null;
+    }
+    return vehicleMapper.selectOne(
+        new LambdaQueryWrapper<Vehicle>()
+            .eq(Vehicle::getTenantId, tenantId)
+            .eq(Vehicle::getPlateNo, normalizedVehicleNo)
+            .last("limit 1"));
+  }
+
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 
   @Data

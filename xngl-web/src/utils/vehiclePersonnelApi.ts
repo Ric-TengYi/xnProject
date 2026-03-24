@@ -42,6 +42,10 @@ export interface VehiclePersonnelCertificateQueryParams {
   status?: string;
   orgId?: string;
   vehicleId?: string;
+  feeDueDateFrom?: string;
+  feeDueDateTo?: string;
+  expireWithinDays?: number;
+  unpaidOnly?: boolean;
   pageNo?: number;
   pageSize?: number;
 }
@@ -122,6 +126,16 @@ export async function fetchVehiclePersonnelCertificateSummary(
     paidAmount: toNumber(res.data.paidAmount),
     unpaidAmount: toNumber(res.data.unpaidAmount),
   };
+}
+
+export async function exportVehiclePersonnelCertificates(
+  params: Omit<VehiclePersonnelCertificateQueryParams, 'pageNo' | 'pageSize'> = {}
+) {
+  const res = await http.get<Blob>('/vehicle-personnel-certificates/export', {
+    params,
+    responseType: 'blob',
+  });
+  return res.data;
 }
 
 export async function createVehiclePersonnelCertificate(

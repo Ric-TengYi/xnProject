@@ -1,0 +1,52 @@
+{
+  "date": "2026-03-21",
+  "total": 8,
+  "passed": 8,
+  "failed": 0,
+  "results": [
+    {
+      "name": "API login",
+      "passed": true,
+      "detail": "userId=6"
+    },
+    {
+      "name": "Disposal keyword query",
+      "passed": true,
+      "detail": "total=1 project=项目-001 site=场地-001"
+    },
+    {
+      "name": "Disposal site filter",
+      "passed": true,
+      "detail": "total=3 volumeSum=5300.00"
+    },
+    {
+      "name": "Disposal date filter",
+      "passed": true,
+      "detail": "filteredTotal=1 time=2026-03-20T11:01:54"
+    },
+    {
+      "name": "Frontend route registration",
+      "passed": true,
+      "detail": "xngl-web/src/App.tsx:67"
+    },
+    {
+      "name": "Frontend menu registration",
+      "passed": true,
+      "detail": "xngl-web/src/layouts/MainLayout.tsx:64"
+    },
+    {
+      "name": "Frontend api binding",
+      "passed": true,
+      "detail": "xngl-web/src/utils/disposalApi.ts:64"
+    },
+    {
+      "name": "Build verification",
+      "passed": true,
+      "detail": "backend mvn -q -DskipTests install; frontend npm run build"
+    }
+  ],
+  "notes": [
+    "The disposal query endpoint is based on current contract ticket disposal data.",
+    "Local browser automation with system Chrome was not stable in this sandbox session; frontend integration was verified through build and source wiring checks."
+  ]
+}

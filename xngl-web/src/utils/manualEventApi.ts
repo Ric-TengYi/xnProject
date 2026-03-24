@@ -1,4 +1,4 @@
-import http from './request';
+import http, { request } from './request';
 
 export interface ManualEventRecord {
   id: string;
@@ -140,8 +140,8 @@ export async function fetchPendingAuditEvents() {
   return (Array.isArray(res.data) ? res.data : []).map(mapRecord);
 }
 
-export async function fetchManualEventSummary(): Promise<ManualEventSummaryRecord> {
-  const res = await http.get<any>('/events/summary');
+export async function fetchManualEventSummary(params: Record<string, any> = {}): Promise<ManualEventSummaryRecord> {
+  const res = await http.get<any>('/events/summary', { params });
   return {
     total: Number(res.data.total || 0),
     draftCount: Number(res.data.draftCount || 0),
@@ -195,4 +195,12 @@ export async function rejectManualEvent(id: string, comment?: string) {
 
 export async function closeManualEvent(id: string, comment?: string) {
   await http.post(`/events/${id}/close`, { comment });
+}
+
+export async function exportManualEvents(params: Record<string, any> = {}) {
+  const response = await request.get('/events/export', {
+    params,
+    responseType: 'blob',
+  });
+  return response.data as Blob;
 }

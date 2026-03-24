@@ -3,17 +3,22 @@ package com.xngl.web.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.xngl.infrastructure.persistence.entity.contract.ContractImportBatch;
 import com.xngl.infrastructure.persistence.entity.contract.ContractImportError;
+import com.xngl.manager.contract.ContractImportCommitResult;
 import com.xngl.infrastructure.persistence.entity.organization.User;
 import com.xngl.manager.contract.ContractImportService;
 import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
+import com.xngl.web.dto.contract.ContractImportPreviewRequestDto;
 import com.xngl.web.dto.contract.ImportBatchDetailDto;
 import com.xngl.web.dto.contract.ImportBatchItemDto;
+import com.xngl.web.dto.contract.ImportCommitResultDto;
 import com.xngl.web.dto.contract.ImportErrorDto;
 import com.xngl.web.dto.contract.ImportPreviewDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -32,20 +37,20 @@ public class ContractImportController {
   private static final DateTimeFormatter ISO_DATE_TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
   private final ContractImportService importService;
-  private final UserService userService;
+  private final UserContext userContext;
 
-  public ContractImportController(ContractImportService importService, UserService userService) {
+  public ContractImportController(ContractImportService importService, UserContext userContext) {
     this.importService = importService;
-    this.userService = userService;
+    this.userContext = userContext;
   }
 
   @PostMapping("/import-preview")
   public ApiResult<ImportPreviewDto> preview(
-      @RequestBody List<Map<String, String>> rows,
+      @Valid @RequestBody ContractImportPreviewRequestDto requestBody,
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
     ContractImportBatch batch = importService.previewImport(
-        user.getTenantId(), user.getId(), "import.xlsx", rows);
+        user.getTenantId(), user.getId(), requestBody.getFileName(), requestBody.getRows());
     List<ContractImportError> errors = importService.listBatchErrors(batch.getId(), user.getTenantId());
 
     ImportPreviewDto dto = new ImportPreviewDto();
@@ -58,14 +63,19 @@ public class ContractImportController {
   }
 
   @PostMapping("/import-commit")
-  public ApiResult<Void> commit(@RequestBody Map<String, Long> body, HttpServletRequest request) {
+  public ApiResult<ImportCommitResultDto> commit(@RequestBody Map<String, Long> body, HttpServletRequest request) {
     User user = requireCurrentUser(request);
     Long batchId = body.get("batchId");
     if (batchId == null) {
       throw new BizException(400, "batchId 不能为空");
     }
-    importService.commitImport(batchId, user.getTenantId());
-    return ApiResult.ok();
+    ContractImportCommitResult result = importService.commitImport(batchId, user.getTenantId());
+    ImportCommitResultDto dto = new ImportCommitResultDto();
+    dto.setBatchId(result.getBatchId() != null ? String.valueOf(result.getBatchId()) : null);
+    dto.setSuccessCount(result.getSuccessCount());
+    dto.setFailCount(result.getFailCount());
+    dto.setStatus(result.getStatus());
+    return ApiResult.ok(dto);
   }
 
   @GetMapping("/import-batches")
@@ -125,21 +135,6 @@ public class ContractImportController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (userId == null || userId.isBlank()) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      if (user.getTenantId() == null) {
-        throw new BizException(403, "当前用户未绑定租户");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 }

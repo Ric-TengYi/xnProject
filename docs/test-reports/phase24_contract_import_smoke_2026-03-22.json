@@ -1,0 +1,53 @@
+{
+  "phase": 24,
+  "feature": "合同导入",
+  "date": "2026-03-22",
+  "environment": {
+    "backend": "mvn spring-boot:run -pl xngl-service-starter",
+    "frontend": "npm run dev -- --host 127.0.0.1",
+    "browser": "Google Chrome headless",
+    "account": "tenantId=1 / admin / admin"
+  },
+  "summary": {
+    "total": 7,
+    "passed": 7,
+    "failed": 0
+  },
+  "cases": [
+    {
+      "name": "API login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "API import preview",
+      "status": "PASS",
+      "detail": "2 行预览数据返回 validCount=1、errorCount=1，错误明细 4 条"
+    },
+    {
+      "name": "API import commit",
+      "status": "PASS",
+      "detail": "批次 1 提交成功，successCount=1，failCount=1"
+    },
+    {
+      "name": "API contract query",
+      "status": "PASS",
+      "detail": "导入合同 HT-IMPORT-1774149863 查询成功，sourceType=IMPORT"
+    },
+    {
+      "name": "UI import file parse",
+      "status": "PASS",
+      "detail": "合同清单页选择 CSV 成功解析 1 条数据"
+    },
+    {
+      "name": "UI import preview",
+      "status": "PASS",
+      "detail": "页面显示 预览完成：总计 1 条，有效 1 条，异常 0 条"
+    },
+    {
+      "name": "UI import commit",
+      "status": "PASS",
+      "detail": "页面提交导入成功，新增合同 HT-UI-IMPORT-1774149894 可检索"
+    }
+  ]
+}

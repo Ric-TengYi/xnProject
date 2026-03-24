@@ -109,7 +109,7 @@ public class RolesController {
             .map(
                 rule ->
                     new DataScopeRuleDto(
-                        rule.getRuleType(), rule.getRuleValue(), rule.getResourceCode()))
+                        rule.getScopeType(), rule.getScopeValue(), rule.getBizModule()))
             .collect(Collectors.toList());
     return ApiResult.ok(list);
   }
@@ -124,9 +124,9 @@ public class RolesController {
             .map(
                 dto -> {
                   DataScopeRule rule = new DataScopeRule();
-                  rule.setRuleType(dto.getRuleType());
-                  rule.setRuleValue(dto.getRuleValue());
-                  rule.setResourceCode(dto.getResourceCode());
+                  rule.setScopeType(dto.getRuleType());
+                  rule.setScopeValue(dto.getRuleValue());
+                  rule.setBizModule(dto.getResourceCode());
                   return rule;
                 })
             .collect(Collectors.toList());
@@ -138,7 +138,6 @@ public class RolesController {
   public ApiResult<String> create(@RequestBody RoleCreateUpdateDto dto) {
     Role r = new Role();
     mapToEntity(dto, r);
-    r.setStatus("ENABLED");
     long id = roleService.create(r);
     return ApiResult.ok(String.valueOf(id));
   }
@@ -192,9 +191,18 @@ public class RolesController {
     }
     r.setRoleCode(dto.getRoleCode());
     r.setRoleName(dto.getRoleName());
-    r.setRoleScope(dto.getRoleScope());
-    r.setRoleCategory(dto.getRoleCategory());
+    r.setRoleScope(
+        org.springframework.util.StringUtils.hasText(dto.getRoleScope())
+            ? dto.getRoleScope()
+            : "TENANT");
+    r.setRoleCategory(
+        org.springframework.util.StringUtils.hasText(dto.getRoleCategory())
+            ? dto.getRoleCategory()
+            : "CUSTOM");
     r.setDescription(dto.getDescription());
-    r.setDataScopeTypeDefault(dto.getDataScopeTypeDefault());
+    r.setDataScopeTypeDefault(
+        org.springframework.util.StringUtils.hasText(dto.getDataScopeTypeDefault())
+            ? dto.getDataScopeTypeDefault()
+            : "ORG_AND_CHILDREN");
   }
 }

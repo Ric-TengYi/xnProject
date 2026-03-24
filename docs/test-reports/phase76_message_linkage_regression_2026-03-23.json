@@ -1,0 +1,28 @@
+{
+  "report": "phase76_message_linkage_regression_2026-03-23",
+  "date": "2026-03-23",
+  "results": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "name": "event_message_runtime",
+      "status": "PASS",
+      "detail": "event_id=44, message_count=3"
+    },
+    {
+      "name": "security_message_runtime",
+      "status": "PASS",
+      "detail": "inspection_id=46, message_count=1"
+    },
+    {
+      "name": "message_jump_pages_visible",
+      "status": "PASS",
+      "detail": "事件消息跳转 / 安全台账消息跳转"
+    }
+  ],
+  "passed": 4,
+  "failed": 0
+}

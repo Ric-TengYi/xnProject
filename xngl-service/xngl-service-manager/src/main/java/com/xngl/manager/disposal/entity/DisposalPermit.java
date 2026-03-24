@@ -24,6 +24,10 @@ public class DisposalPermit {
     private BigDecimal usedVolume;
     private String status;
     private String bindStatus;
+    private String sourcePlatform;
+    private String externalRefNo;
+    private LocalDateTime lastSyncTime;
+    private String syncBatchNo;
     private String remark;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;

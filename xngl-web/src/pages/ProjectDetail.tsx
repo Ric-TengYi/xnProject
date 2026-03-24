@@ -4,6 +4,7 @@ import {
   Card,
   Descriptions,
   Empty,
+  Divider,
   List,
   Space,
   Spin,
@@ -14,13 +15,13 @@ import {
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
-import { fetchContractList, type ContractRecord } from '../utils/contractApi';
+import TiandituMap from '../components/TiandituMap';
+import type { MapPoint, MapPolygon, MapPolyline } from '../components/TiandituMap';
+import { parseGeoJsonLine, parseGeoJsonPolygon } from '../utils/mapGeometry';
 import {
   fetchProjectDetail,
-  fetchProjectPaymentSummary,
   type ProjectRecord,
 } from '../utils/projectApi';
-import { fetchSites, type SiteRecord } from '../utils/siteApi';
 
 const statusColorMap: Record<string, string> = {
   立项: 'warning',
@@ -37,6 +38,11 @@ const paymentStatusColorMap: Record<string, string> = {
 const formatMoney = (value?: number | null) =>
   '¥ ' + Number(value || 0).toLocaleString();
 
+const formatVolume = (value?: number | null) =>
+  Number(value || 0).toLocaleString() + ' 方';
+
+const DEFAULT_MAP_CENTER: MapPoint = [120.1551, 30.2741];
+
 const ProjectDetail: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -44,9 +50,6 @@ const ProjectDetail: React.FC = () => {
   const defaultTab = searchParams.get('tab') || 'info';
   const [loading, setLoading] = useState(false);
   const [project, setProject] = useState<ProjectRecord | null>(null);
-  const [paymentSummary, setPaymentSummary] = useState<ProjectRecord | null>(null);
-  const [contracts, setContracts] = useState<ContractRecord[]>([]);
-  const [sites, setSites] = useState<SiteRecord[]>([]);
 
   useEffect(() => {
     if (!id) {
@@ -56,36 +59,12 @@ const ProjectDetail: React.FC = () => {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [projectDetail, summary, contractPage, siteList] = await Promise.all([
-          fetchProjectDetail(id),
-          fetchProjectPaymentSummary(id),
-          fetchContractList({ projectId: id, pageNo: 1, pageSize: 20 }),
-          fetchSites(),
-        ]);
-
+        const projectDetail = await fetchProjectDetail(id);
         setProject(projectDetail);
-        setPaymentSummary({
-          ...projectDetail,
-          totalAmount: summary.totalAmount,
-          paidAmount: summary.paidAmount,
-          debtAmount: summary.debtAmount,
-          lastPaymentDate: summary.lastPaymentDate,
-          paymentStatus: summary.status,
-          paymentStatusLabel: summary.status === 'SETTLED' ? '已结清' : '欠款中',
-        });
-        setContracts(contractPage.records || []);
-        setSites(
-          (siteList || []).filter(
-            (item) => String(item.projectId || '') === String(id)
-          )
-        );
       } catch (error) {
         console.error(error);
         message.error('获取项目详情失败');
         setProject(null);
-        setPaymentSummary(null);
-        setContracts([]);
-        setSites([]);
       } finally {
         setLoading(false);
       }
@@ -94,10 +73,13 @@ const ProjectDetail: React.FC = () => {
     void loadData();
   }, [id]);
 
+  const contracts = project?.contractDetails || [];
+  const sites = project?.siteDetails || [];
+  const projectConfig = project?.config || null;
   const permitMock = useMemo(
     () =>
       contracts.slice(0, 3).map((item, index) => ({
-        id: 'CZ-' + String(item.id).padStart(4, '0'),
+        id: 'CZ-' + String(item.contractId || '').padStart(4, '0'),
         car: '浙A' + String(index + 1) + '23' + String(index + 4) + '5',
         site: item.siteName || '-',
         status: index === 0 ? '已绑定' : '待补齐',
@@ -105,6 +87,42 @@ const ProjectDetail: React.FC = () => {
       })),
     [contracts]
   );
+  const routePath = useMemo<MapPoint[]>(
+    () => parseGeoJsonLine(projectConfig?.routeGeoJson),
+    [projectConfig?.routeGeoJson]
+  );
+  const violationFencePath = useMemo<MapPolygon[]>(
+    () => {
+      const path = parseGeoJsonPolygon(projectConfig?.violationFenceGeoJson);
+      if (path.length < 3) {
+        return [];
+      }
+      return [{
+        id: 'project-violation-fence',
+        path,
+        color: '#fa8c16',
+        fillColor: '#ffd591',
+        fillOpacity: 0.2,
+        weight: 3,
+        opacity: 0.85,
+      }];
+    },
+    [projectConfig?.violationFenceGeoJson]
+  );
+  const routeLines = useMemo<MapPolyline[]>(
+    () => (routePath.length >= 2 ? [{ id: 'project-route', path: routePath, color: '#1677ff', weight: 5, opacity: 0.9 }] : []),
+    [routePath]
+  );
+  const configMapCenter = useMemo<MapPoint>(() => {
+    if (routePath.length > 0) {
+      return routePath[0];
+    }
+    const site = sites.find((item) => item.lng != null && item.lat != null);
+    if (site?.lng != null && site?.lat != null) {
+      return [Number(site.lng), Number(site.lat)];
+    }
+    return DEFAULT_MAP_CENTER;
+  }, [routePath, sites]);
 
   const items = [
     {
@@ -147,19 +165,19 @@ const ProjectDetail: React.FC = () => {
               <Card type="inner" className="bg-white g-border-panel border">
                 <div className="g-text-secondary mb-2">应收总额</div>
                 <div className="text-2xl font-bold g-text-primary">
-                  {formatMoney(paymentSummary?.totalAmount)}
+                  {formatMoney(project?.totalAmount)}
                 </div>
               </Card>
               <Card type="inner" className="bg-white g-border-panel border">
                 <div className="g-text-secondary mb-2">累计交款</div>
                 <div className="text-2xl font-bold g-text-success">
-                  {formatMoney(paymentSummary?.paidAmount)}
+                  {formatMoney(project?.paidAmount)}
                 </div>
               </Card>
               <Card type="inner" className="bg-white g-border-panel border">
                 <div className="g-text-secondary mb-2">欠款金额</div>
                 <div className="text-2xl font-bold g-text-error">
-                  {formatMoney(paymentSummary?.debtAmount)}
+                  {formatMoney(project?.debtAmount)}
                 </div>
               </Card>
               <Card type="inner" className="bg-white g-border-panel border">
@@ -167,15 +185,15 @@ const ProjectDetail: React.FC = () => {
                 <div className="text-2xl font-bold">
                   <Tag
                     color={
-                      paymentStatusColorMap[paymentSummary?.paymentStatusLabel || ''] ||
+                      paymentStatusColorMap[project?.paymentStatusLabel || ''] ||
                       'processing'
                     }
                   >
-                    {paymentSummary?.paymentStatusLabel || '-'}
+                    {project?.paymentStatusLabel || '-'}
                   </Tag>
                 </div>
                 <div className="mt-2 text-xs g-text-secondary">
-                  最近交款: {paymentSummary?.lastPaymentDate || '-'}
+                  最近交款: {project?.lastPaymentDate || '-'}
                 </div>
               </Card>
             </div>
@@ -188,52 +206,87 @@ const ProjectDetail: React.FC = () => {
       label: '合同与场地清单',
       children: (
         <div className="space-y-6">
-          <Card title="关联合同" className="glass-panel g-border-panel border">
+          <Card title="项目合同清单" className="glass-panel g-border-panel border">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <Card type="inner" className="bg-white g-border-panel border">
+                <div className="g-text-secondary mb-2">合同总量</div>
+                <div className="text-2xl font-bold g-text-primary">{contracts.length}</div>
+              </Card>
+              <Card type="inner" className="bg-white g-border-panel border">
+                <div className="g-text-secondary mb-2">合同方量</div>
+                <div className="text-2xl font-bold g-text-primary-link">
+                  {formatVolume(contracts.reduce((sum, item) => sum + Number(item.agreedVolume || 0), 0))}
+                </div>
+              </Card>
+              <Card type="inner" className="bg-white g-border-panel border">
+                <div className="g-text-secondary mb-2">剩余方量</div>
+                <div className="text-2xl font-bold g-text-warning">
+                  {formatVolume(contracts.reduce((sum, item) => sum + Number(item.remainingVolume || 0), 0))}
+                </div>
+              </Card>
+            </div>
             <List
               locale={{ emptyText: <Empty description="暂无关联合同" /> }}
               dataSource={contracts}
               renderItem={(item) => (
                 <List.Item
                   actions={[
-                    <a key="detail" onClick={() => navigate('/contracts/' + item.id)}>
+                    <a key="detail" onClick={() => navigate('/contracts/' + item.contractId)}>
                       查看合同
                     </a>,
                   ]}
                 >
                   <List.Item.Meta
-                    title={<span className="g-text-primary">{item.contractNo || 'HT-' + item.id}</span>}
+                    title={<span className="g-text-primary">{item.contractNo || 'HT-' + item.contractId}</span>}
                     description={
-                      <Space className="g-text-secondary" size="large">
-                        <span>{item.name}</span>
-                        <span>场地: {item.siteName || '-'}</span>
-                        <span>金额: {formatMoney(item.contractAmount)}</span>
-                      </Space>
+                      <div className="g-text-secondary">
+                        <Space size="large" wrap>
+                          <span>{item.contractName}</span>
+                          <span>场地: {item.siteName || '-'}</span>
+                          <span>方量: {formatVolume(item.agreedVolume)}</span>
+                          <span>已消纳: {formatVolume(item.disposedVolume)}</span>
+                          <span>剩余: {formatVolume(item.remainingVolume)}</span>
+                          <span>金额: {formatMoney(item.contractAmount)}</span>
+                        </Space>
+                        <div className="mt-2 text-xs">
+                          审批状态: {item.approvalStatus || '-'} · 到期: {item.expireDate || '-'}
+                        </div>
+                      </div>
                     }
                   />
-                  <Tag>{item.contractStatus || '未知'}</Tag>
+                  <Tag color={item.contractStatus === 'EFFECTIVE' ? 'success' : item.contractStatus === 'REJECTED' ? 'error' : 'processing'}>
+                    {item.contractStatus || '未知'}
+                  </Tag>
                 </List.Item>
               )}
             />
           </Card>
 
-          <Card title="关联场地" className="glass-panel g-border-panel border">
+          <Card title="项目场地清单" className="glass-panel g-border-panel border">
             <List
               locale={{ emptyText: <Empty description="暂无关联场地" /> }}
               dataSource={sites}
               renderItem={(item) => (
                 <List.Item
                   actions={[
-                    <a key="site" onClick={() => navigate('/sites/' + item.id)}>
+                    <a key="site" onClick={() => item.siteId && navigate('/sites/' + item.siteId)}>
                       查看场地
                     </a>,
                   ]}
                 >
                   <List.Item.Meta
-                    title={<span className="g-text-primary">{item.name}</span>}
+                    title={<span className="g-text-primary">{item.siteName}</span>}
                     description={
-                      <span className="g-text-secondary">
-                        地址: {item.address || '-'} | 编码: {item.code || '-'}
-                      </span>
+                      <div className="g-text-secondary">
+                        <Space size="large" wrap>
+                          <span>场地类型: {item.siteType || '-'}</span>
+                          <span>容量: {formatVolume(item.capacity)}</span>
+                          <span>关联合同: {item.contractCount || 0}</span>
+                          <span>合同方量: {formatVolume(item.contractVolume)}</span>
+                          <span>已消纳: {formatVolume(item.disposedVolume)}</span>
+                          <span>剩余: {formatVolume(item.remainingVolume)}</span>
+                        </Space>
+                      </div>
                     }
                   />
                 </List.Item>
@@ -282,14 +335,72 @@ const ProjectDetail: React.FC = () => {
       key: 'config',
       label: '项目配置',
       children: (
-        <Card className="glass-panel g-border-panel border">
-          <Descriptions column={2} className="g-text-secondary">
-            <Descriptions.Item label="打卡配置">待接真实配置表</Descriptions.Item>
-            <Descriptions.Item label="位置判断">待接真实规则表</Descriptions.Item>
-            <Descriptions.Item label="出土预扣值">待接真实阈值配置</Descriptions.Item>
-            <Descriptions.Item label="线路配置">待接地图线路数据</Descriptions.Item>
-          </Descriptions>
-        </Card>
+        <div className="space-y-6">
+          <Card className="glass-panel g-border-panel border">
+            <Descriptions column={2} className="g-text-secondary">
+              <Descriptions.Item label="打卡配置">
+                <Tag color={projectConfig?.checkinEnabled ? 'success' : 'default'}>
+                  {projectConfig?.checkinEnabled ? '已启用' : '未启用'}
+                </Tag>
+                <span className="ml-2">{projectConfig?.checkinAccount || '-'}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="打卡授权范围">{projectConfig?.checkinAuthScope || '-'}</Descriptions.Item>
+              <Descriptions.Item label="位置判断配置">
+                <Tag color={projectConfig?.locationCheckRequired ? 'blue' : 'default'}>
+                  {projectConfig?.locationCheckRequired ? '启用位置判断' : '未启用'}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="位置判断半径">
+                {Number(projectConfig?.locationRadiusMeters || 0).toLocaleString()} 米
+              </Descriptions.Item>
+              <Descriptions.Item label="出土预扣值">
+                {formatVolume(projectConfig?.preloadVolume)}
+              </Descriptions.Item>
+              <Descriptions.Item label="违规配置">
+                <Tag color={projectConfig?.violationRuleEnabled ? 'error' : 'default'}>
+                  {projectConfig?.violationRuleEnabled ? '围栏规则启用' : '围栏规则关闭'}
+                </Tag>
+                <span className="ml-2">{projectConfig?.violationFenceName || projectConfig?.violationFenceCode || '-'}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="备注" span={2}>
+                {projectConfig?.remark || '-'}
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+
+          <Card title="线路与违规围栏预览" className="glass-panel g-border-panel border">
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px] gap-4">
+              <div className="relative h-80 rounded overflow-hidden border g-border-panel">
+                <TiandituMap
+                  className="absolute inset-0"
+                  center={configMapCenter}
+                  zoom={13}
+                  polylines={routeLines}
+                  polygons={violationFencePath}
+                  loadingText="项目配置地图加载中..."
+                />
+              </div>
+              <div className="space-y-3">
+                <div className="p-3 rounded border g-border-panel bg-white">
+                  <div className="text-sm g-text-primary">线路状态</div>
+                  <div className="text-xs g-text-secondary mt-1">{routePath.length >= 2 ? '已配置真实线路' : '暂无线路数据'}</div>
+                </div>
+                <div className="p-3 rounded border g-border-panel bg-white">
+                  <div className="text-sm g-text-primary">违规围栏</div>
+                  <div className="text-xs g-text-secondary mt-1">{projectConfig?.violationFenceName || '未配置'}</div>
+                </div>
+                <div className="p-3 rounded border g-border-panel bg-white">
+                  <div className="text-sm g-text-primary">中心坐标</div>
+                  <div className="text-xs g-text-secondary mt-1">{configMapCenter[0]}, {configMapCenter[1]}</div>
+                </div>
+              </div>
+            </div>
+            <Divider />
+            <div className="text-xs g-text-secondary">
+              当前项目配置已收口打卡配置、位置判断、出土预扣值、线路配置与违规围栏 5 类数据。
+            </div>
+          </Card>
+        </div>
       ),
     },
   ];

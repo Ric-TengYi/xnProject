@@ -5,7 +5,6 @@ import com.xngl.infrastructure.persistence.entity.contract.SettlementItem;
 import com.xngl.infrastructure.persistence.entity.contract.SettlementOrder;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 
 public interface SettlementService {
 
@@ -44,5 +43,5 @@ public interface SettlementService {
 
   void rejectSettlement(Long id, Long tenantId, String reason);
 
-  Map<String, Object> getSettlementStats(Long tenantId);
+  SettlementStatsResult getSettlementStats(Long tenantId);
 }

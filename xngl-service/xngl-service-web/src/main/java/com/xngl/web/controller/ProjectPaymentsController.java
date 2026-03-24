@@ -16,6 +16,7 @@ import com.xngl.web.dto.project.ProjectPaymentCreateDto;
 import com.xngl.web.dto.project.ProjectPaymentRecordDto;
 import com.xngl.web.dto.project.ProjectPaymentSummaryDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -39,11 +40,13 @@ public class ProjectPaymentsController {
 
   private final ProjectPaymentService projectPaymentService;
   private final UserService userService;
+  private final UserContext userContext;
 
   public ProjectPaymentsController(
-      ProjectPaymentService projectPaymentService, UserService userService) {
+      ProjectPaymentService projectPaymentService, UserService userService, UserContext userContext) {
     this.projectPaymentService = projectPaymentService;
     this.userService = userService;
+    this.userContext = userContext;
   }
 
   @GetMapping("/payments")
@@ -193,22 +196,7 @@ public class ProjectPaymentsController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (userId == null || userId.isBlank()) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      if (user.getTenantId() == null) {
-        throw new BizException(403, "当前用户未绑定租户");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 
   private Long parseNullableLong(String value) {

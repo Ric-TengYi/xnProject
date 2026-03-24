@@ -24,8 +24,56 @@ export interface ProjectRecord {
   lastPaymentDate?: string | null;
   paymentStatus?: string | null;
   paymentStatusLabel?: string | null;
+  contractDetails?: ProjectContractSummary[];
+  siteDetails?: ProjectSiteSummary[];
+  config?: ProjectConfigRecord | null;
   createTime?: string | null;
   updateTime?: string | null;
+}
+
+export interface ProjectContractSummary {
+  contractId: string;
+  contractNo?: string | null;
+  contractName?: string | null;
+  siteId?: string | null;
+  siteName?: string | null;
+  siteType?: string | null;
+  agreedVolume?: number | null;
+  disposedVolume?: number | null;
+  remainingVolume?: number | null;
+  unitPrice?: number | null;
+  contractAmount?: number | null;
+  contractStatus?: string | null;
+  approvalStatus?: string | null;
+  expireDate?: string | null;
+}
+
+export interface ProjectSiteSummary {
+  siteId?: string | null;
+  siteName?: string | null;
+  siteType?: string | null;
+  capacity?: number | null;
+  lng?: number | null;
+  lat?: number | null;
+  contractCount?: number | null;
+  contractVolume?: number | null;
+  disposedVolume?: number | null;
+  remainingVolume?: number | null;
+}
+
+export interface ProjectConfigRecord {
+  checkinEnabled?: boolean;
+  checkinAccount?: string | null;
+  checkinAuthScope?: string | null;
+  locationCheckRequired?: boolean;
+  locationRadiusMeters?: number | null;
+  preloadVolume?: number | null;
+  routeGeoJson?: string | null;
+  violationRuleEnabled?: boolean;
+  violationFenceCode?: string | null;
+  violationFenceName?: string | null;
+  violationFenceGeoJson?: string | null;
+  remark?: string | null;
 }
 
 export interface ProjectQueryParams {

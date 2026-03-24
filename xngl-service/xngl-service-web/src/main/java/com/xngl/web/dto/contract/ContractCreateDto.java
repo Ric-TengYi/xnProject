@@ -32,6 +32,8 @@ public class ContractCreateDto {
   @NotBlank(message = "运输单位不能为空")
   private String transportOrgId;
 
+  private String partyId;
+
   private String siteOperatorOrgId;
 
   @NotNull(message = "签订日期不能为空")

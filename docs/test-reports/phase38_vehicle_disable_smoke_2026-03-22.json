@@ -1,0 +1,39 @@
+{
+  "results": [
+    {
+      "name": "API login",
+      "ok": true,
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "API violation list",
+      "ok": true,
+      "detail": "违规车辆清单返回 5 条记录，包含禁用中状态"
+    },
+    {
+      "name": "API disable vehicle",
+      "ok": true,
+      "detail": "车辆 浙A97610 已创建禁用记录 6"
+    },
+    {
+      "name": "API vehicle status after disable",
+      "ok": true,
+      "detail": "车辆 浙A97610 状态已更新为禁用"
+    },
+    {
+      "name": "API release vehicle",
+      "ok": true,
+      "detail": "禁用记录 6 已提前解禁"
+    },
+    {
+      "name": "API vehicle status after release",
+      "ok": true,
+      "detail": "车辆 浙A97610 已恢复 ACTIVE 状态"
+    },
+    {
+      "name": "API query released record",
+      "ok": true,
+      "detail": "可按关键字回查自动化禁用/解禁记录"
+    }
+  ]
+}

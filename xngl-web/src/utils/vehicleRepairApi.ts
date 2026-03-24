@@ -1,4 +1,4 @@
-import http from './request';
+import http, { request } from './request';
 import type { PageResult } from './vehicleApi';
 
 export interface VehicleRepairOrderRecord {
@@ -12,6 +12,8 @@ export interface VehicleRepairOrderRecord {
   urgencyLabel?: string | null;
   repairReason?: string | null;
   repairContent?: string | null;
+  diagnosisResult?: string | null;
+  safetyImpact?: string | null;
   budgetAmount: number;
   applyDate?: string | null;
   applicantName?: string | null;
@@ -21,7 +23,17 @@ export interface VehicleRepairOrderRecord {
   approvedTime?: string | null;
   completedDate?: string | null;
   vendorName?: string | null;
+  repairManager?: string | null;
+  technicianName?: string | null;
+  acceptanceResult?: string | null;
+  signoffStatus?: string | null;
+  signoffStatusLabel?: string | null;
+  attachmentUrls?: string | null;
   actualAmount: number;
+  partsCost?: number | null;
+  laborCost?: number | null;
+  otherCost?: number | null;
+  costVariance?: number | null;
   auditRemark?: string | null;
   remark?: string | null;
 }
@@ -42,6 +54,10 @@ export interface VehicleRepairQueryParams {
   urgencyLevel?: string;
   orgId?: string;
   vehicleId?: string;
+  applyDateFrom?: string;
+  applyDateTo?: string;
+  completedDateFrom?: string;
+  completedDateTo?: string;
   pageNo?: number;
   pageSize?: number;
 }
@@ -51,6 +67,8 @@ export interface VehicleRepairUpsertPayload {
   urgencyLevel?: string;
   repairReason: string;
   repairContent?: string;
+  diagnosisResult?: string;
+  safetyImpact?: string;
   budgetAmount?: number;
   applyDate?: string;
   applicantName?: string;
@@ -65,7 +83,15 @@ export interface VehicleRepairAuditPayload {
 export interface VehicleRepairCompletePayload {
   completedDate?: string;
   vendorName?: string;
+  repairManager?: string;
+  technicianName?: string;
+  acceptanceResult?: string;
+  signoffStatus?: string;
+  attachmentUrls?: string;
   actualAmount?: number;
+  partsCost?: number;
+  laborCost?: number;
+  otherCost?: number;
   remark?: string;
 }
 
@@ -82,6 +108,8 @@ const mapRecord = (record: Partial<VehicleRepairOrderRecord>): VehicleRepairOrde
   urgencyLabel: record.urgencyLabel || null,
   repairReason: record.repairReason || null,
   repairContent: record.repairContent || null,
+  diagnosisResult: record.diagnosisResult || null,
+  safetyImpact: record.safetyImpact || null,
   budgetAmount: toNumber(record.budgetAmount),
   applyDate: record.applyDate || null,
   applicantName: record.applicantName || null,
@@ -91,7 +119,17 @@ const mapRecord = (record: Partial<VehicleRepairOrderRecord>): VehicleRepairOrde
   approvedTime: record.approvedTime || null,
   completedDate: record.completedDate || null,
   vendorName: record.vendorName || null,
+  repairManager: record.repairManager || null,
+  technicianName: record.technicianName || null,
+  acceptanceResult: record.acceptanceResult || null,
+  signoffStatus: record.signoffStatus || null,
+  signoffStatusLabel: record.signoffStatusLabel || null,
+  attachmentUrls: record.attachmentUrls || null,
   actualAmount: toNumber(record.actualAmount),
+  partsCost: record.partsCost == null ? null : toNumber(record.partsCost),
+  laborCost: record.laborCost == null ? null : toNumber(record.laborCost),
+  otherCost: record.otherCost == null ? null : toNumber(record.otherCost),
+  costVariance: record.costVariance == null ? null : toNumber(record.costVariance),
   auditRemark: record.auditRemark || null,
   remark: record.remark || null,
 });
@@ -119,6 +157,11 @@ export async function fetchVehicleRepairSummary(
   };
 }
 
+export async function fetchVehicleRepairDetail(id: string) {
+  const res = await http.get<VehicleRepairOrderRecord>('/vehicle-repairs/' + id);
+  return mapRecord(res.data);
+}
+
 export async function createVehicleRepair(payload: VehicleRepairUpsertPayload) {
   const res = await http.post<VehicleRepairOrderRecord>('/vehicle-repairs', payload);
   return mapRecord(res.data);
@@ -127,6 +170,10 @@ export async function createVehicleRepair(payload: VehicleRepairUpsertPayload) {
 export async function updateVehicleRepair(id: string, payload: VehicleRepairUpsertPayload) {
   const res = await http.put<VehicleRepairOrderRecord>('/vehicle-repairs/' + id, payload);
   return mapRecord(res.data);
+}
+
+export async function deleteVehicleRepair(id: string) {
+  await http.delete('/vehicle-repairs/' + id);
 }
 
 export async function approveVehicleRepair(id: string, payload: VehicleRepairAuditPayload) {
@@ -142,4 +189,12 @@ export async function rejectVehicleRepair(id: string, payload: VehicleRepairAudi
 export async function completeVehicleRepair(id: string, payload: VehicleRepairCompletePayload) {
   const res = await http.post<VehicleRepairOrderRecord>('/vehicle-repairs/' + id + '/complete', payload);
   return mapRecord(res.data);
+}
+
+export async function exportVehicleRepairs(params: VehicleRepairQueryParams = {}) {
+  const response = await request.get('/vehicle-repairs/export', {
+    params,
+    responseType: 'blob',
+  });
+  return response.data as Blob;
 }

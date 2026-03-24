@@ -1,0 +1,19 @@
+{
+  "results": [
+    {
+      "name": "UI page load",
+      "ok": true,
+      "detail": "地图监控页面成功打开"
+    },
+    {
+      "name": "UI distribution panels",
+      "ok": true,
+      "detail": "左侧场地、项目、车辆分布面板已渲染"
+    },
+    {
+      "name": "UI real data binding",
+      "ok": true,
+      "detail": "页面已展示真实项目和车辆数据，而非静态样例"
+    }
+  ]
+}

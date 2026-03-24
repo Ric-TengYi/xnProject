@@ -17,7 +17,7 @@ import {
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, ExportOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import {
   createApprovalFlowConfig,
   createApprovalMaterialConfig,
@@ -25,6 +25,9 @@ import {
   deleteApprovalFlowConfig,
   deleteApprovalMaterialConfig,
   deleteApprovalRule,
+  exportApprovalFlowConfigs,
+  exportApprovalMaterialConfigs,
+  exportApprovalRules,
   fetchApprovalFlowConfigDetail,
   fetchApprovalFlowConfigs,
   fetchApprovalMaterialConfigDetail,
@@ -79,6 +82,9 @@ const ApprovalConfig: React.FC = () => {
   const [records, setRecords] = useState<ApprovalRuleRecord[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ApprovalRuleRecord | null>(null);
+  const [rulesKeyword, setRulesKeyword] = useState('');
+  const [rulesProcessKey, setRulesProcessKey] = useState<string | undefined>(undefined);
+  const [rulesStatus, setRulesStatus] = useState<string>('all');
   const [form] = Form.useForm<ApprovalRulePayload>();
 
   const [materialsLoading, setMaterialsLoading] = useState(false);
@@ -86,12 +92,19 @@ const ApprovalConfig: React.FC = () => {
   const [materialRecords, setMaterialRecords] = useState<ApprovalMaterialConfigRecord[]>([]);
   const [materialModalOpen, setMaterialModalOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<ApprovalMaterialConfigRecord | null>(null);
+  const [materialsKeyword, setMaterialsKeyword] = useState('');
+  const [materialsProcessKey, setMaterialsProcessKey] = useState<string | undefined>(undefined);
+  const [materialsStatus, setMaterialsStatus] = useState<string>('all');
   const [materialForm] = Form.useForm<ApprovalMaterialConfigPayload>();
   const [flowLoading, setFlowLoading] = useState(false);
   const [flowSubmitLoading, setFlowSubmitLoading] = useState(false);
   const [flowRecords, setFlowRecords] = useState<ApprovalFlowConfigRecord[]>([]);
   const [flowModalOpen, setFlowModalOpen] = useState(false);
   const [editingFlow, setEditingFlow] = useState<ApprovalFlowConfigRecord | null>(null);
+  const [flowsKeyword, setFlowsKeyword] = useState('');
+  const [flowsProcessKey, setFlowsProcessKey] = useState<string | undefined>(undefined);
+  const [flowsStatus, setFlowsStatus] = useState<string>('all');
+  const [exportingTab, setExportingTab] = useState<string | null>(null);
   const [flowForm] = Form.useForm<ApprovalFlowConfigPayload>();
 
   const tenantId = useMemo(() => {
@@ -107,7 +120,14 @@ const ApprovalConfig: React.FC = () => {
   const loadRules = async () => {
     setLoading(true);
     try {
-      setRecords(await fetchApprovalRules({ tenantId }));
+      setRecords(
+        await fetchApprovalRules({
+          tenantId,
+          keyword: rulesKeyword.trim() || undefined,
+          processKey: rulesProcessKey || undefined,
+          status: rulesStatus === 'all' ? undefined : rulesStatus,
+        }),
+      );
     } catch (error) {
       console.error(error);
       message.error('获取审批配置失败');
@@ -119,7 +139,13 @@ const ApprovalConfig: React.FC = () => {
   const loadMaterials = async () => {
     setMaterialsLoading(true);
     try {
-      setMaterialRecords(await fetchApprovalMaterialConfigs());
+      setMaterialRecords(
+        await fetchApprovalMaterialConfigs({
+          keyword: materialsKeyword.trim() || undefined,
+          processKey: materialsProcessKey || undefined,
+          status: materialsStatus === 'all' ? undefined : materialsStatus,
+        }),
+      );
     } catch (error) {
       console.error(error);
       message.error('获取办事材料配置失败');
@@ -131,7 +157,13 @@ const ApprovalConfig: React.FC = () => {
   const loadFlows = async () => {
     setFlowLoading(true);
     try {
-      setFlowRecords(await fetchApprovalFlowConfigs());
+      setFlowRecords(
+        await fetchApprovalFlowConfigs({
+          keyword: flowsKeyword.trim() || undefined,
+          processKey: flowsProcessKey || undefined,
+          status: flowsStatus === 'all' ? undefined : flowsStatus,
+        }),
+      );
     } catch (error) {
       console.error(error);
       message.error('获取审批流程配置失败');
@@ -142,7 +174,68 @@ const ApprovalConfig: React.FC = () => {
 
   useEffect(() => {
     void Promise.all([loadRules(), loadMaterials(), loadFlows()]);
-  }, [tenantId]);
+  }, [
+    tenantId,
+    rulesKeyword,
+    rulesProcessKey,
+    rulesStatus,
+    materialsKeyword,
+    materialsProcessKey,
+    materialsStatus,
+    flowsKeyword,
+    flowsProcessKey,
+    flowsStatus,
+  ]);
+
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleExport = async (tab: 'rules' | 'materials' | 'flows') => {
+    try {
+      setExportingTab(tab);
+      if (tab === 'rules') {
+        downloadBlob(
+          await exportApprovalRules({
+            tenantId,
+            keyword: rulesKeyword.trim() || undefined,
+            processKey: rulesProcessKey || undefined,
+            status: rulesStatus === 'all' ? undefined : rulesStatus,
+          }),
+          'approval_actor_rules.csv',
+        );
+      } else if (tab === 'materials') {
+        downloadBlob(
+          await exportApprovalMaterialConfigs({
+            keyword: materialsKeyword.trim() || undefined,
+            processKey: materialsProcessKey || undefined,
+            status: materialsStatus === 'all' ? undefined : materialsStatus,
+          }),
+          'approval_material_configs.csv',
+        );
+      } else {
+        downloadBlob(
+          await exportApprovalFlowConfigs({
+            keyword: flowsKeyword.trim() || undefined,
+            processKey: flowsProcessKey || undefined,
+            status: flowsStatus === 'all' ? undefined : flowsStatus,
+          }),
+          'approval_configs.csv',
+        );
+      }
+      message.success('审批配置导出成功');
+    } catch (error) {
+      console.error(error);
+      message.error('审批配置导出失败');
+    } finally {
+      setExportingTab(null);
+    }
+  };
 
   const openCreate = () => {
     setEditingRecord(null);
@@ -676,6 +769,43 @@ const ApprovalConfig: React.FC = () => {
                   <Steps current={-1} items={previewItems} />
                 </Card>
                 <Card className="glass-panel g-border-panel border">
+                  <div className="mb-4 flex flex-wrap gap-3">
+                    <Input
+                      allowClear
+                      value={rulesKeyword}
+                      onChange={(event) => setRulesKeyword(event.target.value)}
+                      prefix={<SearchOutlined />}
+                      placeholder="搜索规则名称 / 表达式"
+                      className="w-72"
+                    />
+                    <Select
+                      allowClear
+                      value={rulesProcessKey}
+                      options={processOptions}
+                      placeholder="选择流程"
+                      className="w-48"
+                      onChange={setRulesProcessKey}
+                    />
+                    <Select
+                      value={rulesStatus}
+                      className="w-36"
+                      onChange={setRulesStatus}
+                      options={[
+                        { label: '全部状态', value: 'all' },
+                        { label: '启用', value: 'ENABLED' },
+                        { label: '停用', value: 'DISABLED' },
+                      ]}
+                    />
+                    <div className="flex-1 flex justify-end">
+                      <Button
+                        icon={<ExportOutlined />}
+                        onClick={() => void handleExport('rules')}
+                        loading={exportingTab === 'rules'}
+                      >
+                        导出
+                      </Button>
+                    </div>
+                  </div>
                   <Table
                     rowKey="id"
                     loading={loading}
@@ -709,6 +839,43 @@ const ApprovalConfig: React.FC = () => {
                   </div>
                 </Card>
                 <Card className="glass-panel g-border-panel border">
+                  <div className="mb-4 flex flex-wrap gap-3">
+                    <Input
+                      allowClear
+                      value={materialsKeyword}
+                      onChange={(event) => setMaterialsKeyword(event.target.value)}
+                      prefix={<SearchOutlined />}
+                      placeholder="搜索材料编码 / 名称"
+                      className="w-72"
+                    />
+                    <Select
+                      allowClear
+                      value={materialsProcessKey}
+                      options={processOptions}
+                      placeholder="选择流程"
+                      className="w-48"
+                      onChange={setMaterialsProcessKey}
+                    />
+                    <Select
+                      value={materialsStatus}
+                      className="w-36"
+                      onChange={setMaterialsStatus}
+                      options={[
+                        { label: '全部状态', value: 'all' },
+                        { label: '启用', value: 'ENABLED' },
+                        { label: '停用', value: 'DISABLED' },
+                      ]}
+                    />
+                    <div className="flex-1 flex justify-end">
+                      <Button
+                        icon={<ExportOutlined />}
+                        onClick={() => void handleExport('materials')}
+                        loading={exportingTab === 'materials'}
+                      >
+                        导出
+                      </Button>
+                    </div>
+                  </div>
                   <Table
                     rowKey="id"
                     loading={materialsLoading}
@@ -742,6 +909,43 @@ const ApprovalConfig: React.FC = () => {
                   </div>
                 </Card>
                 <Card className="glass-panel g-border-panel border">
+                  <div className="mb-4 flex flex-wrap gap-3">
+                    <Input
+                      allowClear
+                      value={flowsKeyword}
+                      onChange={(event) => setFlowsKeyword(event.target.value)}
+                      prefix={<SearchOutlined />}
+                      placeholder="搜索流程名称 / 节点 / 审批人"
+                      className="w-72"
+                    />
+                    <Select
+                      allowClear
+                      value={flowsProcessKey}
+                      options={processOptions}
+                      placeholder="选择流程"
+                      className="w-48"
+                      onChange={setFlowsProcessKey}
+                    />
+                    <Select
+                      value={flowsStatus}
+                      className="w-36"
+                      onChange={setFlowsStatus}
+                      options={[
+                        { label: '全部状态', value: 'all' },
+                        { label: '启用', value: 'ENABLED' },
+                        { label: '停用', value: 'DISABLED' },
+                      ]}
+                    />
+                    <div className="flex-1 flex justify-end">
+                      <Button
+                        icon={<ExportOutlined />}
+                        onClick={() => void handleExport('flows')}
+                        loading={exportingTab === 'flows'}
+                      >
+                        导出
+                      </Button>
+                    </div>
+                  </div>
                   <Table
                     rowKey="id"
                     loading={flowLoading}

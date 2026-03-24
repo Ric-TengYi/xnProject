@@ -1,4 +1,4 @@
-import http from './request';
+import http, { request } from './request';
 
 export interface ContractRecord {
   id: number | string;
@@ -61,6 +61,42 @@ export interface ContractStats {
   pendingReceiptAmount: number;
   totalSettlementOrders: number;
   pendingSettlementOrders: number;
+}
+
+export interface ContractExportTask {
+  id: string;
+  bizType: string;
+  exportType?: string;
+  fileName?: string;
+  fileUrl?: string;
+  status: string;
+  failReason?: string;
+  creatorId?: string;
+  createTime?: string;
+  expireTime?: string;
+}
+
+export interface ImportErrorRecord {
+  id?: string;
+  rowNo: number;
+  contractNo?: string;
+  errorCode?: string;
+  errorMessage: string;
+}
+
+export interface ImportPreviewResult {
+  batchId: string;
+  totalCount: number;
+  validCount: number;
+  errorCount: number;
+  errors: ImportErrorRecord[];
+}
+
+export interface ImportCommitResult {
+  batchId: string;
+  successCount: number;
+  failCount: number;
+  status: string;
 }
 
 export interface ContractDetail extends ContractRecord {
@@ -127,19 +163,24 @@ export interface ContractTicket {
 
 export interface ContractCreateDto {
   name: string;
-  contractNo: string;
+  contractNo?: string;
   contractType: string;
-  projectId: number;
-  partyId?: number;
-  siteId: number;
-  constructionOrgId: number;
-  transportOrgId: number;
+  projectId: number | string;
+  partyId?: number | string;
+  siteId: number | string;
+  constructionOrgId: number | string;
+  transportOrgId: number | string;
+  siteOperatorOrgId?: number | string;
   signDate: string;
   effectiveDate: string;
   expireDate: string;
   agreedVolume: number;
   unitPrice: number;
   contractAmount: number;
+  isThreeParty?: boolean;
+  unitPriceInside?: number;
+  unitPriceOutside?: number;
+  sourceType?: string;
   remark?: string;
 }
 
@@ -182,6 +223,76 @@ export interface MonthlyTypeItem {
   volume: number;
 }
 
+export interface ContractTransferRecord {
+  id: string;
+  transferNo: string;
+  sourceContractId?: string | null;
+  sourceContractNo?: string | null;
+  targetContractId?: string | null;
+  targetContractNo?: string | null;
+  transferAmount?: number | null;
+  transferVolume?: number | null;
+  reason?: string | null;
+  approvalStatus?: string | null;
+  applicantId?: string | null;
+  createTime?: string | null;
+}
+
+export interface ContractChangeRecord {
+  id: string;
+  changeNo?: string;
+  contractId?: string;
+  contractNo?: string;
+  changeType?: string;
+  reason?: string;
+  approvalStatus?: string;
+  applicantId?: string;
+  createTime?: string;
+}
+
+export interface ContractExtensionRecord {
+  id: string;
+  applyNo?: string;
+  contractId?: string;
+  contractNo?: string;
+  originalExpireDate?: string;
+  requestedExpireDate?: string;
+  requestedVolumeDelta?: number | null;
+  reason?: string;
+  approvalStatus?: string;
+  applicantId?: string;
+  createTime?: string;
+}
+
+export interface ContractChangeCreatePayload {
+  contractId: number;
+  changeType: string;
+  afterSnapshotJson?: string;
+  reason?: string;
+  newSiteId?: number;
+  newSiteName?: string;
+  newAgreedVolume?: number;
+  volumeDelta?: number;
+  newContractAmount?: number;
+  newUnitPrice?: number;
+  newExpireDate?: string;
+}
+
+export interface ContractExtensionCreatePayload {
+  contractId: number;
+  requestedExpireDate: string;
+  requestedVolumeDelta?: number;
+  reason?: string;
+}
+
+export interface ContractTransferCreatePayload {
+  sourceContractId: number | string;
+  targetContractId: number | string;
+  transferAmount?: number;
+  transferVolume?: number;
+  reason?: string;
+}
+
 export async function fetchContractList(params: ContractListParams = {}) {
   const res = await http.get<PageResult<ContractRecord>>('/contracts', { params });
   return res.data;
@@ -189,6 +300,38 @@ export async function fetchContractList(params: ContractListParams = {}) {
 
 export async function fetchContractStats() {
   const res = await http.get<ContractStats>('/contracts/stats');
+  return res.data;
+}
+
+export async function exportContracts(params: ContractListParams & { exportType?: string }) {
+  const res = await http.post<{ taskId: string }>('/contracts/export', params);
+  return res.data;
+}
+
+export async function fetchContractExportTask(taskId: string | number) {
+  const res = await http.get<ContractExportTask>(`/export-tasks/${taskId}`);
+  return res.data;
+}
+
+export async function downloadContractExport(taskId: string | number) {
+  const res = await request.get(`/export-tasks/${taskId}/download`, {
+    responseType: 'blob',
+  });
+  return res as unknown as Blob;
+}
+
+export async function previewContractImport(fileName: string, rows: Record<string, string>[]) {
+  const res = await http.post<ImportPreviewResult>('/contracts/import-preview', {
+    fileName,
+    rows,
+  });
+  return res.data;
+}
+
+export async function commitContractImport(batchId: string | number) {
+  const res = await http.post<ImportCommitResult>('/contracts/import-commit', {
+    batchId: Number(batchId),
+  });
   return res.data;
 }
 
@@ -232,23 +375,113 @@ export async function approveContract(id: string | number) {
   return res.data;
 }
 
-export async function rejectContract(id: string | number) {
-  const res = await http.post<void>(`/contracts/${id}/reject`);
+export async function rejectContract(id: string | number, reason?: string) {
+  const res = await http.post<void>(`/contracts/${id}/reject`, reason ? { reason } : {});
   return res.data;
 }
 
+export async function downloadContractMaterial(
+  contractId: string | number,
+  materialId: string | number
+) {
+  const res = await request.get(`/contracts/${contractId}/materials/${materialId}/download`, {
+    responseType: 'blob',
+  });
+  return res as unknown as Blob;
+}
+
 export async function fetchChangeApplications(params?: { pageNo?: number; pageSize?: number }) {
-  const res = await http.get<PageResult<any>>('/contracts/change-applications', { params });
+  const res = await http.get<PageResult<ContractChangeRecord>>('/contracts/change-applications', { params });
   return res.data;
 }
 
 export async function fetchExtensions(params?: { pageNo?: number; pageSize?: number }) {
-  const res = await http.get<PageResult<any>>('/contracts/extensions', { params });
+  const res = await http.get<PageResult<ContractExtensionRecord>>('/contracts/extensions', { params });
   return res.data;
 }
 
-export async function fetchTransfers(params?: { pageNo?: number; pageSize?: number }) {
-  const res = await http.get<PageResult<any>>('/contracts/transfers', { params });
+export async function createOnlineContract(dto: ContractCreateDto) {
+  const res = await http.post<string>('/contracts', dto);
+  return res.data;
+}
+
+export async function createContractChangeApplication(contractId: string | number, payload: ContractChangeCreatePayload) {
+  const res = await http.post<string>(`/contracts/${contractId}/change-applications`, payload);
+  return res.data;
+}
+
+export async function fetchContractChangeDetail(id: string | number) {
+  const res = await http.get<ContractChangeRecord>(`/contracts/change-applications/${id}`);
+  return res.data;
+}
+
+export async function submitContractChange(id: string | number) {
+  const res = await http.post<void>(`/contracts/change-applications/${id}/submit`);
+  return res.data;
+}
+
+export async function approveContractChange(id: string | number) {
+  const res = await http.post<void>(`/contracts/change-applications/${id}/approve`);
+  return res.data;
+}
+
+export async function rejectContractChange(id: string | number, reason?: string) {
+  const res = await http.post<void>(`/contracts/change-applications/${id}/reject`, reason ? { reason } : {});
+  return res.data;
+}
+
+export async function createContractExtension(contractId: string | number, payload: ContractExtensionCreatePayload) {
+  const res = await http.post<string>(`/contracts/${contractId}/extensions`, payload);
+  return res.data;
+}
+
+export async function fetchContractExtensionDetail(id: string | number) {
+  const res = await http.get<ContractExtensionRecord>(`/contracts/extensions/${id}`);
+  return res.data;
+}
+
+export async function submitContractExtension(id: string | number) {
+  const res = await http.post<void>(`/contracts/extensions/${id}/submit`);
+  return res.data;
+}
+
+export async function approveContractExtension(id: string | number) {
+  const res = await http.post<void>(`/contracts/extensions/${id}/approve`);
+  return res.data;
+}
+
+export async function rejectContractExtension(id: string | number, reason?: string) {
+  const res = await http.post<void>(`/contracts/extensions/${id}/reject`, reason ? { reason } : {});
+  return res.data;
+}
+
+export async function fetchTransfers(params?: { approvalStatus?: string; pageNo?: number; pageSize?: number }) {
+  const res = await http.get<PageResult<ContractTransferRecord>>('/contracts/transfers', { params });
+  return res.data;
+}
+
+export async function createContractTransfer(payload: ContractTransferCreatePayload) {
+  const res = await http.post<string>('/contracts/transfers', payload);
+  return res.data;
+}
+
+export async function fetchContractTransferDetail(id: string | number) {
+  const res = await http.get<ContractTransferRecord>(`/contracts/transfers/${id}`);
+  return res.data;
+}
+
+export async function submitContractTransfer(id: string | number) {
+  const res = await http.post<void>(`/contracts/transfers/${id}/submit`);
+  return res.data;
+}
+
+export async function approveContractTransfer(id: string | number) {
+  const res = await http.post<void>(`/contracts/transfers/${id}/approve`);
+  return res.data;
+}
+
+export async function rejectContractTransfer(id: string | number, reason?: string) {
+  const res = await http.post<void>(`/contracts/transfers/${id}/reject`, reason ? { reason } : {});
   return res.data;
 }
 

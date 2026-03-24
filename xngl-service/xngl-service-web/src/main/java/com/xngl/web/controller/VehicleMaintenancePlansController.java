@@ -10,7 +10,6 @@ import com.xngl.infrastructure.persistence.mapper.OrgMapper;
 import com.xngl.infrastructure.persistence.mapper.VehicleMaintenancePlanMapper;
 import com.xngl.infrastructure.persistence.mapper.VehicleMaintenanceRecordMapper;
 import com.xngl.infrastructure.persistence.mapper.VehicleMapper;
-import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
 import com.xngl.web.dto.vehicle.VehicleMaintenanceExecuteDto;
@@ -19,8 +18,10 @@ import com.xngl.web.dto.vehicle.VehicleMaintenancePlanSummaryDto;
 import com.xngl.web.dto.vehicle.VehicleMaintenancePlanUpsertDto;
 import com.xngl.web.dto.vehicle.VehicleMaintenanceRecordListItemDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -32,11 +33,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -53,19 +58,19 @@ public class VehicleMaintenancePlansController {
   private final VehicleMaintenanceRecordMapper recordMapper;
   private final VehicleMapper vehicleMapper;
   private final OrgMapper orgMapper;
-  private final UserService userService;
+  private final UserContext userContext;
 
   public VehicleMaintenancePlansController(
       VehicleMaintenancePlanMapper planMapper,
       VehicleMaintenanceRecordMapper recordMapper,
       VehicleMapper vehicleMapper,
       OrgMapper orgMapper,
-      UserService userService) {
+      UserContext userContext) {
     this.planMapper = planMapper;
     this.recordMapper = recordMapper;
     this.vehicleMapper = vehicleMapper;
     this.orgMapper = orgMapper;
-    this.userService = userService;
+    this.userContext = userContext;
   }
 
   @GetMapping
@@ -74,12 +79,24 @@ public class VehicleMaintenancePlansController {
       @RequestParam(required = false) String status,
       @RequestParam(required = false) Long orgId,
       @RequestParam(required = false) Long vehicleId,
+      @RequestParam(required = false) String nextMaintainDateFrom,
+      @RequestParam(required = false) String nextMaintainDateTo,
+      @RequestParam(required = false, defaultValue = "false") boolean overdueOnly,
       @RequestParam(defaultValue = "1") int pageNo,
       @RequestParam(defaultValue = "20") int pageSize,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
     List<VehicleMaintenancePlanListItemDto> rows =
-        new ArrayList<>(loadPlans(currentUser.getTenantId(), keyword, status, orgId, vehicleId));
+        new ArrayList<>(
+            loadPlans(
+                currentUser.getTenantId(),
+                keyword,
+                status,
+                orgId,
+                vehicleId,
+                parseDate(nextMaintainDateFrom),
+                parseDate(nextMaintainDateTo),
+                overdueOnly));
     rows.sort(
         Comparator.comparing(
                 VehicleMaintenancePlanListItemDto::getNextMaintainDate,
@@ -95,12 +112,31 @@ public class VehicleMaintenancePlansController {
       @RequestParam(required = false) String status,
       @RequestParam(required = false) Long orgId,
       @RequestParam(required = false) Long vehicleId,
+      @RequestParam(required = false) String nextMaintainDateFrom,
+      @RequestParam(required = false) String nextMaintainDateTo,
+      @RequestParam(required = false) String serviceDateFrom,
+      @RequestParam(required = false) String serviceDateTo,
+      @RequestParam(required = false, defaultValue = "false") boolean overdueOnly,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
     List<VehicleMaintenancePlanListItemDto> plans =
-        loadPlans(currentUser.getTenantId(), keyword, status, orgId, vehicleId);
+        loadPlans(
+            currentUser.getTenantId(),
+            keyword,
+            status,
+            orgId,
+            vehicleId,
+            parseDate(nextMaintainDateFrom),
+            parseDate(nextMaintainDateTo),
+            overdueOnly);
     List<VehicleMaintenanceRecordListItemDto> records =
-        loadRecords(currentUser.getTenantId(), keyword, orgId, vehicleId);
+        loadRecords(
+            currentUser.getTenantId(),
+            keyword,
+            orgId,
+            vehicleId,
+            parseDate(serviceDateFrom),
+            parseDate(serviceDateTo));
     return ApiResult.ok(
         new VehicleMaintenancePlanSummaryDto(
             plans.size(),
@@ -119,18 +155,101 @@ public class VehicleMaintenancePlansController {
       @RequestParam(required = false) String keyword,
       @RequestParam(required = false) Long orgId,
       @RequestParam(required = false) Long vehicleId,
+      @RequestParam(required = false) String serviceDateFrom,
+      @RequestParam(required = false) String serviceDateTo,
       @RequestParam(defaultValue = "1") int pageNo,
       @RequestParam(defaultValue = "20") int pageSize,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
     List<VehicleMaintenanceRecordListItemDto> rows =
-        new ArrayList<>(loadRecords(currentUser.getTenantId(), keyword, orgId, vehicleId));
+        new ArrayList<>(
+            loadRecords(
+                currentUser.getTenantId(),
+                keyword,
+                orgId,
+                vehicleId,
+                parseDate(serviceDateFrom),
+                parseDate(serviceDateTo)));
     rows.sort(
         Comparator.comparing(
                 VehicleMaintenanceRecordListItemDto::getServiceDate,
                 Comparator.nullsLast(String::compareTo))
             .reversed());
     return ApiResult.ok(paginateRecords(rows, pageNo, pageSize));
+  }
+
+  @GetMapping("/{id}")
+  public ApiResult<VehicleMaintenancePlanListItemDto> detail(
+      @PathVariable Long id, HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    return ApiResult.ok(loadPlanDto(id, currentUser.getTenantId()));
+  }
+
+  @GetMapping("/{id}/records")
+  public ApiResult<List<VehicleMaintenanceRecordListItemDto>> planRecords(
+      @PathVariable Long id, HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    VehicleMaintenancePlan plan = requirePlan(id, currentUser.getTenantId());
+    return ApiResult.ok(
+        loadRecords(currentUser.getTenantId(), null, null, plan.getVehicleId(), null, null).stream()
+            .filter(item -> Objects.equals(parseLong(item.getPlanId()), plan.getId()))
+            .sorted(
+                Comparator.comparing(
+                        VehicleMaintenanceRecordListItemDto::getServiceDate,
+                        Comparator.nullsLast(String::compareTo))
+                    .reversed())
+            .toList());
+  }
+
+  @GetMapping("/records/{id}")
+  public ApiResult<VehicleMaintenanceRecordListItemDto> recordDetail(
+      @PathVariable Long id, HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    return ApiResult.ok(loadRecordDto(id, currentUser.getTenantId()));
+  }
+
+  @GetMapping("/export/plans")
+  public ResponseEntity<byte[]> exportPlans(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) Long orgId,
+      @RequestParam(required = false) Long vehicleId,
+      @RequestParam(required = false) String nextMaintainDateFrom,
+      @RequestParam(required = false) String nextMaintainDateTo,
+      @RequestParam(required = false, defaultValue = "false") boolean overdueOnly,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<VehicleMaintenancePlanListItemDto> rows =
+        loadPlans(
+            currentUser.getTenantId(),
+            keyword,
+            status,
+            orgId,
+            vehicleId,
+            parseDate(nextMaintainDateFrom),
+            parseDate(nextMaintainDateTo),
+            overdueOnly);
+    return csvResponse("vehicle_maintenance_plans.csv", buildPlanCsv(rows));
+  }
+
+  @GetMapping("/export/records")
+  public ResponseEntity<byte[]> exportRecords(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) Long orgId,
+      @RequestParam(required = false) Long vehicleId,
+      @RequestParam(required = false) String serviceDateFrom,
+      @RequestParam(required = false) String serviceDateTo,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<VehicleMaintenanceRecordListItemDto> rows =
+        loadRecords(
+            currentUser.getTenantId(),
+            keyword,
+            orgId,
+            vehicleId,
+            parseDate(serviceDateFrom),
+            parseDate(serviceDateTo));
+    return csvResponse("vehicle_maintenance_records.csv", buildRecordCsv(rows));
   }
 
   @PostMapping
@@ -183,9 +302,18 @@ public class VehicleMaintenancePlansController {
     record.setServiceDate(body != null && body.getServiceDate() != null ? body.getServiceDate() : LocalDate.now());
     record.setOdometer(body != null && body.getOdometer() != null ? body.getOdometer() : defaultDecimal(vehicle.getCurrentMileage()));
     record.setVendorName(body != null ? trimToNull(body.getVendorName()) : null);
-    record.setCostAmount(body != null ? defaultDecimal(body.getCostAmount()) : ZERO);
+    record.setLaborCost(body != null ? defaultDecimal(body.getLaborCost()) : ZERO);
+    record.setMaterialCost(body != null ? defaultDecimal(body.getMaterialCost()) : ZERO);
+    record.setExternalCost(body != null ? defaultDecimal(body.getExternalCost()) : ZERO);
+    record.setCostAmount(resolveCostAmount(body, record));
     record.setItems(body != null ? trimToNull(body.getItems()) : null);
+    record.setIssueDescription(body != null ? trimToNull(body.getIssueDescription()) : null);
+    record.setResultSummary(body != null ? trimToNull(body.getResultSummary()) : null);
     record.setOperatorName(body != null ? trimToNull(body.getOperatorName()) : null);
+    record.setTechnicianName(body != null ? trimToNull(body.getTechnicianName()) : null);
+    record.setCheckerName(body != null ? trimToNull(body.getCheckerName()) : null);
+    record.setSignoffStatus(defaultStatus(body != null ? body.getSignoffStatus() : null, "UNSIGNED"));
+    record.setAttachmentUrls(body != null ? trimToNull(body.getAttachmentUrls()) : null);
     record.setStatus(defaultStatus(body != null ? body.getStatus() : null, "DONE"));
     record.setRemark(body != null ? trimToNull(body.getRemark()) : null);
     recordMapper.insert(record);
@@ -199,8 +327,31 @@ public class VehicleMaintenancePlansController {
     return ApiResult.ok(loadRecordDto(record.getId(), currentUser.getTenantId()));
   }
 
+  @DeleteMapping("/{id}")
+  public ApiResult<Void> delete(@PathVariable Long id, HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    VehicleMaintenancePlan entity = requirePlan(id, currentUser.getTenantId());
+    long recordCount =
+        recordMapper.selectCount(
+            new LambdaQueryWrapper<VehicleMaintenanceRecord>()
+                .eq(VehicleMaintenanceRecord::getTenantId, currentUser.getTenantId())
+                .eq(VehicleMaintenanceRecord::getPlanId, id));
+    if (recordCount > 0) {
+      throw new BizException(400, "该维保计划已有关联执行记录，暂不支持删除");
+    }
+    planMapper.deleteById(id);
+    return ApiResult.ok();
+  }
+
   private List<VehicleMaintenancePlanListItemDto> loadPlans(
-      Long tenantId, String keyword, String status, Long orgId, Long vehicleId) {
+      Long tenantId,
+      String keyword,
+      String status,
+      Long orgId,
+      Long vehicleId,
+      LocalDate nextMaintainDateFrom,
+      LocalDate nextMaintainDateTo,
+      boolean overdueOnly) {
     List<VehicleMaintenancePlan> rows =
         planMapper.selectList(
             new LambdaQueryWrapper<VehicleMaintenancePlan>()
@@ -213,18 +364,26 @@ public class VehicleMaintenancePlansController {
     }
     Map<Long, Vehicle> vehicleMap = loadVehicleMap(rows.stream().map(VehicleMaintenancePlan::getVehicleId).toList());
     Map<Long, Org> orgMap = loadOrgMap(vehicleMap.values().stream().toList());
+    Map<Long, List<VehicleMaintenanceRecord>> recordMap = loadRecordMap(rows.stream().map(VehicleMaintenancePlan::getId).toList(), tenantId);
     String keywordValue = trimToNull(keyword);
     String statusValue = trimToNull(status);
     return rows.stream()
-        .map(item -> toPlanDto(item, vehicleMap.get(item.getVehicleId()), orgMap))
+        .map(item -> toPlanDto(item, vehicleMap.get(item.getVehicleId()), orgMap, recordMap.getOrDefault(item.getId(), List.of())))
         .filter(item -> matchPlanKeyword(item, keywordValue))
         .filter(item -> !StringUtils.hasText(statusValue) || statusValue.equalsIgnoreCase(item.getStatus()))
         .filter(item -> orgId == null || Objects.equals(parseLong(item.getOrgId()), orgId))
+        .filter(item -> matchDateRange(item.getNextMaintainDate(), nextMaintainDateFrom, nextMaintainDateTo))
+        .filter(item -> !overdueOnly || Boolean.TRUE.equals(item.getOverdue()))
         .toList();
   }
 
   private List<VehicleMaintenanceRecordListItemDto> loadRecords(
-      Long tenantId, String keyword, Long orgId, Long vehicleId) {
+      Long tenantId,
+      String keyword,
+      Long orgId,
+      Long vehicleId,
+      LocalDate serviceDateFrom,
+      LocalDate serviceDateTo) {
     List<VehicleMaintenanceRecord> rows =
         recordMapper.selectList(
             new LambdaQueryWrapper<VehicleMaintenanceRecord>()
@@ -243,14 +402,93 @@ public class VehicleMaintenancePlansController {
         .map(item -> toRecordDto(item, vehicleMap.get(item.getVehicleId()), orgMap, planMap.get(item.getPlanId())))
         .filter(item -> matchRecordKeyword(item, keywordValue))
         .filter(item -> orgId == null || Objects.equals(parseLong(item.getOrgId()), orgId))
+        .filter(item -> matchDateRange(item.getServiceDate(), serviceDateFrom, serviceDateTo))
         .toList();
+  }
+
+  private boolean matchDateRange(String value, LocalDate from, LocalDate to) {
+    if (value == null && (from != null || to != null)) {
+      return false;
+    }
+    if (!StringUtils.hasText(value)) {
+      return true;
+    }
+    LocalDate date = parseDate(value);
+    if (date == null) {
+      return false;
+    }
+    return (from == null || !date.isBefore(from)) && (to == null || !date.isAfter(to));
+  }
+
+  private ResponseEntity<byte[]> csvResponse(String fileName, String content) {
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName)
+        .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+        .body(content.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private String buildPlanCsv(List<VehicleMaintenancePlanListItemDto> rows) {
+    StringBuilder builder =
+        new StringBuilder("计划编号,车牌号,所属单位,维保类型,周期类型,周期值,上次维保日期,下次维保日期,上次里程,下次里程,负责人,状态,是否逾期,执行次数,累计费用,最近执行日期,备注\n");
+    for (VehicleMaintenancePlanListItemDto row : rows) {
+      builder
+          .append(csv(row.getPlanNo())).append(',')
+          .append(csv(row.getPlateNo())).append(',')
+          .append(csv(row.getOrgName())).append(',')
+          .append(csv(row.getPlanType())).append(',')
+          .append(csv(row.getCycleType())).append(',')
+          .append(row.getCycleValue() != null ? row.getCycleValue() : "").append(',')
+          .append(csv(row.getLastMaintainDate())).append(',')
+          .append(csv(row.getNextMaintainDate())).append(',')
+          .append(defaultDecimal(row.getLastOdometer())).append(',')
+          .append(row.getNextOdometer() != null ? row.getNextOdometer() : "").append(',')
+          .append(csv(row.getResponsibleName())).append(',')
+          .append(csv(row.getStatusLabel())).append(',')
+          .append(Boolean.TRUE.equals(row.getOverdue()) ? "是" : "否").append(',')
+          .append(row.getRecordCount() != null ? row.getRecordCount() : 0).append(',')
+          .append(defaultDecimal(row.getTotalRecordCost())).append(',')
+          .append(csv(row.getLastServiceDate())).append(',')
+          .append(csv(row.getRemark())).append('\n');
+    }
+    return builder.toString();
+  }
+
+  private String buildRecordCsv(List<VehicleMaintenanceRecordListItemDto> rows) {
+    StringBuilder builder =
+        new StringBuilder("执行编号,计划编号,车牌号,所属单位,维保项目,执行日期,执行里程,服务商,总费用,人工费,材料费,外协费,执行项,异常描述,处理结果,经办人,维修技师,验收人,签字状态,状态,备注\n");
+    for (VehicleMaintenanceRecordListItemDto row : rows) {
+      builder
+          .append(csv(row.getRecordNo())).append(',')
+          .append(csv(row.getPlanNo())).append(',')
+          .append(csv(row.getPlateNo())).append(',')
+          .append(csv(row.getOrgName())).append(',')
+          .append(csv(row.getMaintainType())).append(',')
+          .append(csv(row.getServiceDate())).append(',')
+          .append(defaultDecimal(row.getOdometer())).append(',')
+          .append(csv(row.getVendorName())).append(',')
+          .append(defaultDecimal(row.getCostAmount())).append(',')
+          .append(defaultDecimal(row.getLaborCost())).append(',')
+          .append(defaultDecimal(row.getMaterialCost())).append(',')
+          .append(defaultDecimal(row.getExternalCost())).append(',')
+          .append(csv(row.getItems())).append(',')
+          .append(csv(row.getIssueDescription())).append(',')
+          .append(csv(row.getResultSummary())).append(',')
+          .append(csv(row.getOperatorName())).append(',')
+          .append(csv(row.getTechnicianName())).append(',')
+          .append(csv(row.getCheckerName())).append(',')
+          .append(csv(row.getSignoffStatusLabel())).append(',')
+          .append(csv(row.getStatusLabel())).append(',')
+          .append(csv(row.getRemark())).append('\n');
+    }
+    return builder.toString();
   }
 
   private VehicleMaintenancePlanListItemDto loadPlanDto(Long id, Long tenantId) {
     VehicleMaintenancePlan entity = requirePlan(id, tenantId);
     Map<Long, Vehicle> vehicleMap = loadVehicleMap(List.of(entity.getVehicleId()));
     Map<Long, Org> orgMap = loadOrgMap(vehicleMap.values().stream().toList());
-    return toPlanDto(entity, vehicleMap.get(entity.getVehicleId()), orgMap);
+    Map<Long, List<VehicleMaintenanceRecord>> recordMap = loadRecordMap(List.of(entity.getId()), tenantId);
+    return toPlanDto(entity, vehicleMap.get(entity.getVehicleId()), orgMap, recordMap.getOrDefault(entity.getId(), List.of()));
   }
 
   private VehicleMaintenanceRecordListItemDto loadRecordDto(Long id, Long tenantId) {
@@ -295,8 +533,27 @@ public class VehicleMaintenancePlansController {
         .collect(Collectors.toMap(VehicleMaintenancePlan::getId, Function.identity(), (left, right) -> left));
   }
 
+  private Map<Long, List<VehicleMaintenanceRecord>> loadRecordMap(List<Long> planIds, Long tenantId) {
+    LinkedHashSet<Long> values = planIds.stream().filter(Objects::nonNull).collect(Collectors.toCollection(LinkedHashSet::new));
+    if (values.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    return recordMapper.selectList(
+            new LambdaQueryWrapper<VehicleMaintenanceRecord>()
+                .eq(VehicleMaintenanceRecord::getTenantId, tenantId)
+                .in(VehicleMaintenanceRecord::getPlanId, values)
+                .orderByDesc(VehicleMaintenanceRecord::getServiceDate)
+                .orderByDesc(VehicleMaintenanceRecord::getId))
+        .stream()
+        .filter(item -> item.getPlanId() != null)
+        .collect(Collectors.groupingBy(VehicleMaintenanceRecord::getPlanId));
+  }
+
   private VehicleMaintenancePlanListItemDto toPlanDto(
-      VehicleMaintenancePlan entity, Vehicle vehicle, Map<Long, Org> orgMap) {
+      VehicleMaintenancePlan entity,
+      Vehicle vehicle,
+      Map<Long, Org> orgMap,
+      List<VehicleMaintenanceRecord> relatedRecords) {
     VehicleMaintenancePlanListItemDto dto = new VehicleMaintenancePlanListItemDto();
     dto.setId(String.valueOf(entity.getId()));
     dto.setPlanNo(entity.getPlanNo());
@@ -317,6 +574,15 @@ public class VehicleMaintenancePlansController {
     dto.setStatusLabel(resolvePlanStatusLabel(status));
     dto.setOverdue(entity.getNextMaintainDate() != null && entity.getNextMaintainDate().isBefore(LocalDate.now()) && "ACTIVE".equalsIgnoreCase(status));
     dto.setRemark(entity.getRemark());
+    dto.setRecordCount(relatedRecords.size());
+    dto.setTotalRecordCost(relatedRecords.stream().map(VehicleMaintenanceRecord::getCostAmount).filter(Objects::nonNull).reduce(ZERO, BigDecimal::add));
+    dto.setLastServiceDate(
+        relatedRecords.stream()
+            .map(VehicleMaintenanceRecord::getServiceDate)
+            .filter(Objects::nonNull)
+            .max(LocalDate::compareTo)
+            .map(this::formatDate)
+            .orElse(null));
     return dto;
   }
 
@@ -339,8 +605,18 @@ public class VehicleMaintenancePlansController {
     dto.setOdometer(defaultDecimal(entity.getOdometer()));
     dto.setVendorName(entity.getVendorName());
     dto.setCostAmount(defaultDecimal(entity.getCostAmount()));
+    dto.setLaborCost(defaultDecimal(entity.getLaborCost()));
+    dto.setMaterialCost(defaultDecimal(entity.getMaterialCost()));
+    dto.setExternalCost(defaultDecimal(entity.getExternalCost()));
     dto.setItems(entity.getItems());
+    dto.setIssueDescription(entity.getIssueDescription());
+    dto.setResultSummary(entity.getResultSummary());
     dto.setOperatorName(entity.getOperatorName());
+    dto.setTechnicianName(entity.getTechnicianName());
+    dto.setCheckerName(entity.getCheckerName());
+    dto.setSignoffStatus(defaultStatus(entity.getSignoffStatus(), "UNSIGNED"));
+    dto.setSignoffStatusLabel(resolveSignoffStatusLabel(dto.getSignoffStatus()));
+    dto.setAttachmentUrls(entity.getAttachmentUrls());
     String status = defaultStatus(entity.getStatus(), "DONE");
     dto.setStatus(status);
     dto.setStatusLabel(resolveRecordStatusLabel(status));
@@ -471,19 +747,7 @@ public class VehicleMaintenancePlansController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null || user.getTenantId() == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 
   private String resolveOrgName(Org org, Long orgId) {
@@ -509,6 +773,14 @@ public class VehicleMaintenancePlansController {
     };
   }
 
+  private String resolveSignoffStatusLabel(String status) {
+    return switch (defaultStatus(status, "UNSIGNED")) {
+      case "SIGNED" -> "已签字";
+      case "WAIVED" -> "免签";
+      default -> "未签字";
+    };
+  }
+
   private boolean contains(String source, String keyword) {
     return StringUtils.hasText(source) && source.toLowerCase().contains(keyword.toLowerCase());
   }
@@ -525,8 +797,36 @@ public class VehicleMaintenancePlansController {
     return value != null ? value.format(ISO_DATE) : null;
   }
 
+  private LocalDate parseDate(String value) {
+    if (!StringUtils.hasText(value)) {
+      return null;
+    }
+    try {
+      return LocalDate.parse(value.trim(), ISO_DATE);
+    } catch (Exception ex) {
+      throw new BizException(400, "日期格式错误，应为 yyyy-MM-dd");
+    }
+  }
+
   private BigDecimal defaultDecimal(BigDecimal value) {
     return value != null ? value : ZERO;
+  }
+
+  private BigDecimal resolveCostAmount(VehicleMaintenanceExecuteDto body, VehicleMaintenanceRecord record) {
+    BigDecimal explicitAmount = body != null ? body.getCostAmount() : null;
+    if (explicitAmount != null && explicitAmount.compareTo(ZERO) > 0) {
+      return explicitAmount;
+    }
+    return defaultDecimal(record.getLaborCost())
+        .add(defaultDecimal(record.getMaterialCost()))
+        .add(defaultDecimal(record.getExternalCost()));
+  }
+
+  private String csv(String value) {
+    if (value == null) {
+      return "";
+    }
+    return '"' + value.replace("\"", "\"\"") + '"';
   }
 
   private Long parseLong(String value) {

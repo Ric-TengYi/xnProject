@@ -67,6 +67,7 @@ const SitesBasicInfo: React.FC = () => {
                 id: site.id,
                 name: site.name || '-',
                 type: resolveType(site),
+                level: site.siteLevel === 'SECONDARY' ? '二级场地' : '一级场地',
                 region: resolveRegion(site),
                 totalCapacity,
                 usedCapacity: Math.min(totalCapacity, usedCapacity),
@@ -83,6 +84,7 @@ const SitesBasicInfo: React.FC = () => {
     const columns = [
         { title: '场地名称', dataIndex: 'name', key: 'name', render: (text: string, record: any) => <a onClick={() => navigate(`/sites/${record.id}?tab=info`)} className="g-text-primary-link font-medium">{text}</a> },
         { title: '类型', dataIndex: 'type', key: 'type', render: (text: string) => <Tag color="blue">{text}</Tag> },
+        { title: '层级', dataIndex: 'level', key: 'level', render: (text: string) => <Tag color={text === '二级场地' ? 'geekblue' : 'default'}>{text}</Tag> },
         { title: '所属区域', dataIndex: 'region', key: 'region' },
         { title: '总容量 (方)', dataIndex: 'totalCapacity', key: 'totalCapacity', render: (val: number) => val.toLocaleString() },
         { 
@@ -146,7 +148,7 @@ const SitesBasicInfo: React.FC = () => {
                         </Select>
                         <Button type="primary">查询</Button>
                     </Space>
-                    <Button type="primary" icon={<PlusOutlined />}>新增场地</Button>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/sites?create=1')}>新增场地</Button>
                 </div>
 
                 <Table 

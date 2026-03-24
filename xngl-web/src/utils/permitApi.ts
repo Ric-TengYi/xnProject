@@ -15,6 +15,10 @@ export interface DisposalPermitRecord {
   usedVolume?: number | null;
   status?: string | null;
   bindStatus?: string | null;
+  sourcePlatform?: string | null;
+  externalRefNo?: string | null;
+  lastSyncTime?: string | null;
+  syncBatchNo?: string | null;
   remark?: string | null;
   createTime?: string | null;
   updateTime?: string | null;
@@ -35,6 +39,18 @@ export interface DisposalPermitUpsertPayload {
   remark?: string;
 }
 
+export interface DisposalPermitQueryParams {
+  keyword?: string;
+  permitType?: string;
+  status?: string;
+  contractId?: number;
+  projectId?: number;
+  siteId?: number;
+  vehicleNo?: string;
+  bindStatus?: string;
+  sourcePlatform?: string;
+}
+
 const mapRecord = (record: Partial<DisposalPermitRecord>): DisposalPermitRecord => ({
   id: record.id || '',
   tenantId: record.tenantId ?? null,
@@ -50,12 +66,16 @@ const mapRecord = (record: Partial<DisposalPermitRecord>): DisposalPermitRecord 
   usedVolume: Number(record.usedVolume || 0),
   status: record.status || 'ACTIVE',
   bindStatus: record.bindStatus || 'UNBOUND',
+  sourcePlatform: record.sourcePlatform || null,
+  externalRefNo: record.externalRefNo || null,
+  lastSyncTime: record.lastSyncTime || null,
+  syncBatchNo: record.syncBatchNo || null,
   remark: record.remark || null,
   createTime: record.createTime || null,
   updateTime: record.updateTime || null,
 });
 
-export async function fetchDisposalPermits(params: Record<string, any> = {}) {
+export async function fetchDisposalPermits(params: DisposalPermitQueryParams = {}) {
   const res = await http.get<DisposalPermitRecord[]>('/disposal-permits', { params });
   return (Array.isArray(res.data) ? res.data : []).map(mapRecord);
 }

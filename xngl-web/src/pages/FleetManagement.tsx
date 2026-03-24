@@ -4,12 +4,15 @@ import {
   Card,
   Col,
   DatePicker,
+  Descriptions,
+  Empty,
   Form,
   Input,
   InputNumber,
   Modal,
   Row,
   Select,
+  Slider,
   Space,
   Statistic,
   Table,
@@ -22,8 +25,11 @@ import {
   CarOutlined,
   CheckCircleOutlined,
   DollarOutlined,
+  EnvironmentOutlined,
   FileTextOutlined,
   FundOutlined,
+  PauseCircleOutlined,
+  PlayCircleOutlined,
   PlusOutlined,
   SearchOutlined,
   TeamOutlined,
@@ -36,11 +42,17 @@ import {
   createFleetFinanceRecord,
   createFleetProfile,
   createFleetTransportPlan,
+  exportFleetFinanceRecords,
+  exportFleetReport,
   fetchFleetDispatchOrders,
   fetchFleetFinanceRecords,
+  fetchFleetFinanceSummary,
   fetchFleetProfiles,
   fetchFleetReport,
   fetchFleetSummary,
+  fetchFleetTracking,
+  fetchFleetTrackingHistory,
+  fetchFleetTrackingSummary,
   fetchFleetTransportPlans,
   rejectFleetDispatchOrder,
   updateFleetDispatchOrder,
@@ -49,11 +61,17 @@ import {
   updateFleetTransportPlan,
   type FleetDispatchOrderRecord,
   type FleetFinanceRecord,
+  type FleetFinanceSummaryRecord,
   type FleetProfileRecord,
   type FleetReportItemRecord,
   type FleetSummaryRecord,
+  type FleetTrackingHistoryRecord,
+  type FleetTrackingRecord,
+  type FleetTrackingSummaryRecord,
   type FleetTransportPlanRecord,
 } from '../utils/fleetApi';
+import TiandituMap from '../components/TiandituMap';
+import type { MapMarker, MapPoint, MapPolyline } from '../components/TiandituMap';
 import { fetchVehicleCompanyCapacity } from '../utils/vehicleApi';
 
 type ProfileFormValues = {
@@ -114,6 +132,33 @@ type SelectOption = {
   value: string;
 };
 
+type RangeValue = [Dayjs | null, Dayjs | null] | null;
+
+type TrackingPoint = {
+  position: MapPoint;
+  locateTime?: string | null;
+  speed?: string;
+};
+
+const { RangePicker } = DatePicker;
+
+const defaultTrackingCenter: MapPoint = [120.1551, 30.2741];
+
+const buildTrackingRange = (): [Dayjs, Dayjs] => [dayjs().startOf('day'), dayjs().endOf('day')];
+
+const interpolatePosition = (path: MapPoint[], progress: number): MapPoint => {
+  if (path.length <= 1) {
+    return path[0] || defaultTrackingCenter;
+  }
+  const normalized = Math.min(Math.max(progress, 0), 100) / 100;
+  const scaled = normalized * (path.length - 1);
+  const index = Math.min(Math.floor(scaled), path.length - 2);
+  const ratio = scaled - index;
+  const start = path[index];
+  const end = path[index + 1];
+  return [start[0] + (end[0] - start[0]) * ratio, start[1] + (end[1] - start[1]) * ratio];
+};
+
 const defaultSummary: FleetSummaryRecord = {
   totalFleets: 0,
   activeFleets: 0,
@@ -121,6 +166,24 @@ const defaultSummary: FleetSummaryRecord = {
   pendingDispatchOrders: 0,
   totalRevenueAmount: 0,
   totalProfitAmount: 0,
+};
+
+const defaultTrackingSummary: FleetTrackingSummaryRecord = {
+  totalVehicles: 0,
+  movingVehicles: 0,
+  stoppedVehicles: 0,
+  offlineVehicles: 0,
+  deliveringVehicles: 0,
+  warningVehicles: 0,
+};
+
+const defaultFinanceSummary: FleetFinanceSummaryRecord = {
+  totalRecords: 0,
+  settledRecords: 0,
+  totalRevenueAmount: 0,
+  totalCostAmount: 0,
+  totalProfitAmount: 0,
+  totalOutstandingAmount: 0,
 };
 
 const profileStatusOptions = [
@@ -158,6 +221,15 @@ const financeStatusOptions = [
   { label: '已结清', value: 'SETTLED' },
 ];
 
+const trackingStatusOptions = [
+  { label: '全部状态', value: 'all' },
+  { label: '行驶中', value: 'MOVING' },
+  { label: '停留中', value: 'STOPPED' },
+  { label: '离线', value: 'OFFLINE' },
+  { label: '配送中', value: 'DELIVERING' },
+  { label: '异常预警', value: 'WARNING' },
+];
+
 const urgencyOptions = [
   { label: '低', value: 'LOW' },
   { label: '中', value: 'MEDIUM' },
@@ -187,6 +259,12 @@ const financeTagColor: Record<string, string> = {
   CONFIRMED: 'processing',
   DRAFT: 'default',
   SETTLED: 'success',
+};
+
+const trackingTagColor: Record<string, string> = {
+  MOVING: 'success',
+  STOPPED: 'warning',
+  OFFLINE: 'default',
 };
 
 const formatMoney = (value: number) =>
@@ -251,10 +329,15 @@ const FleetManagement: React.FC = () => {
   const [auditForm] = Form.useForm<AuditFormValues>();
 
   const [financeLoading, setFinanceLoading] = useState(false);
+  const [financeSummaryLoading, setFinanceSummaryLoading] = useState(false);
   const [financeRows, setFinanceRows] = useState<FleetFinanceRecord[]>([]);
+  const [financeSummary, setFinanceSummary] = useState<FleetFinanceSummaryRecord>(defaultFinanceSummary);
   const [financeKeyword, setFinanceKeyword] = useState('');
   const [financeStatus, setFinanceStatus] = useState('all');
   const [financeFleetId, setFinanceFleetId] = useState<string | undefined>(undefined);
+  const [financeContractNo, setFinanceContractNo] = useState('');
+  const [financeMonthRange, setFinanceMonthRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
+  const [financeUnsettledOnly, setFinanceUnsettledOnly] = useState(false);
   const [financePageNo, setFinancePageNo] = useState(1);
   const [financePageSize, setFinancePageSize] = useState(10);
   const [financeTotal, setFinanceTotal] = useState(0);
@@ -262,6 +345,31 @@ const FleetManagement: React.FC = () => {
   const [financeSubmitLoading, setFinanceSubmitLoading] = useState(false);
   const [editingFinance, setEditingFinance] = useState<FleetFinanceRecord | null>(null);
   const [financeForm] = Form.useForm<FinanceFormValues>();
+
+  const [reportKeyword, setReportKeyword] = useState('');
+  const [reportOrgId, setReportOrgId] = useState<string | undefined>(undefined);
+  const [reportMonthRange, setReportMonthRange] = useState<[Dayjs | null, Dayjs | null] | null>(
+    null
+  );
+
+  const [trackingSummaryLoading, setTrackingSummaryLoading] = useState(false);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackingHistoryLoading, setTrackingHistoryLoading] = useState(false);
+  const [trackingSummary, setTrackingSummary] = useState<FleetTrackingSummaryRecord>(
+    defaultTrackingSummary
+  );
+  const [trackingRows, setTrackingRows] = useState<FleetTrackingRecord[]>([]);
+  const [trackingKeyword, setTrackingKeyword] = useState('');
+  const [trackingStatus, setTrackingStatus] = useState('all');
+  const [trackingFleetId, setTrackingFleetId] = useState<string | undefined>(undefined);
+  const [trackingPageNo, setTrackingPageNo] = useState(1);
+  const [trackingPageSize, setTrackingPageSize] = useState(10);
+  const [trackingTotal, setTrackingTotal] = useState(0);
+  const [selectedTrackingVehicleId, setSelectedTrackingVehicleId] = useState('');
+  const [trackingRange, setTrackingRange] = useState<RangeValue>(buildTrackingRange());
+  const [trackingHistory, setTrackingHistory] = useState<FleetTrackingHistoryRecord | null>(null);
+  const [trackingProgress, setTrackingProgress] = useState(0);
+  const [trackingPlaying, setTrackingPlaying] = useState(false);
 
   const profileQuery = useMemo(
     () => ({
@@ -301,16 +409,139 @@ const FleetManagement: React.FC = () => {
       keyword: financeKeyword.trim() || undefined,
       status: financeStatus === 'all' ? undefined : financeStatus,
       fleetId: financeFleetId,
+      contractNo: financeContractNo.trim() || undefined,
+      statementMonthFrom: financeMonthRange?.[0]?.format('YYYY-MM'),
+      statementMonthTo: financeMonthRange?.[1]?.format('YYYY-MM'),
+      unsettledOnly: financeUnsettledOnly || undefined,
       pageNo: financePageNo,
       pageSize: financePageSize,
     }),
-    [financeKeyword, financeStatus, financeFleetId, financePageNo, financePageSize]
+    [
+      financeContractNo,
+      financeFleetId,
+      financeKeyword,
+      financeMonthRange,
+      financePageNo,
+      financePageSize,
+      financeStatus,
+      financeUnsettledOnly,
+    ]
+  );
+
+  const financeSummaryQuery = useMemo(
+    () => ({
+      keyword: financeKeyword.trim() || undefined,
+      status: financeStatus === 'all' ? undefined : financeStatus,
+      fleetId: financeFleetId,
+      contractNo: financeContractNo.trim() || undefined,
+      statementMonthFrom: financeMonthRange?.[0]?.format('YYYY-MM'),
+      statementMonthTo: financeMonthRange?.[1]?.format('YYYY-MM'),
+      unsettledOnly: financeUnsettledOnly || undefined,
+    }),
+    [
+      financeContractNo,
+      financeFleetId,
+      financeKeyword,
+      financeMonthRange,
+      financeStatus,
+      financeUnsettledOnly,
+    ]
+  );
+
+  const reportQuery = useMemo(
+    () => ({
+      keyword: reportKeyword.trim() || undefined,
+      orgId: reportOrgId,
+      statementMonthFrom: reportMonthRange?.[0]?.format('YYYY-MM'),
+      statementMonthTo: reportMonthRange?.[1]?.format('YYYY-MM'),
+    }),
+    [reportKeyword, reportMonthRange, reportOrgId]
+  );
+
+  const trackingQuery = useMemo(
+    () => ({
+      keyword: trackingKeyword.trim() || undefined,
+      status: trackingStatus === 'all' ? undefined : trackingStatus,
+      fleetId: trackingFleetId,
+      pageNo: trackingPageNo,
+      pageSize: trackingPageSize,
+    }),
+    [trackingKeyword, trackingStatus, trackingFleetId, trackingPageNo, trackingPageSize]
   );
 
   const overviewTopRows = useMemo(() => reportRows.slice(0, 5), [reportRows]);
   const pendingDispatchRows = useMemo(
     () => dispatchRows.filter((item) => item.status === 'PENDING_APPROVAL').slice(0, 5),
     [dispatchRows]
+  );
+  const selectedTrackingRecord = useMemo(
+    () =>
+      trackingRows.find((item) => item.vehicleId === selectedTrackingVehicleId) ||
+      trackingRows[0] ||
+      null,
+    [trackingRows, selectedTrackingVehicleId]
+  );
+  const trackingPoints = useMemo<TrackingPoint[]>(
+    () =>
+      (trackingHistory?.points || []).map((point) => ({
+        position: [point.lng, point.lat],
+        locateTime: point.locateTime || null,
+        speed: point.speed != null ? `${point.speed} km/h` : undefined,
+      })),
+    [trackingHistory]
+  );
+  const trackingPath = useMemo<MapPoint[]>(
+    () => trackingPoints.map((item) => item.position),
+    [trackingPoints]
+  );
+  const activeTrackingPoint = useMemo(() => {
+    if (!trackingPoints.length) {
+      return null;
+    }
+    const index = Math.min(
+      Math.round((Math.min(Math.max(trackingProgress, 0), 100) / 100) * Math.max(trackingPoints.length - 1, 0)),
+      Math.max(trackingPoints.length - 1, 0)
+    );
+    return trackingPoints[index] || null;
+  }, [trackingPoints, trackingProgress]);
+  const trackingCenter = useMemo<MapPoint>(() => {
+    if (trackingPath.length > 1) {
+      return interpolatePosition(trackingPath, trackingProgress);
+    }
+    if (activeTrackingPoint) {
+      return activeTrackingPoint.position;
+    }
+    if (selectedTrackingRecord?.lng != null && selectedTrackingRecord?.lat != null) {
+      return [selectedTrackingRecord.lng, selectedTrackingRecord.lat];
+    }
+    return defaultTrackingCenter;
+  }, [activeTrackingPoint, selectedTrackingRecord, trackingPath, trackingProgress]);
+  const trackingMarkers = useMemo<MapMarker[]>(() => {
+    const rows = trackingRows
+      .filter((item) => item.lng != null && item.lat != null)
+      .map((item) => ({
+        id: item.vehicleId,
+        position:
+          selectedTrackingRecord && item.vehicleId === selectedTrackingRecord.vehicleId
+            ? trackingCenter
+            : ([item.lng!, item.lat!] as MapPoint),
+        title: `${item.plateNo} / ${item.trackingStatusLabel || '未知状态'}`,
+      }));
+    if (activeTrackingPoint) {
+      rows.push({
+        id: 'active-tracking-point',
+        position: activeTrackingPoint.position,
+        title: activeTrackingPoint.locateTime || '轨迹播放点',
+      });
+    }
+    return rows;
+  }, [activeTrackingPoint, selectedTrackingRecord, trackingCenter, trackingRows]);
+  const trackingPolylines = useMemo<MapPolyline[]>(
+    () =>
+      trackingPath.length > 1
+        ? [{ id: 'delivery-tracking-path', path: trackingPath, color: '#1677ff', weight: 5 }]
+        : [],
+    [trackingPath]
   );
 
   const loadSummary = async () => {
@@ -419,10 +650,23 @@ const FleetManagement: React.FC = () => {
     }
   };
 
+  const loadFinanceSummary = async () => {
+    setFinanceSummaryLoading(true);
+    try {
+      setFinanceSummary(await fetchFleetFinanceSummary(financeSummaryQuery));
+    } catch (error) {
+      console.error(error);
+      message.error('获取财务汇总失败');
+      setFinanceSummary(defaultFinanceSummary);
+    } finally {
+      setFinanceSummaryLoading(false);
+    }
+  };
+
   const loadReport = async () => {
     setReportLoading(true);
     try {
-      setReportRows(await fetchFleetReport());
+      setReportRows(await fetchFleetReport(reportQuery));
     } catch (error) {
       console.error(error);
       message.error('获取车队报表失败');
@@ -432,8 +676,67 @@ const FleetManagement: React.FC = () => {
     }
   };
 
+  const loadTrackingSummary = async () => {
+    setTrackingSummaryLoading(true);
+    try {
+      setTrackingSummary(await fetchFleetTrackingSummary(trackingQuery));
+    } catch (error) {
+      console.error(error);
+      message.error('获取送货跟踪汇总失败');
+      setTrackingSummary(defaultTrackingSummary);
+    } finally {
+      setTrackingSummaryLoading(false);
+    }
+  };
+
+  const loadTrackingRows = async () => {
+    setTrackingLoading(true);
+    try {
+      const page = await fetchFleetTracking(trackingQuery);
+      setTrackingRows(page.records || []);
+      setTrackingTotal(page.total || 0);
+    } catch (error) {
+      console.error(error);
+      message.error('获取送货跟踪列表失败');
+      setTrackingRows([]);
+      setTrackingTotal(0);
+    } finally {
+      setTrackingLoading(false);
+    }
+  };
+
+  const loadTrackingHistory = async (
+    vehicleId = selectedTrackingVehicleId,
+    range = trackingRange
+  ) => {
+    if (!vehicleId || !range?.[0] || !range?.[1]) {
+      setTrackingHistory(null);
+      setTrackingProgress(0);
+      setTrackingPlaying(false);
+      return;
+    }
+    setTrackingHistoryLoading(true);
+    try {
+      const result = await fetchFleetTrackingHistory(vehicleId, {
+        fleetId: trackingFleetId,
+        startTime: range[0].startOf('minute').format('YYYY-MM-DD HH:mm:ss'),
+        endTime: range[1].endOf('minute').format('YYYY-MM-DD HH:mm:ss'),
+        minStopMinutes: 10,
+      });
+      setTrackingHistory(result);
+      setTrackingProgress(0);
+      setTrackingPlaying(false);
+    } catch (error) {
+      console.error(error);
+      message.error('获取送货轨迹失败');
+      setTrackingHistory(null);
+    } finally {
+      setTrackingHistoryLoading(false);
+    }
+  };
+
   const reloadSharedData = async () => {
-    await Promise.all([loadSummary(), loadSupportOptions(), loadReport()]);
+    await Promise.all([loadSummary(), loadSupportOptions()]);
   };
 
   useEffect(() => {
@@ -455,6 +758,54 @@ const FleetManagement: React.FC = () => {
   useEffect(() => {
     void loadFinanceRecords();
   }, [financeQuery]);
+
+  useEffect(() => {
+    void loadFinanceSummary();
+  }, [financeSummaryQuery]);
+
+  useEffect(() => {
+    void loadReport();
+  }, [reportQuery]);
+
+  useEffect(() => {
+    void Promise.all([loadTrackingSummary(), loadTrackingRows()]);
+  }, [trackingQuery]);
+
+  useEffect(() => {
+    if (!trackingRows.some((item) => item.vehicleId === selectedTrackingVehicleId)) {
+      setSelectedTrackingVehicleId(trackingRows[0]?.vehicleId || '');
+      setTrackingProgress(0);
+      setTrackingPlaying(false);
+    }
+  }, [trackingRows, selectedTrackingVehicleId]);
+
+  useEffect(() => {
+    if (selectedTrackingVehicleId && trackingRange?.[0] && trackingRange?.[1]) {
+      void loadTrackingHistory(selectedTrackingVehicleId, trackingRange);
+    }
+  }, [
+    selectedTrackingVehicleId,
+    trackingRange?.[0]?.valueOf(),
+    trackingRange?.[1]?.valueOf(),
+    trackingFleetId,
+  ]);
+
+  useEffect(() => {
+    if (!trackingPlaying) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setTrackingProgress((current) => {
+        if (current >= 100) {
+          window.clearInterval(timer);
+          setTrackingPlaying(false);
+          return 100;
+        }
+        return Math.min(current + 4, 100);
+      });
+    }, 700);
+    return () => window.clearInterval(timer);
+  }, [trackingPlaying]);
 
   const resetProfileFilters = () => {
     setProfileKeyword('');
@@ -481,7 +832,24 @@ const FleetManagement: React.FC = () => {
     setFinanceKeyword('');
     setFinanceStatus('all');
     setFinanceFleetId(undefined);
+    setFinanceContractNo('');
+    setFinanceMonthRange(null);
+    setFinanceUnsettledOnly(false);
     setFinancePageNo(1);
+  };
+
+  const resetReportFilters = () => {
+    setReportKeyword('');
+    setReportOrgId(undefined);
+    setReportMonthRange(null);
+  };
+
+  const resetTrackingFilters = () => {
+    setTrackingKeyword('');
+    setTrackingStatus('all');
+    setTrackingFleetId(undefined);
+    setTrackingPageNo(1);
+    setTrackingRange(buildTrackingRange());
   };
 
   const openCreateProfile = () => {
@@ -712,6 +1080,37 @@ const FleetManagement: React.FC = () => {
       status: 'CONFIRMED',
     });
     setFinanceModalOpen(true);
+  };
+
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleExportFinance = async () => {
+    try {
+      downloadBlob(await exportFleetFinanceRecords(financeSummaryQuery), 'fleet_finance_records.csv');
+      message.success('财务台账导出成功');
+    } catch (error) {
+      console.error(error);
+      message.error('财务台账导出失败');
+    }
+  };
+
+  const handleExportReport = async () => {
+    try {
+      downloadBlob(await exportFleetReport(reportQuery), 'fleet_report.csv');
+      message.success('车队报表导出成功');
+    } catch (error) {
+      console.error(error);
+      message.error('车队报表导出失败');
+    }
   };
 
   const openEditFinance = (record: FleetFinanceRecord) => {
@@ -1055,6 +1454,80 @@ const FleetManagement: React.FC = () => {
     },
   ];
 
+  const trackingColumns: ColumnsType<FleetTrackingRecord> = [
+    {
+      title: '车辆',
+      dataIndex: 'plateNo',
+      key: 'plateNo',
+      width: 180,
+      render: (_, record) => (
+        <Space direction="vertical" size={0}>
+          <span className="font-semibold g-text-primary">{record.plateNo}</span>
+          <span className="text-xs g-text-secondary">{record.fleetName || '未编组车队'}</span>
+        </Space>
+      ),
+    },
+    {
+      title: '单位',
+      dataIndex: 'orgName',
+      key: 'orgName',
+      width: 180,
+      render: (value?: string | null) => value || '-',
+    },
+    {
+      title: '跟踪状态',
+      dataIndex: 'trackingStatusLabel',
+      key: 'trackingStatusLabel',
+      width: 110,
+      render: (_, record) => (
+        <Tag color={trackingTagColor[record.trackingStatus || ''] || 'default'}>
+          {record.trackingStatusLabel || '未知'}
+        </Tag>
+      ),
+    },
+    {
+      title: '调度状态',
+      dataIndex: 'dispatchStatusLabel',
+      key: 'dispatchStatusLabel',
+      width: 120,
+      render: (_, record) => (
+        <Tag color={dispatchTagColor[record.dispatchStatus || ''] || 'default'}>
+          {record.dispatchStatusLabel || '未关联'}
+        </Tag>
+      ),
+    },
+    { title: '目的地', dataIndex: 'destinationPoint', key: 'destinationPoint', width: 180 },
+    {
+      title: '当前速度',
+      dataIndex: 'currentSpeed',
+      key: 'currentSpeed',
+      width: 110,
+      render: (value: number) => `${value.toFixed(1)} km/h`,
+    },
+    { title: '定位时间', dataIndex: 'gpsTime', key: 'gpsTime', width: 170 },
+    {
+      title: '预警',
+      dataIndex: 'warningLabel',
+      key: 'warningLabel',
+      width: 120,
+      render: (value?: string | null) =>
+        value ? <Tag color="error">{value}</Tag> : <Tag>正常</Tag>,
+    },
+  ];
+
+  const trackingStopColumns: ColumnsType<NonNullable<FleetTrackingHistoryRecord['stops']>[number]> = [
+    { title: '开始时间', dataIndex: 'startTime', key: 'startTime', width: 160 },
+    { title: '结束时间', dataIndex: 'endTime', key: 'endTime', width: 160 },
+    {
+      title: '停留时长',
+      dataIndex: 'durationMinutes',
+      key: 'durationMinutes',
+      width: 110,
+      render: (value: number) => `${value} 分钟`,
+    },
+    { title: '位置说明', dataIndex: 'remark', key: 'remark', render: (value?: string | null) => value || '-' },
+  ];
+
   const overviewContent = (
     <Space direction="vertical" size={24} className="w-full">
       <Row gutter={[16, 16]}>
@@ -1372,6 +1845,51 @@ const FleetManagement: React.FC = () => {
 
   const financeContent = (
     <Space direction="vertical" size={16} className="w-full">
+      <Row gutter={[16, 16]}>
+        <Col xs={24} md={6}>
+          <Card className="glass-panel g-border-panel border">
+            <Statistic
+              title="财务记录数"
+              value={financeSummary.totalRecords}
+              loading={financeSummaryLoading}
+              prefix={<FileTextOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} md={6}>
+          <Card className="glass-panel g-border-panel border">
+            <Statistic
+              title="总收入"
+              value={financeSummary.totalRevenueAmount}
+              precision={2}
+              loading={financeSummaryLoading}
+              prefix="¥"
+            />
+          </Card>
+        </Col>
+        <Col xs={24} md={6}>
+          <Card className="glass-panel g-border-panel border">
+            <Statistic
+              title="总利润"
+              value={financeSummary.totalProfitAmount}
+              precision={2}
+              loading={financeSummaryLoading}
+              prefix={<FundOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} md={6}>
+          <Card className="glass-panel g-border-panel border">
+            <Statistic
+              title="未结金额"
+              value={financeSummary.totalOutstandingAmount}
+              precision={2}
+              loading={financeSummaryLoading}
+              prefix={<DollarOutlined />}
+            />
+          </Card>
+        </Col>
+      </Row>
       <Card className="glass-panel g-border-panel border">
         <Row gutter={[12, 12]}>
           <Col xs={24} md={8} xl={6}>
@@ -1385,7 +1903,7 @@ const FleetManagement: React.FC = () => {
               }}
             />
           </Col>
-          <Col xs={24} md={8} xl={5}>
+          <Col xs={24} md={8} xl={4}>
             <Select
               className="w-full"
               value={financeStatus}
@@ -1396,7 +1914,7 @@ const FleetManagement: React.FC = () => {
               }}
             />
           </Col>
-          <Col xs={24} md={8} xl={5}>
+          <Col xs={24} md={8} xl={4}>
             <Select
               allowClear
               placeholder="选择车队"
@@ -1409,9 +1927,45 @@ const FleetManagement: React.FC = () => {
               }}
             />
           </Col>
-          <Col xs={24} xl={8}>
+          <Col xs={24} md={8} xl={4}>
+            <Input
+              placeholder="运输合同号"
+              value={financeContractNo}
+              onChange={(e) => {
+                setFinanceContractNo(e.target.value);
+                setFinancePageNo(1);
+              }}
+            />
+          </Col>
+          <Col xs={24} md={8} xl={4}>
+            <RangePicker
+              picker="month"
+              className="w-full"
+              value={financeMonthRange}
+              onChange={(value) => {
+                setFinanceMonthRange(value);
+                setFinancePageNo(1);
+              }}
+            />
+          </Col>
+          <Col xs={24} md={8} xl={2}>
+            <Select
+              className="w-full"
+              value={financeUnsettledOnly ? 'UNSETTLED' : 'all'}
+              options={[
+                { label: '全部', value: 'all' },
+                { label: '仅未结', value: 'UNSETTLED' },
+              ]}
+              onChange={(value) => {
+                setFinanceUnsettledOnly(value === 'UNSETTLED');
+                setFinancePageNo(1);
+              }}
+            />
+          </Col>
+          <Col xs={24} xl={4}>
             <div className="flex gap-2 justify-end">
               <Button onClick={resetFinanceFilters}>重置</Button>
+              <Button onClick={() => void handleExportFinance()}>导出财务</Button>
               <Button type="primary" icon={<PlusOutlined />} onClick={openCreateFinance}>
                 新增财务记录
               </Button>
@@ -1443,6 +1997,43 @@ const FleetManagement: React.FC = () => {
 
   const reportContent = (
     <Space direction="vertical" size={16} className="w-full">
+      <Card className="glass-panel g-border-panel border">
+        <Row gutter={[12, 12]}>
+          <Col xs={24} md={8} xl={7}>
+            <Input
+              placeholder="搜索车队/单位"
+              prefix={<SearchOutlined />}
+              value={reportKeyword}
+              onChange={(e) => setReportKeyword(e.target.value)}
+            />
+          </Col>
+          <Col xs={24} md={8} xl={5}>
+            <Select
+              allowClear
+              placeholder="归属单位"
+              className="w-full"
+              value={reportOrgId}
+              options={companyOptions}
+              onChange={(value) => setReportOrgId(value)}
+            />
+          </Col>
+          <Col xs={24} md={8} xl={6}>
+            <RangePicker
+              picker="month"
+              className="w-full"
+              value={reportMonthRange}
+              onChange={(value) => setReportMonthRange(value)}
+            />
+          </Col>
+          <Col xs={24} xl={6}>
+            <div className="flex gap-2 justify-end">
+              <Button onClick={resetReportFilters}>重置</Button>
+              <Button onClick={() => void loadReport()}>刷新报表</Button>
+              <Button onClick={() => void handleExportReport()}>导出报表</Button>
+            </div>
+          </Col>
+        </Row>
+      </Card>
       <Row gutter={[16, 16]}>
         <Col xs={24} md={8}>
           <Card className="glass-panel g-border-panel border">
@@ -1478,7 +2069,7 @@ const FleetManagement: React.FC = () => {
           </Card>
         </Col>
       </Row>
-      <Card className="glass-panel g-border-panel border" extra={<Button onClick={() => void loadReport()}>刷新报表</Button>}>
+      <Card className="glass-panel g-border-panel border">
         <Table<FleetReportItemRecord>
           rowKey={(record) => record.fleetId || record.fleetName}
           loading={reportLoading}
@@ -1491,13 +2082,318 @@ const FleetManagement: React.FC = () => {
     </Space>
   );
 
+  const trackingContent = (
+    <Space direction="vertical" size={16} className="w-full">
+      <Card className="glass-panel g-border-panel border">
+        <Row gutter={[12, 12]}>
+          <Col xs={24} md={8} xl={6}>
+            <Input
+              placeholder="搜索车牌/车队/单位/目的地"
+              prefix={<SearchOutlined />}
+              value={trackingKeyword}
+              onChange={(e) => {
+                setTrackingKeyword(e.target.value);
+                setTrackingPageNo(1);
+              }}
+            />
+          </Col>
+          <Col xs={24} md={8} xl={5}>
+            <Select
+              className="w-full"
+              value={trackingStatus}
+              options={trackingStatusOptions}
+              onChange={(value) => {
+                setTrackingStatus(value);
+                setTrackingPageNo(1);
+              }}
+            />
+          </Col>
+          <Col xs={24} md={8} xl={5}>
+            <Select
+              allowClear
+              placeholder="选择车队"
+              className="w-full"
+              value={trackingFleetId}
+              options={fleetOptions}
+              onChange={(value) => {
+                setTrackingFleetId(value);
+                setTrackingPageNo(1);
+              }}
+            />
+          </Col>
+          <Col xs={24} xl={8}>
+            <div className="flex gap-2 justify-end">
+              <Button onClick={resetTrackingFilters}>重置</Button>
+              <Button onClick={() => void Promise.all([loadTrackingSummary(), loadTrackingRows()])}>
+                刷新列表
+              </Button>
+              <Button
+                type="primary"
+                icon={<EnvironmentOutlined />}
+                disabled={!selectedTrackingVehicleId}
+                onClick={() => void loadTrackingHistory()}
+              >
+                查询轨迹
+              </Button>
+            </div>
+          </Col>
+        </Row>
+      </Card>
+
+      <Row gutter={[16, 16]}>
+        <Col xs={24} md={12} xl={4}>
+          <Card className="glass-panel g-border-panel border">
+            <Statistic
+              title="跟踪车辆"
+              value={trackingSummary.totalVehicles}
+              prefix={<CarOutlined />}
+              loading={trackingSummaryLoading}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} md={12} xl={4}>
+          <Card className="glass-panel g-border-panel border">
+            <Statistic
+              title="行驶中"
+              value={trackingSummary.movingVehicles}
+              prefix={<CheckCircleOutlined />}
+              loading={trackingSummaryLoading}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} md={12} xl={4}>
+          <Card className="glass-panel g-border-panel border">
+            <Statistic
+              title="停留中"
+              value={trackingSummary.stoppedVehicles}
+              loading={trackingSummaryLoading}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} md={12} xl={4}>
+          <Card className="glass-panel g-border-panel border">
+            <Statistic
+              title="离线"
+              value={trackingSummary.offlineVehicles}
+              loading={trackingSummaryLoading}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} md={12} xl={4}>
+          <Card className="glass-panel g-border-panel border">
+            <Statistic
+              title="配送中"
+              value={trackingSummary.deliveringVehicles}
+              loading={trackingSummaryLoading}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} md={12} xl={4}>
+          <Card className="glass-panel g-border-panel border">
+            <Statistic
+              title="异常预警"
+              value={trackingSummary.warningVehicles}
+              loading={trackingSummaryLoading}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={[16, 16]}>
+        <Col xs={24} xl={15}>
+          <Card
+            className="glass-panel g-border-panel border"
+            title="送货轨迹地图"
+            extra={
+              <Space>
+                <RangePicker
+                  value={trackingRange}
+                  onChange={(value) => setTrackingRange(value)}
+                  showTime
+                  allowClear={false}
+                />
+                <Button
+                  icon={trackingPlaying ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+                  disabled={(trackingHistory?.points.length || 0) <= 1}
+                  onClick={() => setTrackingPlaying((value) => !value)}
+                >
+                  {trackingPlaying ? '暂停回放' : '播放回放'}
+                </Button>
+              </Space>
+            }
+          >
+            <div className="h-[420px] rounded-2xl overflow-hidden relative">
+              <TiandituMap
+                center={trackingCenter}
+                zoom={11}
+                markers={trackingMarkers}
+                polylines={trackingPolylines}
+                className="h-full w-full"
+                loadingText="送货地图加载中..."
+              />
+            </div>
+            <div className="mt-4">
+              <Slider
+                min={0}
+                max={100}
+                value={trackingProgress}
+                disabled={(trackingHistory?.points.length || 0) <= 1}
+                onChange={(value) => {
+                  setTrackingProgress(Number(value));
+                  setTrackingPlaying(false);
+                }}
+                tooltip={{ formatter: (value) => `${value || 0}%` }}
+              />
+              <div className="flex items-center justify-between text-xs g-text-secondary">
+                <span>{trackingHistory?.startTime || '暂无开始时间'}</span>
+                <span>{activeTrackingPoint?.locateTime || trackingHistory?.endTime || '暂无轨迹点'}</span>
+              </div>
+            </div>
+          </Card>
+        </Col>
+        <Col xs={24} xl={9}>
+          <Card
+            className="glass-panel g-border-panel border"
+            title="当前车辆详情"
+            extra={
+              selectedTrackingRecord ? (
+                <Tag color={trackingTagColor[selectedTrackingRecord.trackingStatus || ''] || 'default'}>
+                  {selectedTrackingRecord.trackingStatusLabel || '未知'}
+                </Tag>
+              ) : null
+            }
+          >
+            {selectedTrackingRecord ? (
+              <Space direction="vertical" size={16} className="w-full">
+                <Descriptions size="small" column={1} bordered>
+                  <Descriptions.Item label="车牌">{selectedTrackingRecord.plateNo}</Descriptions.Item>
+                  <Descriptions.Item label="车队">
+                    {selectedTrackingRecord.fleetName || '未编组车队'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="单位">
+                    {selectedTrackingRecord.orgName || '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="调度单">
+                    {selectedTrackingRecord.dispatchOrderNo || '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="运输计划">
+                    {selectedTrackingRecord.relatedPlanNo || '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="起止线路">
+                    {selectedTrackingRecord.sourcePoint || '-'} 至{' '}
+                    {selectedTrackingRecord.destinationPoint || '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="货类">
+                    {selectedTrackingRecord.cargoType || '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="当前速度">
+                    {selectedTrackingRecord.currentSpeed.toFixed(1)} km/h
+                  </Descriptions.Item>
+                  <Descriptions.Item label="定位时间">
+                    {selectedTrackingRecord.gpsTime || '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="预警">
+                    {selectedTrackingRecord.warningLabel ? (
+                      <Tag color="error">{selectedTrackingRecord.warningLabel}</Tag>
+                    ) : (
+                      <Tag>正常</Tag>
+                    )}
+                  </Descriptions.Item>
+                </Descriptions>
+
+                <Row gutter={[12, 12]}>
+                  <Col span={8}>
+                    <Card size="small">
+                      <Statistic
+                        title="轨迹点"
+                        value={trackingHistory?.pointCount || 0}
+                        loading={trackingHistoryLoading}
+                      />
+                    </Card>
+                  </Col>
+                  <Col span={8}>
+                    <Card size="small">
+                      <Statistic
+                        title="距离(km)"
+                        value={trackingHistory?.totalDistanceKm || 0}
+                        precision={2}
+                        loading={trackingHistoryLoading}
+                      />
+                    </Card>
+                  </Col>
+                  <Col span={8}>
+                    <Card size="small">
+                      <Statistic
+                        title="均速"
+                        value={trackingHistory?.averageSpeed || 0}
+                        precision={2}
+                        suffix="km/h"
+                        loading={trackingHistoryLoading}
+                      />
+                    </Card>
+                  </Col>
+                </Row>
+              </Space>
+            ) : (
+              <Empty description="暂无车辆数据" />
+            )}
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={[16, 16]}>
+        <Col xs={24} xl={15}>
+          <Card className="glass-panel g-border-panel border" title="跟踪车辆列表">
+            <Table<FleetTrackingRecord>
+              rowKey="vehicleId"
+              loading={trackingLoading}
+              dataSource={trackingRows}
+              columns={trackingColumns}
+              scroll={{ x: 1280 }}
+              rowSelection={{
+                type: 'radio',
+                selectedRowKeys: selectedTrackingVehicleId ? [selectedTrackingVehicleId] : [],
+                onChange: (selectedRowKeys) =>
+                  setSelectedTrackingVehicleId(String(selectedRowKeys[0] || '')),
+              }}
+              pagination={{
+                current: trackingPageNo,
+                pageSize: trackingPageSize,
+                total: trackingTotal,
+                showSizeChanger: true,
+                onChange: (page, pageSize) => {
+                  setTrackingPageNo(page);
+                  setTrackingPageSize(pageSize);
+                },
+              }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} xl={9}>
+          <Card className="glass-panel g-border-panel border" title="异常停留明细">
+            <Table
+              rowKey={(record) => `${record.startTime}-${record.endTime}`}
+              size="small"
+              loading={trackingHistoryLoading}
+              dataSource={trackingHistory?.stops || []}
+              columns={trackingStopColumns}
+              pagination={false}
+              scroll={{ x: 560 }}
+              locale={{ emptyText: '当前时间范围无异常停留' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+    </Space>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold g-text-primary m-0">车队管理</h1>
           <p className="g-text-secondary mt-1 mb-0">
-            打通车队维护、运输计划、调度审批、财务结算与利润报表，支撑车队管理 6 大需求闭环。
+            打通车队维护、运输计划、调度审批、财务结算、利润报表与送货跟踪，支撑车队管理 7 大需求闭环。
           </p>
         </div>
         <Space wrap>
@@ -1518,6 +2414,7 @@ const FleetManagement: React.FC = () => {
           { key: 'dispatch', label: '调度审批', children: dispatchContent },
           { key: 'finance', label: '财务管理', children: financeContent },
           { key: 'report', label: '报表管理', children: reportContent },
+          { key: 'tracking', label: '送货跟踪', children: trackingContent },
         ]}
       />
 

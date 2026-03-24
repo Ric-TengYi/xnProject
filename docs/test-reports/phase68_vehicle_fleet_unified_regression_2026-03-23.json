@@ -1,0 +1,153 @@
+{
+  "report": "phase68_vehicle_fleet_unified_regression_2026-03-23",
+  "date": "2026-03-23",
+  "results": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "name": "vehicle_master_list_runtime",
+      "status": "PASS",
+      "detail": "vehicles_total=8"
+    },
+    {
+      "name": "vehicle_master_stats_runtime",
+      "status": "PASS",
+      "detail": "stats_keys=7"
+    },
+    {
+      "name": "vehicle_master_export_runtime",
+      "status": "PASS",
+      "detail": "text/csv;charset=UTF-8"
+    },
+    {
+      "name": "vehicle_model_list_runtime",
+      "status": "PASS",
+      "detail": "vehicle_models=3"
+    },
+    {
+      "name": "vehicle_model_export_runtime",
+      "status": "PASS",
+      "detail": "text/csv;charset=UTF-8"
+    },
+    {
+      "name": "vehicle_insurance_list_runtime",
+      "status": "PASS",
+      "detail": "insurance_total=4"
+    },
+    {
+      "name": "vehicle_insurance_summary_runtime",
+      "status": "PASS",
+      "detail": "expiring=1, expired=1"
+    },
+    {
+      "name": "vehicle_insurance_export_runtime",
+      "status": "PASS",
+      "detail": "text/csv;charset=UTF-8"
+    },
+    {
+      "name": "vehicle_maintenance_plans_runtime",
+      "status": "PASS",
+      "detail": "maintenance_plans=8"
+    },
+    {
+      "name": "vehicle_maintenance_summary_runtime",
+      "status": "PASS",
+      "detail": "plans=8, overdue=1"
+    },
+    {
+      "name": "vehicle_maintenance_records_export_runtime",
+      "status": "PASS",
+      "detail": "text/csv;charset=UTF-8"
+    },
+    {
+      "name": "vehicle_repair_list_runtime",
+      "status": "PASS",
+      "detail": "repairs_total=9"
+    },
+    {
+      "name": "vehicle_repair_summary_runtime",
+      "status": "PASS",
+      "detail": "approved=1, completed=6"
+    },
+    {
+      "name": "vehicle_repair_export_runtime",
+      "status": "PASS",
+      "detail": "text/csv;charset=UTF-8"
+    },
+    {
+      "name": "vehicle_cards_list_runtime",
+      "status": "PASS",
+      "detail": "vehicle_cards=4"
+    },
+    {
+      "name": "vehicle_cards_summary_runtime",
+      "status": "PASS",
+      "detail": "balance=8861.6"
+    },
+    {
+      "name": "vehicle_cards_transaction_summary_runtime",
+      "status": "PASS",
+      "detail": "recharge=4333.32, consume=702.22"
+    },
+    {
+      "name": "vehicle_cards_export_runtime",
+      "status": "PASS",
+      "detail": "text/csv;charset=UTF-8"
+    },
+    {
+      "name": "vehicle_cards_transaction_export_runtime",
+      "status": "PASS",
+      "detail": "text/csv;charset=UTF-8"
+    },
+    {
+      "name": "vehicle_personnel_list_runtime",
+      "status": "PASS",
+      "detail": "personnel_certificates=4"
+    },
+    {
+      "name": "vehicle_personnel_summary_runtime",
+      "status": "PASS",
+      "detail": "unpaid=3400.0"
+    },
+    {
+      "name": "vehicle_personnel_export_runtime",
+      "status": "PASS",
+      "detail": "text/csv;charset=UTF-8"
+    },
+    {
+      "name": "fleet_finance_list_runtime",
+      "status": "PASS",
+      "detail": "fleet_finance=2"
+    },
+    {
+      "name": "fleet_finance_summary_runtime",
+      "status": "PASS",
+      "detail": "outstanding=88000.0, profit=77900.0"
+    },
+    {
+      "name": "fleet_finance_export_runtime",
+      "status": "PASS",
+      "detail": "text/csv;charset=UTF-8"
+    },
+    {
+      "name": "fleet_report_runtime",
+      "status": "PASS",
+      "detail": "fleet_report_rows=9"
+    },
+    {
+      "name": "fleet_report_export_runtime",
+      "status": "PASS",
+      "detail": "text/csv;charset=UTF-8"
+    },
+    {
+      "name": "vehicle_fleet_pages_visible",
+      "status": "PASS",
+      "detail": "车辆与运力资源 / 车型管理 / 维保计划 / 维修管理 / 油电卡管理 / 人证管理 / 车队管理"
+    }
+  ],
+  "passed": 29,
+  "failed": 0
+}

@@ -1,0 +1,29 @@
+{
+  "results": [
+    {
+      "name": "API login",
+      "ok": true,
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "API project report summary",
+      "ok": true,
+      "detail": "项目汇总返回 1 个项目，累计完成率 2%"
+    },
+    {
+      "name": "API project report list",
+      "ok": true,
+      "detail": "项目报表列表返回 1 条记录，首条项目 项目-001 本期消纳量 1200.0 方"
+    },
+    {
+      "name": "API project report trend",
+      "ok": true,
+      "detail": "项目趋势返回 6 个周期，最近周期 2026-03"
+    },
+    {
+      "name": "API project report export",
+      "ok": true,
+      "detail": "项目报表导出任务创建成功，taskId=12"
+    }
+  ]
+}

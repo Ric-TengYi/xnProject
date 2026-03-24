@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Button,
   Card,
+  DatePicker,
   Descriptions,
   Drawer,
   Form,
@@ -13,23 +14,32 @@ import {
   Statistic,
   Table,
   Tag,
+  Timeline,
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined } from '@ant-design/icons';
 import {
   createSecurityInspection,
+  deleteSecurityInspection,
+  exportSecurityInspections,
   fetchSecurityInspectionDetail,
   fetchSecurityInspections,
   fetchSecuritySummary,
+  fetchSecurityUsers,
   rectifySecurityInspection,
   type SecurityInspectionPayload,
   type SecurityInspectionRecord,
   type SecuritySummaryRecord,
+  type SecurityUserOption,
 } from '../utils/securityApi';
 import { fetchProjects } from '../utils/projectApi';
 import { fetchSites } from '../utils/siteApi';
 import { fetchVehicles } from '../utils/vehicleApi';
+import dayjs, { type Dayjs } from 'dayjs';
+import { useSearchParams } from 'react-router-dom';
+
+const { RangePicker } = DatePicker;
 
 const objectTypeOptions = [
   { label: '全部对象', value: 'ALL' },
@@ -52,6 +62,18 @@ const resultOptions = [
   { label: '需复查', value: 'RECTIFYING' },
 ];
 
+const overdueOptions = [
+  { label: '全部时效', value: 'ALL' },
+  { label: '仅超期', value: 'Y' },
+];
+
+const dangerLevelOptions = [
+  { label: '全部等级', value: 'ALL' },
+  { label: '高风险', value: 'HIGH' },
+  { label: '中风险', value: 'MEDIUM' },
+  { label: '低风险', value: 'LOW' },
+];
+
 const emptySummary: SecuritySummaryRecord = {
   monthInspectionCount: 0,
   issueCount: 0,
@@ -66,7 +88,147 @@ const emptySummary: SecuritySummaryRecord = {
   hazardCategoryBuckets: [],
 };
 
+const downloadBlob = (blob: Blob, fileName: string) => {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  window.URL.revokeObjectURL(url);
+};
+
+const formatRangeParams = (
+  params: Record<string, string>,
+  keyFrom: string,
+  keyTo: string,
+  range: [Dayjs, Dayjs] | null,
+) => {
+  if (!range) {
+    return;
+  }
+  params[keyFrom] = range[0].format('YYYY-MM-DDTHH:mm:ss');
+  params[keyTo] = range[1].format('YYYY-MM-DDTHH:mm:ss');
+};
+
+const parseAttachmentUrls = (value?: string | null) =>
+  (value || '')
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const formatDateTimeValue = (value?: Dayjs | string | null) => {
+  if (!value) {
+    return undefined;
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  return value.format('YYYY-MM-DDTHH:mm:ss');
+};
+
+const toDayjs = (value?: string | null) => (value ? dayjs(value) : undefined);
+
+const buildObjectOptionLabel = (type: string, item: { name?: string | null; plateNo?: string | null; username?: string | null; mobile?: string | null }) => {
+  if (type === 'SITE') {
+    return item.name || '-';
+  }
+  if (type === 'VEHICLE') {
+    return item.plateNo || '-';
+  }
+  return [item.name || item.username || '-', item.mobile || ''].filter(Boolean).join(' / ');
+};
+
+const renderRelatedProfilePanel = (detail?: SecurityInspectionRecord | null) => {
+  const profile = detail?.relatedProfile;
+  if (!profile || !profile.profileType) {
+    return null;
+  }
+  if (profile.profileType === 'PERSON') {
+    return (
+      <Card className="glass-panel g-border-panel border mt-4" title="人员安全档案">
+        <Descriptions column={1} bordered size="small">
+          <Descriptions.Item label="证照记录">
+            {profile.certificateCount ?? 0} 条
+            <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>
+              临期 {profile.expiringCertificateCount ?? 0} / 欠费 {profile.overdueFeeCount ?? 0}
+            </span>
+          </Descriptions.Item>
+          <Descriptions.Item label="安全学习">
+            {profile.learningCount ?? 0} 次
+            <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>
+              已完成 {profile.completedLearningCount ?? 0} / 学习时长 {profile.studyMinutes ?? 0} 分钟
+            </span>
+          </Descriptions.Item>
+          <Descriptions.Item label="关联预警">
+            {profile.openAlertCount ?? 0} 条未闭环
+            <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>
+              高风险 {profile.highRiskAlertCount ?? 0}
+            </span>
+          </Descriptions.Item>
+          <Descriptions.Item label="证照人员">{profile.certificateOwners?.length ? profile.certificateOwners.join(' / ') : '-'}</Descriptions.Item>
+          <Descriptions.Item label="最近学习">{profile.lastStudyTime || '-'}</Descriptions.Item>
+        </Descriptions>
+      </Card>
+    );
+  }
+  if (profile.profileType === 'VEHICLE') {
+    return (
+      <Card className="glass-panel g-border-panel border mt-4" title="车辆安全档案">
+        <Descriptions column={1} bordered size="small">
+          <Descriptions.Item label="保险台账">
+            {profile.insuranceCount ?? 0} 条
+            <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>
+              有效 {profile.activeInsuranceCount ?? 0} / 临期 {profile.expiringInsuranceCount ?? 0} / 过期 {profile.expiredInsuranceCount ?? 0}
+            </span>
+          </Descriptions.Item>
+          <Descriptions.Item label="维保台账">
+            {profile.maintenanceCount ?? 0} 条
+            <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>
+              最近维保 {profile.latestMaintenanceDate || '-'} / 累计费用 {profile.maintenanceCostTotal ?? 0}
+            </span>
+          </Descriptions.Item>
+          <Descriptions.Item label="关联预警">
+            {profile.openAlertCount ?? 0} 条未闭环
+            <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>
+              高风险 {profile.highRiskAlertCount ?? 0}
+            </span>
+          </Descriptions.Item>
+        </Descriptions>
+      </Card>
+    );
+  }
+  if (profile.profileType === 'SITE') {
+    return (
+      <Card className="glass-panel g-border-panel border mt-4" title="场地安全档案">
+        <Descriptions column={1} bordered size="small">
+          <Descriptions.Item label="资料台账">
+            {profile.documentCount ?? 0} 份
+            <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>
+              审批 {profile.approvalDocumentCount ?? 0} / 运营 {profile.operationDocumentCount ?? 0}
+            </span>
+          </Descriptions.Item>
+          <Descriptions.Item label="设备台账">
+            {profile.deviceCount ?? 0} 台
+            <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>
+              在线 {profile.onlineDeviceCount ?? 0} / 离线 {profile.offlineDeviceCount ?? 0}
+            </span>
+          </Descriptions.Item>
+          <Descriptions.Item label="关联预警">
+            {profile.openAlertCount ?? 0} 条未闭环
+            <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>
+              高风险 {profile.highRiskAlertCount ?? 0}
+            </span>
+          </Descriptions.Item>
+          <Descriptions.Item label="最近资料更新时间">{profile.latestDocumentTime || '-'}</Descriptions.Item>
+        </Descriptions>
+      </Card>
+    );
+  }
+  return null;
+};
+
 const SecurityLedger: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [rectifyLoading, setRectifyLoading] = useState(false);
@@ -74,31 +236,46 @@ const SecurityLedger: React.FC = () => {
   const [records, setRecords] = useState<SecurityInspectionRecord[]>([]);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detail, setDetail] = useState<SecurityInspectionRecord | null>(null);
+  const [queryHandledId, setQueryHandledId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [rectifyOpen, setRectifyOpen] = useState(false);
   const [rectifyRecord, setRectifyRecord] = useState<SecurityInspectionRecord | null>(null);
   const [projects, setProjects] = useState<any[]>([]);
   const [sites, setSites] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
+  const [users, setUsers] = useState<SecurityUserOption[]>([]);
   const [filters, setFilters] = useState({
     keyword: '',
     objectType: 'ALL',
     status: 'ALL',
     resultLevel: 'ALL',
     checkScene: '',
+    dangerLevel: 'ALL',
+    hazardCategory: '',
+    projectId: undefined as string | undefined,
+    siteId: undefined as string | undefined,
+    vehicleId: undefined as string | undefined,
+    userId: undefined as string | undefined,
+    overdueOnly: 'ALL',
   });
+  const [checkRange, setCheckRange] = useState<[Dayjs, Dayjs] | null>(null);
+  const [rectifyDeadlineRange, setRectifyDeadlineRange] = useState<[Dayjs, Dayjs] | null>(null);
+  const [nextCheckRange, setNextCheckRange] = useState<[Dayjs, Dayjs] | null>(null);
   const [createForm] = Form.useForm<SecurityInspectionPayload>();
   const [rectifyForm] = Form.useForm();
+  const createObjectType = Form.useWatch('objectType', createForm) || 'SITE';
 
   const loadMasters = async () => {
-    const [projectPage, siteList, vehiclePage] = await Promise.all([
+    const [projectPage, siteList, vehiclePage, userList] = await Promise.all([
       fetchProjects({ pageNo: 1, pageSize: 200 }),
       fetchSites(),
       fetchVehicles({ pageNo: 1, pageSize: 200 }),
+      fetchSecurityUsers({ pageNo: 1, pageSize: 200, status: 'ENABLED' }),
     ]);
     setProjects(projectPage.records || []);
     setSites(siteList || []);
     setVehicles(vehiclePage.records || []);
+    setUsers(userList || []);
   };
 
   const loadData = async () => {
@@ -110,8 +287,18 @@ const SecurityLedger: React.FC = () => {
       if (filters.status !== 'ALL') params.status = filters.status;
       if (filters.resultLevel !== 'ALL') params.resultLevel = filters.resultLevel;
       if (filters.checkScene.trim()) params.checkScene = filters.checkScene.trim();
+      if (filters.dangerLevel !== 'ALL') params.dangerLevel = filters.dangerLevel;
+      if (filters.hazardCategory.trim()) params.hazardCategory = filters.hazardCategory.trim();
+      if (filters.projectId) params.projectId = filters.projectId;
+      if (filters.siteId) params.siteId = filters.siteId;
+      if (filters.vehicleId) params.vehicleId = filters.vehicleId;
+      if (filters.userId) params.userId = filters.userId;
+      if (filters.overdueOnly === 'Y') params.overdueOnly = 'true';
+      formatRangeParams(params, 'checkTimeFrom', 'checkTimeTo', checkRange);
+      formatRangeParams(params, 'rectifyDeadlineFrom', 'rectifyDeadlineTo', rectifyDeadlineRange);
+      formatRangeParams(params, 'nextCheckTimeFrom', 'nextCheckTimeTo', nextCheckRange);
       const [summaryData, inspectionList] = await Promise.all([
-        fetchSecuritySummary(),
+        fetchSecuritySummary(params),
         fetchSecurityInspections(params),
       ]);
       setSummary(summaryData);
@@ -133,7 +320,38 @@ const SecurityLedger: React.FC = () => {
 
   useEffect(() => {
     void loadData();
-  }, [filters.keyword, filters.objectType, filters.status, filters.resultLevel, filters.checkScene]);
+  }, [
+    filters.keyword,
+    filters.objectType,
+    filters.status,
+    filters.resultLevel,
+    filters.checkScene,
+    filters.dangerLevel,
+    filters.hazardCategory,
+    filters.projectId,
+    filters.siteId,
+    filters.vehicleId,
+    filters.userId,
+    filters.overdueOnly,
+    checkRange,
+    rectifyDeadlineRange,
+    nextCheckRange,
+  ]);
+
+  useEffect(() => {
+    const inspectionId = searchParams.get('inspectionId');
+    if (!inspectionId || queryHandledId === inspectionId) {
+      return;
+    }
+    setQueryHandledId(inspectionId);
+    setDetailOpen(true);
+    void fetchSecurityInspectionDetail(inspectionId)
+      .then((data) => setDetail(data))
+      .catch((error) => {
+        console.error(error);
+        message.error('获取检查详情失败');
+      });
+  }, [queryHandledId, searchParams]);
 
   const openDetail = async (record: SecurityInspectionRecord) => {
     setDetailOpen(true);
@@ -154,7 +372,27 @@ const SecurityLedger: React.FC = () => {
     try {
       const values = await createForm.validateFields();
       setSubmitLoading(true);
-      await createSecurityInspection(values);
+      const payload: SecurityInspectionPayload = {
+        ...values,
+        objectId: values.objectId ? Number(values.objectId) : undefined,
+        projectId: values.projectId ? Number(values.projectId) : undefined,
+        siteId: values.siteId ? Number(values.siteId) : undefined,
+        vehicleId: values.vehicleId ? Number(values.vehicleId) : undefined,
+        userId: values.userId ? Number(values.userId) : undefined,
+        checkTime: formatDateTimeValue(values.checkTime as unknown as Dayjs | string | null),
+        rectifyDeadline: formatDateTimeValue(values.rectifyDeadline as unknown as Dayjs | string | null),
+        nextCheckTime: formatDateTimeValue(values.nextCheckTime as unknown as Dayjs | string | null),
+      };
+      if (payload.objectType === 'PERSON' && payload.objectId) {
+        payload.userId = payload.objectId;
+      }
+      if (payload.objectType === 'SITE' && payload.objectId && !payload.siteId) {
+        payload.siteId = payload.objectId;
+      }
+      if (payload.objectType === 'VEHICLE' && payload.objectId && !payload.vehicleId) {
+        payload.vehicleId = payload.objectId;
+      }
+      await createSecurityInspection(payload);
       message.success('安全检查记录已新增');
       setCreateOpen(false);
       createForm.resetFields();
@@ -176,7 +414,7 @@ const SecurityLedger: React.FC = () => {
       status: record.status === 'OPEN' ? 'RECTIFYING' : record.status || 'CLOSED',
       resultLevel: record.resultLevel || 'PASS',
       rectifyRemark: record.rectifyRemark || undefined,
-      nextCheckTime: record.nextCheckTime || undefined,
+      nextCheckTime: toDayjs(record.nextCheckTime),
     });
     setRectifyOpen(true);
   };
@@ -188,7 +426,10 @@ const SecurityLedger: React.FC = () => {
     try {
       const values = await rectifyForm.validateFields();
       setRectifyLoading(true);
-      await rectifySecurityInspection(rectifyRecord.id, values);
+      await rectifySecurityInspection(rectifyRecord.id, {
+        ...values,
+        nextCheckTime: formatDateTimeValue(values.nextCheckTime as Dayjs | string | null),
+      });
       message.success('整改信息已更新');
       setRectifyOpen(false);
       setRectifyRecord(null);
@@ -209,72 +450,134 @@ const SecurityLedger: React.FC = () => {
     }
   };
 
-  const columns: ColumnsType<SecurityInspectionRecord> = useMemo(
-    () => [
-      {
-        title: '检查编号',
-        dataIndex: 'inspectionNo',
-        key: 'inspectionNo',
-        render: (value) => <span className="font-mono">{value || '-'}</span>,
+  const buildParams = () => {
+    const params: Record<string, string> = {};
+    if (filters.keyword.trim()) params.keyword = filters.keyword.trim();
+    if (filters.objectType !== 'ALL') params.objectType = filters.objectType;
+    if (filters.status !== 'ALL') params.status = filters.status;
+    if (filters.resultLevel !== 'ALL') params.resultLevel = filters.resultLevel;
+    if (filters.checkScene.trim()) params.checkScene = filters.checkScene.trim();
+    if (filters.dangerLevel !== 'ALL') params.dangerLevel = filters.dangerLevel;
+    if (filters.hazardCategory.trim()) params.hazardCategory = filters.hazardCategory.trim();
+    if (filters.projectId) params.projectId = filters.projectId;
+    if (filters.siteId) params.siteId = filters.siteId;
+    if (filters.vehicleId) params.vehicleId = filters.vehicleId;
+    if (filters.userId) params.userId = filters.userId;
+    if (filters.overdueOnly === 'Y') params.overdueOnly = 'true';
+    formatRangeParams(params, 'checkTimeFrom', 'checkTimeTo', checkRange);
+    formatRangeParams(params, 'rectifyDeadlineFrom', 'rectifyDeadlineTo', rectifyDeadlineRange);
+    formatRangeParams(params, 'nextCheckTimeFrom', 'nextCheckTimeTo', nextCheckRange);
+    return params;
+  };
+
+  const handleExport = async () => {
+    try {
+      downloadBlob(await exportSecurityInspections(buildParams()), 'security_inspections.csv');
+      message.success('安全台账导出成功');
+    } catch (error) {
+      console.error(error);
+      message.error('安全台账导出失败');
+    }
+  };
+
+  const handleDelete = (record: SecurityInspectionRecord) => {
+    Modal.confirm({
+      title: `确认删除 ${record.inspectionNo || '该检查记录'} 吗？`,
+      content: '删除后该台账记录将不再出现在列表中。',
+      okButtonProps: { danger: true },
+      okText: '删除',
+      cancelText: '取消',
+      onOk: async () => {
+        await deleteSecurityInspection(record.id);
+        message.success('安全检查记录已删除');
+        if (detail?.id === record.id) {
+          setDetail(null);
+          setDetailOpen(false);
+        }
+        await loadData();
       },
-      {
-        title: '检查信息',
-        key: 'info',
-        render: (_, record) => (
-          <div className="flex flex-col gap-1">
-            <span>{record.title}</span>
-            <Space size={6} wrap>
-              <Tag color="blue">{record.objectType}</Tag>
-              {record.dangerLevel ? <Tag color={record.dangerLevel === 'HIGH' ? 'red' : record.dangerLevel === 'MEDIUM' ? 'orange' : 'green'}>{record.dangerLevel}</Tag> : null}
-              <span style={{ color: 'var(--text-secondary)' }}>{record.checkScene || '-'}</span>
-              {record.isOverdue ? <Tag color="red">已超期</Tag> : null}
-            </Space>
-          </div>
-        ),
-      },
-      {
-        title: '关联对象',
-        key: 'relation',
-        render: (_, record) => (
-          <div className="flex flex-col gap-1">
-            <span>{record.projectName || '-'}</span>
-            <span style={{ color: 'var(--text-secondary)' }}>{record.siteName || '-'}</span>
-            <span style={{ color: 'var(--text-secondary)' }}>{record.vehicleNo || '-'}</span>
-          </div>
-        ),
-      },
-      { title: '问题数', dataIndex: 'issueCount', key: 'issueCount' },
-      {
-        title: '结果',
-        dataIndex: 'resultLevel',
-        key: 'resultLevel',
-        render: (value) => <Tag color={value === 'FAIL' ? 'red' : value === 'RECTIFYING' ? 'orange' : 'green'}>{value || '-'}</Tag>,
-      },
-      {
-        title: '状态',
-        dataIndex: 'status',
-        key: 'status',
-        render: (value) => <Tag color={value === 'CLOSED' ? 'green' : value === 'RECTIFYING' ? 'orange' : 'red'}>{value || '-'}</Tag>,
-      },
-      {
-        title: '操作',
-        key: 'action',
-        render: (_, record) => (
-          <Space>
-            <Button type="link" onClick={() => void openDetail(record)}>
-              详情
-            </Button>
-            {record.status !== 'CLOSED' ? (
-              <Button type="link" onClick={() => openRectifyModal(record)}>
-                整改
-              </Button>
-            ) : null}
+    });
+  };
+
+  const columns: ColumnsType<SecurityInspectionRecord> = [
+    {
+      title: '检查编号',
+      dataIndex: 'inspectionNo',
+      key: 'inspectionNo',
+      render: (value) => <span className="font-mono">{value || '-'}</span>,
+    },
+    {
+      title: '检查信息',
+      key: 'info',
+      render: (_, record) => (
+        <div className="flex flex-col gap-1">
+          <span>{record.title}</span>
+          <Space size={6} wrap>
+            <Tag color="blue">{record.objectType}</Tag>
+            {record.dangerLevel ? <Tag color={record.dangerLevel === 'HIGH' ? 'red' : record.dangerLevel === 'MEDIUM' ? 'orange' : 'green'}>{record.dangerLevel}</Tag> : null}
+            {record.hazardCategory ? <Tag color="geekblue">{record.hazardCategory}</Tag> : null}
+            <span style={{ color: 'var(--text-secondary)' }}>{record.checkScene || '-'}</span>
+            {record.isOverdue ? <Tag color="red">已超期</Tag> : null}
           </Space>
-        ),
-      },
-    ],
-    [],
-  );
+        </div>
+      ),
+    },
+    {
+      title: '关联对象',
+      key: 'relation',
+      render: (_, record) => (
+        <div className="flex flex-col gap-1">
+          <span>{record.objectLabel || '-'}</span>
+          <span style={{ color: 'var(--text-secondary)' }}>{record.projectName || '-'}</span>
+          <span style={{ color: 'var(--text-secondary)' }}>
+            {[record.siteName, record.vehicleNo, record.userName].filter(Boolean).join(' / ') || '-'}
+          </span>
+          {record.relatedProfileSummary ? (
+            <span style={{ color: 'var(--text-secondary)' }}>{record.relatedProfileSummary}</span>
+          ) : null}
+        </div>
+      ),
+    },
+    { title: '问题数', dataIndex: 'issueCount', key: 'issueCount' },
+    {
+      title: '结果',
+      dataIndex: 'resultLevel',
+      key: 'resultLevel',
+      render: (value) => <Tag color={value === 'FAIL' ? 'red' : value === 'RECTIFYING' ? 'orange' : 'green'}>{value || '-'}</Tag>,
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (value) => <Tag color={value === 'CLOSED' ? 'green' : value === 'RECTIFYING' ? 'orange' : 'red'}>{value || '-'}</Tag>,
+    },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_, record) => (
+        <Space>
+          <Button type="link" onClick={() => void openDetail(record)}>
+            详情
+          </Button>
+          {record.status !== 'CLOSED' ? (
+            <Button type="link" onClick={() => openRectifyModal(record)}>
+              整改
+            </Button>
+          ) : null}
+          <Button type="link" danger onClick={() => handleDelete(record)}>
+            删除
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
+  const objectOptions =
+    createObjectType === 'SITE'
+      ? sites.map((item) => ({ label: buildObjectOptionLabel('SITE', item), value: Number(item.id) }))
+      : createObjectType === 'VEHICLE'
+      ? vehicles.map((item) => ({ label: buildObjectOptionLabel('VEHICLE', item), value: Number(item.id) }))
+      : users.map((item) => ({ label: buildObjectOptionLabel('PERSON', item), value: Number(item.id) }));
 
   const bucketEntries = Object.entries(summary.objectTypeBuckets || {});
 
@@ -285,26 +588,31 @@ const SecurityLedger: React.FC = () => {
           <h1 className="text-2xl font-bold g-text-primary m-0">安全台账管理</h1>
           <p className="g-text-secondary mt-1">扩展场地、车辆、人员安全检查字段与台账明细闭环能力</p>
         </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => {
-            createForm.setFieldsValue({
-              objectType: 'SITE',
-              resultLevel: 'PASS',
-              dangerLevel: 'LOW',
-              issueCount: 0,
-              status: 'CLOSED',
-            });
-            setCreateOpen(true);
-          }}
-        >
-          新增检查记录
-        </Button>
+        <Space>
+          <Button onClick={() => void handleExport()}>
+            导出
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              createForm.setFieldsValue({
+                objectType: 'SITE',
+                resultLevel: 'PASS',
+                dangerLevel: 'LOW',
+                issueCount: 0,
+                status: 'CLOSED',
+              });
+              setCreateOpen(true);
+            }}
+          >
+            新增检查记录
+          </Button>
+        </Space>
       </div>
 
       <Card className="glass-panel g-border-panel border">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4 xl:grid-cols-12">
           <Input
             allowClear
             placeholder="搜索编号 / 标题 / 检查人 / 描述"
@@ -315,6 +623,31 @@ const SecurityLedger: React.FC = () => {
           <Select value={filters.status} options={statusOptions} onChange={(value) => setFilters((prev) => ({ ...prev, status: value }))} />
           <Select value={filters.resultLevel} options={resultOptions} onChange={(value) => setFilters((prev) => ({ ...prev, resultLevel: value }))} />
           <Input placeholder="检查场景，如 FIRE" value={filters.checkScene} onChange={(event) => setFilters((prev) => ({ ...prev, checkScene: event.target.value }))} />
+          <Select value={filters.dangerLevel} options={dangerLevelOptions} onChange={(value) => setFilters((prev) => ({ ...prev, dangerLevel: value }))} />
+          <Input placeholder="隐患类别，如 PERSONNEL" value={filters.hazardCategory} onChange={(event) => setFilters((prev) => ({ ...prev, hazardCategory: event.target.value }))} />
+          <Select allowClear placeholder="关联项目" value={filters.projectId} options={projects.map((item) => ({ label: item.name, value: String(item.id) }))} onChange={(value) => setFilters((prev) => ({ ...prev, projectId: value }))} />
+          <Select allowClear placeholder="关联场地" value={filters.siteId} options={sites.map((item) => ({ label: item.name, value: String(item.id) }))} onChange={(value) => setFilters((prev) => ({ ...prev, siteId: value }))} />
+          <Select allowClear placeholder="关联车辆" value={filters.vehicleId} options={vehicles.map((item) => ({ label: item.plateNo, value: String(item.id) }))} onChange={(value) => setFilters((prev) => ({ ...prev, vehicleId: value }))} />
+          <Select allowClear placeholder="关联人员" value={filters.userId} options={users.map((item) => ({ label: buildObjectOptionLabel('PERSON', item), value: String(item.id) }))} onChange={(value) => setFilters((prev) => ({ ...prev, userId: value }))} />
+          <Select value={filters.overdueOnly} options={overdueOptions} onChange={(value) => setFilters((prev) => ({ ...prev, overdueOnly: value }))} />
+          <RangePicker
+            showTime
+            value={checkRange}
+            onChange={(value) => setCheckRange((value as [Dayjs, Dayjs] | null) || null)}
+            placeholder={['检查开始', '检查结束']}
+          />
+          <RangePicker
+            showTime
+            value={rectifyDeadlineRange}
+            onChange={(value) => setRectifyDeadlineRange((value as [Dayjs, Dayjs] | null) || null)}
+            placeholder={['整改截止开始', '整改截止结束']}
+          />
+          <RangePicker
+            showTime
+            value={nextCheckRange}
+            onChange={(value) => setNextCheckRange((value as [Dayjs, Dayjs] | null) || null)}
+            placeholder={['复查开始', '复查结束']}
+          />
         </div>
       </Card>
 
@@ -348,15 +681,28 @@ const SecurityLedger: React.FC = () => {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         width={640}
-        extra={detail && detail.status !== 'CLOSED' ? <Button type="primary" onClick={() => openRectifyModal(detail)}>整改处理</Button> : null}
+        extra={
+          <Space>
+            {detail && detail.status !== 'CLOSED' ? <Button type="primary" onClick={() => openRectifyModal(detail)}>整改处理</Button> : null}
+            {detail ? (
+              <Button danger onClick={() => handleDelete(detail)}>
+                删除记录
+              </Button>
+            ) : null}
+          </Space>
+        }
       >
         <Descriptions column={1} bordered size="small">
           <Descriptions.Item label="检查编号">{detail?.inspectionNo || '-'}</Descriptions.Item>
           <Descriptions.Item label="检查标题">{detail?.title || '-'}</Descriptions.Item>
           <Descriptions.Item label="对象类型">{detail?.objectType || '-'}</Descriptions.Item>
+          <Descriptions.Item label="检查对象">{detail?.objectLabel || detail?.objectName || '-'}</Descriptions.Item>
           <Descriptions.Item label="关联对象ID">{detail?.objectId || '-'}</Descriptions.Item>
           <Descriptions.Item label="项目 / 场地 / 车辆">
             {detail?.projectName || '-'} / {detail?.siteName || '-'} / {detail?.vehicleNo || '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="关联人员">
+            {detail?.userName || '-'} / {detail?.userMobile || '-'}
           </Descriptions.Item>
           <Descriptions.Item label="检查场景 / 类型">{detail?.checkScene || '-'} / {detail?.checkType || '-'}</Descriptions.Item>
           <Descriptions.Item label="隐患类别 / 等级">
@@ -380,9 +726,41 @@ const SecurityLedger: React.FC = () => {
           <Descriptions.Item label="整改时间">{detail?.rectifyTime || '-'}</Descriptions.Item>
           <Descriptions.Item label="整改说明">{detail?.rectifyRemark || '-'}</Descriptions.Item>
           <Descriptions.Item label="预估整改费用">{detail?.estimatedCost ?? 0}</Descriptions.Item>
-          <Descriptions.Item label="附件">{detail?.attachmentUrls || '-'}</Descriptions.Item>
+          <Descriptions.Item label="附件">
+            <Space wrap>
+              {parseAttachmentUrls(detail?.attachmentUrls).length
+                ? parseAttachmentUrls(detail?.attachmentUrls).map((item) => (
+                    <a key={item} href={item} target="_blank" rel="noreferrer">
+                      {item}
+                    </a>
+                  ))
+                : '-'}
+            </Space>
+          </Descriptions.Item>
           <Descriptions.Item label="检查说明">{detail?.description || '-'}</Descriptions.Item>
         </Descriptions>
+        <Card className="glass-panel g-border-panel border mt-4" title="处理时间线">
+          <Timeline
+            items={(detail?.actions || []).map((item) => ({
+              color: item.actionType === 'DELETE' ? 'red' : item.actionType === 'RECTIFY' ? 'orange' : 'blue',
+              children: (
+                <div className="flex flex-col gap-1">
+                  <Space wrap>
+                    <strong>{item.actionLabel || item.actionType || '-'}</strong>
+                    <Tag>{item.actorName || '-'}</Tag>
+                    <span style={{ color: 'var(--text-secondary)' }}>{item.actionTime || '-'}</span>
+                  </Space>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    状态：{item.beforeStatus || '-'} → {item.afterStatus || '-'}，结果：{item.beforeResultLevel || '-'} → {item.afterResultLevel || '-'}
+                  </span>
+                  {item.nextCheckTime ? <span style={{ color: 'var(--text-secondary)' }}>下次复查：{item.nextCheckTime}</span> : null}
+                  {item.actionRemark ? <span>{item.actionRemark}</span> : null}
+                </div>
+              ),
+            }))}
+          />
+        </Card>
+        {renderRelatedProfilePanel(detail)}
       </Drawer>
 
       <Modal title="新增安全检查" open={createOpen} onCancel={() => setCreateOpen(false)} onOk={() => void handleCreate()} confirmLoading={submitLoading}>
@@ -391,8 +769,8 @@ const SecurityLedger: React.FC = () => {
             <Form.Item name="objectType" label="对象类型" rules={[{ required: true, message: '请选择对象类型' }]}>
               <Select options={objectTypeOptions.filter((item) => item.value !== 'ALL')} />
             </Form.Item>
-            <Form.Item name="objectId" label="对象ID">
-              <InputNumber className="w-full" min={1} />
+            <Form.Item name="objectId" label="检查对象" rules={[{ required: true, message: '请选择检查对象' }]}>
+              <Select showSearch optionFilterProp="label" options={objectOptions} />
             </Form.Item>
           </div>
           <Form.Item name="title" label="检查标题" rules={[{ required: true, message: '请输入检查标题' }]}>
@@ -427,7 +805,7 @@ const SecurityLedger: React.FC = () => {
               <InputNumber className="w-full" min={0} />
             </Form.Item>
             <Form.Item name="checkTime" label="检查时间">
-              <Input placeholder="2026-03-20T09:30:00" />
+              <DatePicker className="w-full" showTime />
             </Form.Item>
           </div>
           <div className="grid grid-cols-3 gap-4">
@@ -451,10 +829,10 @@ const SecurityLedger: React.FC = () => {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Form.Item name="rectifyDeadline" label="整改截止">
-              <Input placeholder="2026-03-21T18:00:00" />
+              <DatePicker className="w-full" showTime />
             </Form.Item>
             <Form.Item name="nextCheckTime" label="下次复查">
-              <Input placeholder="2026-03-22T09:00:00" />
+              <DatePicker className="w-full" showTime />
             </Form.Item>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -480,7 +858,7 @@ const SecurityLedger: React.FC = () => {
             <Select options={resultOptions.filter((item) => item.value !== 'ALL')} />
           </Form.Item>
           <Form.Item name="nextCheckTime" label="下次复查时间">
-            <Input placeholder="2026-03-22T09:00:00" />
+            <DatePicker className="w-full" showTime />
           </Form.Item>
           <Form.Item name="rectifyRemark" label="整改说明">
             <Input.TextArea rows={4} />

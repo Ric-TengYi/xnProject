@@ -1,0 +1,19 @@
+{
+  "results": [
+    {
+      "name": "UI dashboard org analysis",
+      "ok": true,
+      "detail": "总体分析页已展示单位维度卡片与单位排行表"
+    },
+    {
+      "name": "UI sites board period stats",
+      "ok": true,
+      "detail": "场地看板已展示周期统计卡片与真实排行"
+    },
+    {
+      "name": "UI projects board period stats",
+      "ok": true,
+      "detail": "项目看板已展示周期统计卡片与真实进度排行"
+    }
+  ]
+}

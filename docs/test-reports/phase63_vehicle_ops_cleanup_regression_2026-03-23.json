@@ -1,0 +1,48 @@
+{
+  "report": "phase63_vehicle_ops_cleanup_regression_2026-03-23",
+  "date": "2026-03-23",
+  "results": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "name": "insurance_create_runtime",
+      "status": "PASS",
+      "detail": "id=8"
+    },
+    {
+      "name": "insurance_delete_runtime",
+      "status": "PASS",
+      "detail": "deleted=8"
+    },
+    {
+      "name": "maintenance_plan_create_runtime",
+      "status": "PASS",
+      "detail": "id=11"
+    },
+    {
+      "name": "maintenance_plan_delete_runtime",
+      "status": "PASS",
+      "detail": "deleted=11"
+    },
+    {
+      "name": "repair_create_runtime",
+      "status": "PASS",
+      "detail": "id=12"
+    },
+    {
+      "name": "repair_delete_runtime",
+      "status": "PASS",
+      "detail": "deleted=12"
+    },
+    {
+      "name": "vehicle_ops_pages_visible",
+      "status": "PASS",
+      "detail": "保险/维保/维修页面已正常渲染"
+    }
+  ],
+  "passed": 8,
+  "failed": 0
+}

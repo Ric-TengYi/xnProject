@@ -15,17 +15,22 @@ import com.xngl.infrastructure.persistence.mapper.ContractMapper;
 import com.xngl.infrastructure.persistence.mapper.ContractMaterialMapper;
 import com.xngl.infrastructure.persistence.mapper.ContractReceiptMapper;
 import com.xngl.infrastructure.persistence.mapper.ContractTicketMapper;
+import com.xngl.manager.message.ApprovalMessageCommand;
+import com.xngl.manager.message.MessageRecordService;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -44,12 +49,15 @@ public class ContractServiceImpl implements ContractService {
   private static final DateTimeFormatter RECEIPT_NO_TIME =
       DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
+  private final Path contractDocDir;
+
   private final ContractMapper contractMapper;
   private final ContractReceiptMapper contractReceiptMapper;
   private final ContractApprovalRecordMapper approvalRecordMapper;
   private final ContractMaterialMapper materialMapper;
   private final ContractInvoiceMapper invoiceMapper;
   private final ContractTicketMapper ticketMapper;
+  private final MessageRecordService messageRecordService;
 
   public ContractServiceImpl(
       ContractMapper contractMapper,
@@ -57,13 +65,17 @@ public class ContractServiceImpl implements ContractService {
       ContractApprovalRecordMapper approvalRecordMapper,
       ContractMaterialMapper materialMapper,
       ContractInvoiceMapper invoiceMapper,
-      ContractTicketMapper ticketMapper) {
+      ContractTicketMapper ticketMapper,
+      MessageRecordService messageRecordService,
+      @Value("${app.contract.doc-dir:/data/xngl/contract-docs}") String contractDocDirPath) {
     this.contractMapper = contractMapper;
     this.contractReceiptMapper = contractReceiptMapper;
     this.approvalRecordMapper = approvalRecordMapper;
     this.materialMapper = materialMapper;
     this.invoiceMapper = invoiceMapper;
     this.ticketMapper = ticketMapper;
+    this.messageRecordService = messageRecordService;
+    this.contractDocDir = Path.of(contractDocDirPath);
   }
 
   @Override
@@ -248,7 +260,10 @@ public class ContractServiceImpl implements ContractService {
   }
 
   private boolean isTenantAccessible(Long expectedTenantId, Long actualTenantId) {
-    return expectedTenantId == null || actualTenantId == null || expectedTenantId.equals(actualTenantId);
+    if (expectedTenantId == null) {
+      return true; // 超管场景，不限制租户
+    }
+    return actualTenantId != null && expectedTenantId.equals(actualTenantId);
   }
 
   private Long resolveTenantId(Long contractTenantId, Long operatorTenantId) {
@@ -282,7 +297,7 @@ public class ContractServiceImpl implements ContractService {
 
   private String generateReceiptNo() {
     String timePart = LocalDateTime.now().format(RECEIPT_NO_TIME);
-    int random = ThreadLocalRandom.current().nextInt(1000, 10000);
+    int random = ThreadLocalRandom.current().nextInt(100000, 1000000);
     return "CR" + timePart + random;
   }
 
@@ -343,6 +358,9 @@ public class ContractServiceImpl implements ContractService {
   @Override
   @Transactional(rollbackFor = Exception.class)
   public long createContract(Long tenantId, Long applicantId, Contract contract) {
+    boolean offlineContract =
+        StringUtils.hasText(contract.getSourceType())
+            && "OFFLINE".equalsIgnoreCase(contract.getSourceType().trim());
     if (contract.getContractNo() == null || contract.getContractNo().isBlank()) {
       contract.setContractNo(generateContractNo());
     }
@@ -355,8 +373,8 @@ public class ContractServiceImpl implements ContractService {
     }
     contract.setTenantId(tenantId);
     contract.setApplicantId(applicantId);
-    contract.setContractStatus("DRAFT");
-    contract.setApprovalStatus("DRAFT");
+    contract.setContractStatus(offlineContract ? "EFFECTIVE" : "DRAFT");
+    contract.setApprovalStatus(offlineContract ? "APPROVED" : "DRAFT");
     contract.setChangeVersion(0);
     contract.setReceivedAmount(ZERO);
     contract.setSettledAmount(ZERO);
@@ -389,7 +407,7 @@ public class ContractServiceImpl implements ContractService {
 
   @Override
   @Transactional(rollbackFor = Exception.class)
-  public void submitContract(Long contractId, Long tenantId) {
+  public void submitContract(Long contractId, Long tenantId, Long operatorId) {
     Contract existing = getContract(contractId, tenantId);
     if (!"DRAFT".equalsIgnoreCase(existing.getContractStatus())
         && !"REJECTED".equalsIgnoreCase(existing.getContractStatus())) {
@@ -401,11 +419,13 @@ public class ContractServiceImpl implements ContractService {
     update.setApprovalStatus("APPROVING");
     update.setRejectReason(null);
     contractMapper.updateById(update);
+    saveApprovalRecord(existing, operatorId, "SUBMIT", "APPROVING", "合同已提交审批");
+    saveApprovalMaterial(existing, operatorId, "SUBMIT", "APPROVING", "系统自动生成提交审批文书");
   }
 
   @Override
   @Transactional(rollbackFor = Exception.class)
-  public void approveContract(Long contractId, Long tenantId) {
+  public void approveContract(Long contractId, Long tenantId, Long operatorId) {
     Contract existing = getContract(contractId, tenantId);
     if (!"APPROVING".equalsIgnoreCase(existing.getContractStatus())) {
       throw new ContractServiceException(409, "仅审批中的合同允许通过");
@@ -415,11 +435,17 @@ public class ContractServiceImpl implements ContractService {
     update.setContractStatus("EFFECTIVE");
     update.setApprovalStatus("APPROVED");
     contractMapper.updateById(update);
+    saveApprovalRecord(existing, operatorId, "APPROVE", "EFFECTIVE", "合同审批通过");
+    saveApprovalMaterial(existing, operatorId, "APPROVE", "EFFECTIVE", "系统自动生成审批通过文书");
+    pushApprovalNotification(
+        existing,
+        "合同审批已通过",
+        "合同 " + resolveContractNo(existing) + " 已审批通过，请及时跟进后续流程。");
   }
 
   @Override
   @Transactional(rollbackFor = Exception.class)
-  public void rejectContract(Long contractId, Long tenantId, String reason) {
+  public void rejectContract(Long contractId, Long tenantId, Long operatorId, String reason) {
     Contract existing = getContract(contractId, tenantId);
     if (!"APPROVING".equalsIgnoreCase(existing.getContractStatus())) {
       throw new ContractServiceException(409, "仅审批中的合同允许驳回");
@@ -430,24 +456,31 @@ public class ContractServiceImpl implements ContractService {
     update.setApprovalStatus("REJECTED");
     update.setRejectReason(StringUtils.hasText(reason) ? reason.trim() : null);
     contractMapper.updateById(update);
+    String remark = StringUtils.hasText(reason) ? reason.trim() : "合同审批驳回";
+    saveApprovalRecord(existing, operatorId, "REJECT", "REJECTED", remark);
+    saveApprovalMaterial(existing, operatorId, "REJECT", "REJECTED", "系统自动生成审批驳回文书：" + remark);
+    pushApprovalNotification(
+        existing,
+        "合同审批已驳回",
+        "合同 " + resolveContractNo(existing) + " 已被驳回，原因：" + remark);
   }
 
   @Override
-  public Map<String, Object> getContractStats(Long tenantId) {
-    Map<String, Object> stats = new HashMap<>();
+  public ContractStatsResult getContractStats(Long tenantId) {
+    ContractStatsResult result = new ContractStatsResult();
 
     LambdaQueryWrapper<Contract> totalQuery = new LambdaQueryWrapper<>();
     if (tenantId != null) {
       totalQuery.eq(Contract::getTenantId, tenantId);
     }
-    stats.put("totalContracts", contractMapper.selectCount(totalQuery));
+    result.setTotalContracts(contractMapper.selectCount(totalQuery));
 
     LambdaQueryWrapper<Contract> effectiveQuery = new LambdaQueryWrapper<>();
     if (tenantId != null) {
       effectiveQuery.eq(Contract::getTenantId, tenantId);
     }
     effectiveQuery.in(Contract::getContractStatus, ACTIVE_CONTRACT_STATUSES);
-    stats.put("effectiveContracts", contractMapper.selectCount(effectiveQuery));
+    result.setEffectiveContracts(contractMapper.selectCount(effectiveQuery));
 
     LocalDate monthStart = LocalDate.now().withDayOfMonth(1);
     LambdaQueryWrapper<ContractReceipt> receiptQuery = new LambdaQueryWrapper<>();
@@ -456,35 +489,45 @@ public class ContractServiceImpl implements ContractService {
     }
     receiptQuery.ge(ContractReceipt::getReceiptDate, monthStart);
     receiptQuery.eq(ContractReceipt::getStatus, RECEIPT_STATUS_NORMAL);
+    receiptQuery.select(ContractReceipt::getAmount);
     List<ContractReceipt> monthlyReceipts = contractReceiptMapper.selectList(receiptQuery);
     BigDecimal monthlyAmount = monthlyReceipts.stream()
         .map(r -> safeAmount(r.getAmount()))
         .reduce(ZERO, BigDecimal::add);
-    stats.put("monthlyReceiptAmount", monthlyAmount);
-    stats.put("monthlyReceiptCount", (long) monthlyReceipts.size());
+    result.setMonthlyReceiptAmount(monthlyAmount);
+    result.setMonthlyReceiptCount(monthlyReceipts.size());
 
     LambdaQueryWrapper<Contract> pendingQuery = new LambdaQueryWrapper<>();
     if (tenantId != null) {
       pendingQuery.eq(Contract::getTenantId, tenantId);
     }
     pendingQuery.in(Contract::getContractStatus, ACTIVE_CONTRACT_STATUSES);
+    pendingQuery.select(Contract::getContractAmount, Contract::getAmount, Contract::getReceivedAmount);
     List<Contract> activeContracts = contractMapper.selectList(pendingQuery);
     BigDecimal pendingAmount = activeContracts.stream()
         .map(c -> safeAmount(resolveContractAmount(c)).subtract(safeAmount(c.getReceivedAmount())))
         .filter(diff -> diff.compareTo(ZERO) > 0)
         .reduce(ZERO, BigDecimal::add);
-    stats.put("pendingReceiptAmount", pendingAmount);
+    result.setPendingReceiptAmount(pendingAmount);
 
-    stats.put("totalSettlementOrders", 0L);
-    stats.put("pendingSettlementOrders", 0L);
+    result.setTotalSettlementOrders(0L);
+    result.setPendingSettlementOrders(0L);
 
-    return stats;
+    return result;
   }
 
   private String generateContractNo() {
-    String timePart = LocalDateTime.now().format(RECEIPT_NO_TIME);
-    int random = ThreadLocalRandom.current().nextInt(1000, 10000);
-    return "HT" + timePart + random;
+    for (int attempt = 0; attempt < 3; attempt++) {
+      String timePart = LocalDateTime.now().format(RECEIPT_NO_TIME);
+      int random = ThreadLocalRandom.current().nextInt(100000, 1000000);
+      String no = "HT" + timePart + random;
+      Long existing = contractMapper.selectCount(
+          new LambdaQueryWrapper<Contract>().eq(Contract::getContractNo, no));
+      if (existing == 0) {
+        return no;
+      }
+    }
+    throw new ContractServiceException(500, "合同编号生成失败，请重试");
   }
 
   @Override
@@ -616,6 +659,17 @@ public class ContractServiceImpl implements ContractService {
   }
 
   @Override
+  public ContractMaterial getContractMaterial(Long materialId, Long contractId, Long tenantId) {
+    getContract(contractId, tenantId);
+    ContractMaterial material = materialMapper.selectById(materialId);
+    if (material == null || !contractId.equals(material.getContractId())
+        || !isTenantAccessible(tenantId, material.getTenantId())) {
+      throw new ContractServiceException(404, "办事材料不存在");
+    }
+    return material;
+  }
+
+  @Override
   public List<ContractInvoiceVo> getContractInvoices(Long contractId, Long tenantId) {
     getContract(contractId, tenantId);
     LambdaQueryWrapper<ContractInvoice> query = new LambdaQueryWrapper<>();
@@ -643,6 +697,85 @@ public class ContractServiceImpl implements ContractService {
 
   private String resolveContractNo(Contract contract) {
     return StringUtils.hasText(contract.getContractNo()) ? contract.getContractNo() : contract.getCode();
+  }
+
+  private void saveApprovalRecord(
+      Contract contract, Long operatorId, String actionType, String toStatus, String remark) {
+    ContractApprovalRecord record = new ContractApprovalRecord();
+    record.setTenantId(contract.getTenantId());
+    record.setContractId(contract.getId());
+    record.setActionType(actionType);
+    record.setOperatorId(operatorId);
+    record.setFromStatus(contract.getContractStatus());
+    record.setToStatus(toStatus);
+    record.setRemark(remark);
+    record.setOperateTime(LocalDateTime.now());
+    approvalRecordMapper.insert(record);
+  }
+
+  private void saveApprovalMaterial(
+      Contract contract, Long operatorId, String actionType, String toStatus, String remark) {
+    try {
+      Files.createDirectories(contractDocDir);
+      String actionLabel = resolveActionName(actionType);
+      String fileName =
+          sanitizeFileName(resolveContractNo(contract) + "_" + actionType.toLowerCase() + "_"
+              + LocalDateTime.now().format(RECEIPT_NO_TIME) + ".txt");
+      Path path = contractDocDir.resolve(fileName);
+      String content = buildApprovalDocument(contract, actionLabel, toStatus, remark, operatorId);
+      Files.writeString(path, content, StandardCharsets.UTF_8);
+
+      ContractMaterial material = new ContractMaterial();
+      material.setTenantId(contract.getTenantId());
+      material.setContractId(contract.getId());
+      material.setMaterialName(actionLabel + "文书");
+      material.setMaterialType("APPROVAL_DOCUMENT");
+      material.setFileUrl(path.toString());
+      material.setFileSize(Files.size(path));
+      material.setUploaderId(operatorId);
+      material.setRemark(remark);
+      materialMapper.insert(material);
+    } catch (IOException ex) {
+      throw new ContractServiceException(500, "生成合同审批文书失败");
+    }
+  }
+
+  private String buildApprovalDocument(
+      Contract contract, String actionLabel, String toStatus, String remark, Long operatorId) {
+    return String.join(
+        "\n",
+        "合同审批文书",
+        "合同编号: " + resolveContractNo(contract),
+        "合同名称: " + (StringUtils.hasText(contract.getName()) ? contract.getName() : "-"),
+        "合同类型: " + (StringUtils.hasText(contract.getContractType()) ? contract.getContractType() : "-"),
+        "审批动作: " + actionLabel,
+        "原状态: " + (StringUtils.hasText(contract.getContractStatus()) ? contract.getContractStatus() : "-"),
+        "目标状态: " + toStatus,
+        "审批意见: " + (StringUtils.hasText(remark) ? remark : "-"),
+        "操作人ID: " + (operatorId != null ? operatorId : "-"),
+        "生成时间: " + LocalDateTime.now(),
+        "项目ID: " + (contract.getProjectId() != null ? contract.getProjectId() : "-"),
+        "场地ID: " + (contract.getSiteId() != null ? contract.getSiteId() : "-"),
+        "合同金额: " + safeAmount(resolveContractAmount(contract)),
+        "约定方量: " + safeAmount(contract.getAgreedVolume()));
+  }
+
+  private String sanitizeFileName(String value) {
+    return value.replaceAll("[^a-zA-Z0-9._-]", "_");
+  }
+
+  private void pushApprovalNotification(Contract contract, String title, String content) {
+    messageRecordService.pushApprovalResult(
+        new ApprovalMessageCommand(
+            contract.getTenantId(),
+            contract.getApplicantId(),
+            title,
+            content,
+            "审批通知",
+            "/contracts/" + contract.getId(),
+            "CONTRACT",
+            String.valueOf(contract.getId()),
+            "合同审批"));
   }
 
   private ContractApprovalRecordVo toApprovalRecordVo(ContractApprovalRecord record) {

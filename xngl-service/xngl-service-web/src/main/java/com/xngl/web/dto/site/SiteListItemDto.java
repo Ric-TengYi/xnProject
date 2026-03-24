@@ -18,4 +18,12 @@ public class SiteListItemDto {
   private String siteType;
   private BigDecimal capacity;
   private String settlementMode;
+  private String siteLevel;
+  private String parentSiteId;
+  private String parentSiteName;
+  private String managementArea;
+  private String weighbridgeSiteId;
+  private String weighbridgeSiteName;
+  private BigDecimal lng;
+  private BigDecimal lat;
 }

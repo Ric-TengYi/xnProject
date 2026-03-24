@@ -1,0 +1,19 @@
+{
+  "results": [
+    {
+      "name": "UI project contract/site tab",
+      "ok": true,
+      "detail": "项目详情已展示真实合同清单和项目场地清单"
+    },
+    {
+      "name": "UI project config tab",
+      "ok": true,
+      "detail": "项目配置页已展示打卡账号、位置判断、预扣值和违规围栏"
+    },
+    {
+      "name": "UI project route/fence preview",
+      "ok": true,
+      "detail": "项目配置页已展示线路状态和违规围栏状态"
+    }
+  ]
+}

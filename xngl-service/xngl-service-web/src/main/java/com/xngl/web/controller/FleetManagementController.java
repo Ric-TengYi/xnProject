@@ -7,32 +7,44 @@ import com.xngl.infrastructure.persistence.entity.fleet.FleetProfile;
 import com.xngl.infrastructure.persistence.entity.fleet.FleetTransportPlan;
 import com.xngl.infrastructure.persistence.entity.organization.Org;
 import com.xngl.infrastructure.persistence.entity.organization.User;
+import com.xngl.infrastructure.persistence.entity.vehicle.Vehicle;
+import com.xngl.infrastructure.persistence.entity.vehicle.VehicleTrackPoint;
 import com.xngl.infrastructure.persistence.mapper.FleetDispatchOrderMapper;
 import com.xngl.infrastructure.persistence.mapper.FleetFinanceRecordMapper;
 import com.xngl.infrastructure.persistence.mapper.FleetProfileMapper;
 import com.xngl.infrastructure.persistence.mapper.FleetTransportPlanMapper;
 import com.xngl.infrastructure.persistence.mapper.OrgMapper;
-import com.xngl.manager.user.UserService;
+import com.xngl.infrastructure.persistence.mapper.VehicleMapper;
+import com.xngl.infrastructure.persistence.mapper.VehicleTrackPointMapper;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
 import com.xngl.web.dto.fleet.FleetDispatchAuditDto;
 import com.xngl.web.dto.fleet.FleetDispatchOrderListItemDto;
 import com.xngl.web.dto.fleet.FleetDispatchOrderUpsertDto;
 import com.xngl.web.dto.fleet.FleetFinanceRecordListItemDto;
+import com.xngl.web.dto.fleet.FleetFinanceSummaryDto;
 import com.xngl.web.dto.fleet.FleetFinanceRecordUpsertDto;
 import com.xngl.web.dto.fleet.FleetProfileListItemDto;
 import com.xngl.web.dto.fleet.FleetProfileUpsertDto;
 import com.xngl.web.dto.fleet.FleetReportItemDto;
 import com.xngl.web.dto.fleet.FleetSummaryDto;
+import com.xngl.web.dto.fleet.FleetTrackingHistoryDto;
+import com.xngl.web.dto.fleet.FleetTrackingItemDto;
+import com.xngl.web.dto.fleet.FleetTrackingStopDto;
+import com.xngl.web.dto.fleet.FleetTrackingSummaryDto;
 import com.xngl.web.dto.fleet.FleetTransportPlanListItemDto;
 import com.xngl.web.dto.fleet.FleetTransportPlanUpsertDto;
+import com.xngl.web.dto.vehicle.VehicleTrackPointDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -42,6 +54,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -57,6 +72,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class FleetManagementController {
 
   private static final DateTimeFormatter ISO_DATE = DateTimeFormatter.ISO_LOCAL_DATE;
+  private static final DateTimeFormatter ISO_MONTH = DateTimeFormatter.ofPattern("yyyy-MM");
   private static final DateTimeFormatter ISO_DATE_TIME =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
   private static final BigDecimal ZERO = BigDecimal.ZERO;
@@ -66,7 +82,9 @@ public class FleetManagementController {
   private final FleetDispatchOrderMapper fleetDispatchOrderMapper;
   private final FleetFinanceRecordMapper fleetFinanceRecordMapper;
   private final OrgMapper orgMapper;
-  private final UserService userService;
+  private final VehicleMapper vehicleMapper;
+  private final VehicleTrackPointMapper vehicleTrackPointMapper;
+  private final UserContext userContext;
 
   public FleetManagementController(
       FleetProfileMapper fleetProfileMapper,
@@ -74,13 +92,17 @@ public class FleetManagementController {
       FleetDispatchOrderMapper fleetDispatchOrderMapper,
       FleetFinanceRecordMapper fleetFinanceRecordMapper,
       OrgMapper orgMapper,
-      UserService userService) {
+      VehicleMapper vehicleMapper,
+      VehicleTrackPointMapper vehicleTrackPointMapper,
+      UserContext userContext) {
     this.fleetProfileMapper = fleetProfileMapper;
     this.fleetTransportPlanMapper = fleetTransportPlanMapper;
     this.fleetDispatchOrderMapper = fleetDispatchOrderMapper;
     this.fleetFinanceRecordMapper = fleetFinanceRecordMapper;
     this.orgMapper = orgMapper;
-    this.userService = userService;
+    this.vehicleMapper = vehicleMapper;
+    this.vehicleTrackPointMapper = vehicleTrackPointMapper;
+    this.userContext = userContext;
   }
 
   @GetMapping("/summary")
@@ -282,18 +304,83 @@ public class FleetManagementController {
       @RequestParam(required = false) String keyword,
       @RequestParam(required = false) String status,
       @RequestParam(required = false) Long fleetId,
+      @RequestParam(required = false) String contractNo,
+      @RequestParam(required = false) String statementMonthFrom,
+      @RequestParam(required = false) String statementMonthTo,
+      @RequestParam(required = false) Boolean unsettledOnly,
       @RequestParam(defaultValue = "1") int pageNo,
       @RequestParam(defaultValue = "20") int pageSize,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
     List<FleetFinanceRecordListItemDto> rows =
-        new ArrayList<>(loadFinanceRows(currentUser.getTenantId(), keyword, status, fleetId));
+        new ArrayList<>(
+            loadFinanceRows(
+                currentUser.getTenantId(),
+                keyword,
+                status,
+                fleetId,
+                contractNo,
+                normalizeMonth(statementMonthFrom),
+                normalizeMonth(statementMonthTo),
+                Boolean.TRUE.equals(unsettledOnly)));
     rows.sort(
         Comparator.comparing(
                 FleetFinanceRecordListItemDto::getStatementMonth,
                 Comparator.nullsLast(String::compareTo))
             .reversed());
     return ApiResult.ok(paginate(rows, pageNo, pageSize));
+  }
+
+  @GetMapping("/finance-records/summary")
+  public ApiResult<FleetFinanceSummaryDto> financeSummary(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) Long fleetId,
+      @RequestParam(required = false) String contractNo,
+      @RequestParam(required = false) String statementMonthFrom,
+      @RequestParam(required = false) String statementMonthTo,
+      @RequestParam(required = false) Boolean unsettledOnly,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<FleetFinanceRecordListItemDto> rows =
+        loadFinanceRows(
+            currentUser.getTenantId(),
+            keyword,
+            status,
+            fleetId,
+            contractNo,
+            normalizeMonth(statementMonthFrom),
+            normalizeMonth(statementMonthTo),
+            Boolean.TRUE.equals(unsettledOnly));
+    return ApiResult.ok(buildFinanceSummary(rows));
+  }
+
+  @GetMapping("/finance-records/export")
+  public ResponseEntity<byte[]> exportFinanceRecords(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) Long fleetId,
+      @RequestParam(required = false) String contractNo,
+      @RequestParam(required = false) String statementMonthFrom,
+      @RequestParam(required = false) String statementMonthTo,
+      @RequestParam(required = false) Boolean unsettledOnly,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<FleetFinanceRecordListItemDto> rows =
+        loadFinanceRows(
+            currentUser.getTenantId(),
+            keyword,
+            status,
+            fleetId,
+            contractNo,
+            normalizeMonth(statementMonthFrom),
+            normalizeMonth(statementMonthTo),
+            Boolean.TRUE.equals(unsettledOnly));
+    String csv = buildFinanceCsv(rows);
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=fleet_finance_records.csv")
+        .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+        .body(csv.getBytes(StandardCharsets.UTF_8));
   }
 
   @PostMapping("/finance-records")
@@ -323,24 +410,37 @@ public class FleetManagementController {
   }
 
   @GetMapping("/report")
-  public ApiResult<List<FleetReportItemDto>> report(HttpServletRequest request) {
+  public ApiResult<List<FleetReportItemDto>> report(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) Long orgId,
+      @RequestParam(required = false) String statementMonthFrom,
+      @RequestParam(required = false) String statementMonthTo,
+      HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    String monthFrom = normalizeMonth(statementMonthFrom);
+    String monthTo = normalizeMonth(statementMonthTo);
     List<FleetProfile> profiles = listProfiles(currentUser.getTenantId());
     Map<Long, Org> orgMap = loadOrgMapFromProfiles(profiles);
     Map<Long, List<FleetTransportPlan>> planMap =
         listPlans(currentUser.getTenantId()).stream()
             .filter(item -> item.getFleetId() != null)
+            .filter(item -> matchDateMonthRange(item.getPlanDate(), monthFrom, monthTo))
             .collect(Collectors.groupingBy(FleetTransportPlan::getFleetId));
     Map<Long, List<FleetDispatchOrder>> dispatchMap =
         listDispatchOrders(currentUser.getTenantId()).stream()
             .filter(item -> item.getFleetId() != null)
+            .filter(item -> matchDateMonthRange(item.getApplyDate(), monthFrom, monthTo))
             .collect(Collectors.groupingBy(FleetDispatchOrder::getFleetId));
     Map<Long, List<FleetFinanceRecord>> financeMap =
         listFinanceRecords(currentUser.getTenantId()).stream()
             .filter(item -> item.getFleetId() != null)
+            .filter(item -> matchMonthRange(item.getStatementMonth(), monthFrom, monthTo))
             .collect(Collectors.groupingBy(FleetFinanceRecord::getFleetId));
     List<FleetReportItemDto> rows = new ArrayList<>();
     for (FleetProfile profile : profiles) {
+      if (orgId != null && !Objects.equals(profile.getOrgId(), orgId)) {
+        continue;
+      }
       List<FleetTransportPlan> profilePlans = planMap.getOrDefault(profile.getId(), Collections.emptyList());
       List<FleetDispatchOrder> profileOrders =
           dispatchMap.getOrDefault(profile.getId(), Collections.emptyList());
@@ -372,13 +472,98 @@ public class FleetManagementController {
               .map(item -> defaultDecimal(item.getCostAmount()).add(defaultDecimal(item.getOtherAmount())))
               .reduce(ZERO, BigDecimal::add));
       dto.setProfitAmount(profileFinance.stream().map(this::resolveProfitAmount).reduce(ZERO, BigDecimal::add));
-      rows.add(dto);
+      if (matchesReportKeyword(dto, trimToNull(keyword))) {
+        rows.add(dto);
+      }
     }
     rows.sort(
         Comparator.comparing(FleetReportItemDto::getRevenueAmount, Comparator.nullsLast(BigDecimal::compareTo))
             .reversed()
             .thenComparing(FleetReportItemDto::getFleetName, Comparator.nullsLast(String::compareTo)));
     return ApiResult.ok(rows);
+  }
+
+  @GetMapping("/report/export")
+  public ResponseEntity<byte[]> exportReport(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) Long orgId,
+      @RequestParam(required = false) String statementMonthFrom,
+      @RequestParam(required = false) String statementMonthTo,
+      HttpServletRequest request) {
+    List<FleetReportItemDto> rows =
+        report(keyword, orgId, statementMonthFrom, statementMonthTo, request).getData();
+    String csv = buildReportCsv(rows);
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=fleet_reports.csv")
+        .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+        .body(csv.getBytes(StandardCharsets.UTF_8));
+  }
+
+  @GetMapping("/tracking/summary")
+  public ApiResult<FleetTrackingSummaryDto> trackingSummary(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) Long fleetId,
+      @RequestParam(required = false) String status,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    return ApiResult.ok(loadTrackingSummary(currentUser.getTenantId(), keyword, fleetId, status));
+  }
+
+  @GetMapping("/tracking")
+  public ApiResult<PageResult<FleetTrackingItemDto>> tracking(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) Long fleetId,
+      @RequestParam(required = false) String status,
+      @RequestParam(defaultValue = "1") int pageNo,
+      @RequestParam(defaultValue = "20") int pageSize,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<FleetTrackingItemDto> rows =
+        loadTrackingRows(currentUser.getTenantId(), keyword, fleetId, status);
+    return ApiResult.ok(paginate(rows, pageNo, pageSize));
+  }
+
+  @GetMapping("/tracking/{vehicleId}/history")
+  public ApiResult<FleetTrackingHistoryDto> trackingHistory(
+      @PathVariable Long vehicleId,
+      @RequestParam(required = false) String startTime,
+      @RequestParam(required = false) String endTime,
+      @RequestParam(required = false) Long fleetId,
+      @RequestParam(defaultValue = "10") long minStopMinutes,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    Vehicle vehicle = requireVehicle(vehicleId, currentUser.getTenantId());
+    FleetProfile requiredProfile = fleetId != null ? requireProfile(fleetId, currentUser.getTenantId()) : null;
+    if (requiredProfile != null && !matchesFleetProfile(vehicle, requiredProfile)) {
+      throw new BizException(400, "该车辆不属于当前车队");
+    }
+    List<FleetProfile> profiles = listProfiles(currentUser.getTenantId());
+    Map<String, FleetProfile> profileMap = loadFleetProfileKeyMap(profiles);
+    FleetProfile profile = resolveFleetProfile(profileMap, vehicle);
+    LocalDateTime start = parseDateTime(startTime);
+    LocalDateTime end = parseDateTime(endTime);
+    if (start != null && end != null && start.isAfter(end)) {
+      throw new BizException(400, "开始时间不能晚于结束时间");
+    }
+    List<VehicleTrackPoint> points = loadTrackPoints(currentUser.getTenantId(), vehicle, start, end);
+    FleetDispatchOrder dispatch =
+        resolveActiveDispatch(
+            profile != null
+                ? listDispatchOrders(currentUser.getTenantId()).stream()
+                    .filter(item -> Objects.equals(item.getFleetId(), profile.getId()))
+                    .toList()
+                : Collections.emptyList());
+    FleetTransportPlan plan =
+        resolveTrackingPlan(
+            dispatch,
+            profile,
+            profile != null
+                ? listPlans(currentUser.getTenantId()).stream()
+                    .filter(item -> Objects.equals(item.getFleetId(), profile.getId()))
+                    .toList()
+                : Collections.emptyList());
+    return ApiResult.ok(
+        toTrackingHistoryDto(vehicle, profile, dispatch, plan, points, Math.max(minStopMinutes, 1L)));
   }
 
   private List<FleetProfile> listProfiles(Long tenantId) {
@@ -411,6 +596,16 @@ public class FleetManagementController {
             .eq(FleetFinanceRecord::getTenantId, tenantId)
             .orderByDesc(FleetFinanceRecord::getStatementMonth)
             .orderByDesc(FleetFinanceRecord::getId));
+  }
+
+  private List<Vehicle> listTrackingVehicles(Long tenantId) {
+    return vehicleMapper.selectList(
+        new LambdaQueryWrapper<Vehicle>()
+            .eq(Vehicle::getTenantId, tenantId)
+            .isNotNull(Vehicle::getFleetName)
+            .orderByDesc(Vehicle::getGpsTime)
+            .orderByDesc(Vehicle::getUpdateTime)
+            .orderByDesc(Vehicle::getId));
   }
 
   private List<FleetProfileListItemDto> loadProfileRows(
@@ -474,16 +669,27 @@ public class FleetManagementController {
   }
 
   private List<FleetFinanceRecordListItemDto> loadFinanceRows(
-      Long tenantId, String keyword, String status, Long fleetId) {
+      Long tenantId,
+      String keyword,
+      String status,
+      Long fleetId,
+      String contractNo,
+      String statementMonthFrom,
+      String statementMonthTo,
+      boolean unsettledOnly) {
     List<FleetFinanceRecord> rows = listFinanceRecords(tenantId);
     Map<Long, FleetProfile> fleetMap = loadFleetMap(rows.stream().map(FleetFinanceRecord::getFleetId).toList(), tenantId);
     Map<Long, Org> orgMap = loadOrgMapFromFleetMap(fleetMap);
     String keywordValue = trimToNull(keyword);
     String statusValue = defaultValue(status, null);
+    String contractValue = trimToNull(contractNo);
     return rows.stream()
         .filter(item -> fleetId == null || Objects.equals(item.getFleetId(), fleetId))
+        .filter(item -> !StringUtils.hasText(contractValue) || contains(item.getContractNo(), contractValue))
+        .filter(item -> matchMonthRange(item.getStatementMonth(), statementMonthFrom, statementMonthTo))
         .filter(item -> statusValue == null || statusValue.equalsIgnoreCase(item.getStatus()))
         .map(item -> toFinanceDto(item, fleetMap.get(item.getFleetId()), orgMap))
+        .filter(item -> !unsettledOnly || defaultDecimal(item.getOutstandingAmount()).compareTo(ZERO) > 0)
         .filter(
             item ->
                 !StringUtils.hasText(keywordValue)
@@ -492,6 +698,27 @@ public class FleetManagementController {
                     || contains(item.getContractNo(), keywordValue)
                     || contains(item.getStatementMonth(), keywordValue))
         .toList();
+  }
+
+  private FleetFinanceSummaryDto buildFinanceSummary(List<FleetFinanceRecordListItemDto> rows) {
+    return new FleetFinanceSummaryDto(
+        rows.size(),
+        (int) rows.stream().filter(item -> "SETTLED".equalsIgnoreCase(item.getStatus())).count(),
+        rows.stream()
+            .map(FleetFinanceRecordListItemDto::getRevenueAmount)
+            .filter(Objects::nonNull)
+            .reduce(ZERO, BigDecimal::add),
+        rows.stream()
+            .map(item -> defaultDecimal(item.getCostAmount()).add(defaultDecimal(item.getOtherAmount())))
+            .reduce(ZERO, BigDecimal::add),
+        rows.stream()
+            .map(FleetFinanceRecordListItemDto::getProfitAmount)
+            .filter(Objects::nonNull)
+            .reduce(ZERO, BigDecimal::add),
+        rows.stream()
+            .map(FleetFinanceRecordListItemDto::getOutstandingAmount)
+            .filter(Objects::nonNull)
+            .reduce(ZERO, BigDecimal::add));
   }
 
   private FleetProfileListItemDto loadProfileDto(Long id, Long tenantId) {
@@ -518,6 +745,67 @@ public class FleetManagementController {
     Map<Long, FleetProfile> fleetMap = loadFleetMap(List.of(entity.getFleetId()), tenantId);
     Map<Long, Org> orgMap = loadOrgMapFromFleetMap(fleetMap);
     return toFinanceDto(entity, fleetMap.get(entity.getFleetId()), orgMap);
+  }
+
+  private FleetTrackingSummaryDto loadTrackingSummary(
+      Long tenantId, String keyword, Long fleetId, String status) {
+    List<FleetTrackingItemDto> rows = loadTrackingRows(tenantId, keyword, fleetId, status);
+    return new FleetTrackingSummaryDto(
+        rows.size(),
+        (int) rows.stream().filter(item -> "MOVING".equalsIgnoreCase(item.getTrackingStatus())).count(),
+        (int) rows.stream().filter(item -> "STOPPED".equalsIgnoreCase(item.getTrackingStatus())).count(),
+        (int) rows.stream().filter(item -> "OFFLINE".equalsIgnoreCase(item.getTrackingStatus())).count(),
+        (int)
+            rows.stream()
+                .filter(
+                    item ->
+                        "APPROVED".equalsIgnoreCase(item.getDispatchStatus())
+                            || "IN_PROGRESS".equalsIgnoreCase(item.getDispatchStatus()))
+                .count(),
+        (int) rows.stream().filter(item -> StringUtils.hasText(item.getWarningLabel())).count());
+  }
+
+  private List<FleetTrackingItemDto> loadTrackingRows(
+      Long tenantId, String keyword, Long fleetId, String status) {
+    List<FleetProfile> profiles = listProfiles(tenantId);
+    FleetProfile requiredProfile = fleetId != null ? requireProfile(fleetId, tenantId) : null;
+    Map<String, FleetProfile> profileMap = loadFleetProfileKeyMap(profiles);
+    List<Vehicle> vehicles = listTrackingVehicles(tenantId);
+    Map<Long, Org> vehicleOrgMap = loadVehicleOrgMap(vehicles);
+    Map<Long, List<FleetDispatchOrder>> dispatchMap =
+        listDispatchOrders(tenantId).stream()
+            .filter(item -> item.getFleetId() != null)
+            .collect(Collectors.groupingBy(FleetDispatchOrder::getFleetId));
+    Map<Long, List<FleetTransportPlan>> planMap =
+        listPlans(tenantId).stream()
+            .filter(item -> item.getFleetId() != null)
+            .collect(Collectors.groupingBy(FleetTransportPlan::getFleetId));
+    String keywordValue = trimToNull(keyword);
+    String statusValue = defaultValue(status, null);
+    List<FleetTrackingItemDto> rows =
+        vehicles.stream()
+            .filter(item -> requiredProfile == null || matchesFleetProfile(item, requiredProfile))
+            .map(
+                item ->
+                    toTrackingDto(
+                        item,
+                        resolveFleetProfile(profileMap, item),
+                        vehicleOrgMap.get(item.getOrgId()),
+                        dispatchMap,
+                        planMap))
+            .filter(item -> matchesTrackingKeyword(item, keywordValue))
+            .filter(item -> matchesTrackingStatus(item, statusValue))
+            .sorted(
+                Comparator.<FleetTrackingItemDto>comparingInt(this::trackingSortScore)
+                    .reversed()
+                    .thenComparing(
+                        FleetTrackingItemDto::getGpsTime,
+                        Comparator.nullsLast(Comparator.reverseOrder()))
+                    .thenComparing(
+                        FleetTrackingItemDto::getPlateNo,
+                        Comparator.nullsLast(String::compareTo)))
+            .toList();
+    return new ArrayList<>(rows);
   }
 
   private Map<Long, FleetProfile> loadFleetMap(List<Long> ids, Long tenantId) {
@@ -551,6 +839,31 @@ public class FleetManagementController {
 
   private Map<Long, Org> loadOrgMapFromFleetMap(Map<Long, FleetProfile> fleetMap) {
     return loadOrgMapFromProfiles(new ArrayList<>(fleetMap.values()));
+  }
+
+  private Map<Long, Org> loadVehicleOrgMap(List<Vehicle> vehicles) {
+    LinkedHashSet<Long> orgIds =
+        vehicles.stream()
+            .map(Vehicle::getOrgId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+    if (orgIds.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    return orgMapper.selectBatchIds(orgIds).stream()
+        .filter(item -> item.getId() != null)
+        .collect(Collectors.toMap(Org::getId, Function.identity(), (left, right) -> left));
+  }
+
+  private Map<String, FleetProfile> loadFleetProfileKeyMap(List<FleetProfile> profiles) {
+    return profiles.stream()
+        .filter(item -> item.getId() != null)
+        .filter(item -> StringUtils.hasText(item.getFleetName()))
+        .collect(
+            Collectors.toMap(
+                item -> buildFleetKey(item.getOrgId(), item.getFleetName()),
+                Function.identity(),
+                (left, right) -> left));
   }
 
   private FleetProfileListItemDto toProfileDto(FleetProfile entity, Map<Long, Org> orgMap) {
@@ -636,6 +949,151 @@ public class FleetManagementController {
     dto.setStatus(defaultValue(entity.getStatus(), "CONFIRMED"));
     dto.setStatusLabel(resolveFinanceStatusLabel(dto.getStatus()));
     dto.setRemark(entity.getRemark());
+    return dto;
+  }
+
+  private boolean matchesReportKeyword(FleetReportItemDto item, String keyword) {
+    if (!StringUtils.hasText(keyword)) {
+      return true;
+    }
+    return contains(item.getFleetName(), keyword)
+        || contains(item.getOrgName(), keyword);
+  }
+
+  private boolean matchMonthRange(String statementMonth, String from, String to) {
+    if (!StringUtils.hasText(from) && !StringUtils.hasText(to)) {
+      return true;
+    }
+    String normalized = normalizeMonth(statementMonth);
+    if (!StringUtils.hasText(normalized)) {
+      return false;
+    }
+    return (from == null || normalized.compareTo(from) >= 0)
+        && (to == null || normalized.compareTo(to) <= 0);
+  }
+
+  private boolean matchDateMonthRange(LocalDate date, String from, String to) {
+    if (!StringUtils.hasText(from) && !StringUtils.hasText(to)) {
+      return true;
+    }
+    if (date == null) {
+      return false;
+    }
+    return matchMonthRange(date.format(ISO_MONTH), from, to);
+  }
+
+  private FleetTrackingItemDto toTrackingDto(
+      Vehicle vehicle,
+      FleetProfile profile,
+      Org org,
+      Map<Long, List<FleetDispatchOrder>> dispatchMap,
+      Map<Long, List<FleetTransportPlan>> planMap) {
+    FleetDispatchOrder dispatch =
+        profile != null
+            ? resolveActiveDispatch(dispatchMap.getOrDefault(profile.getId(), Collections.emptyList()))
+            : null;
+    FleetTransportPlan plan =
+        resolveTrackingPlan(
+            dispatch,
+            profile,
+            profile != null ? planMap.getOrDefault(profile.getId(), Collections.emptyList()) : Collections.emptyList());
+    String trackingStatus = resolveTrackingStatus(vehicle);
+    FleetTrackingItemDto dto = new FleetTrackingItemDto();
+    dto.setVehicleId(vehicle.getId() != null ? String.valueOf(vehicle.getId()) : null);
+    dto.setPlateNo(vehicle.getPlateNo());
+    dto.setOrgId(vehicle.getOrgId() != null ? String.valueOf(vehicle.getOrgId()) : null);
+    dto.setOrgName(resolveOrgName(org, vehicle.getOrgId()));
+    dto.setFleetId(profile != null && profile.getId() != null ? String.valueOf(profile.getId()) : null);
+    dto.setFleetName(
+        StringUtils.hasText(vehicle.getFleetName())
+            ? vehicle.getFleetName()
+            : profile != null ? profile.getFleetName() : "未编组车队");
+    dto.setDriverName(vehicle.getDriverName());
+    dto.setDriverPhone(vehicle.getDriverPhone());
+    dto.setTrackingStatus(trackingStatus);
+    dto.setTrackingStatusLabel(resolveTrackingStatusLabel(trackingStatus));
+    dto.setRunningStatus(defaultValue(vehicle.getRunningStatus(), "STOPPED"));
+    dto.setRunningStatusLabel(resolveVehicleRunningStatusLabel(dto.getRunningStatus()));
+    dto.setVehicleStatusLabel(resolveVehicleStatusLabel(vehicle.getStatus()));
+    dto.setWarningLabel(hasVehicleWarning(vehicle) ? resolveVehicleWarningLabel(vehicle) : null);
+    dto.setCurrentSpeed(defaultDecimal(vehicle.getCurrentSpeed()));
+    dto.setCurrentMileage(defaultDecimal(vehicle.getCurrentMileage()));
+    dto.setLng(vehicle.getLng());
+    dto.setLat(vehicle.getLat());
+    dto.setGpsTime(formatDateTime(vehicle.getGpsTime()));
+    dto.setDispatchOrderNo(dispatch != null ? dispatch.getOrderNo() : null);
+    dto.setDispatchStatus(dispatch != null ? defaultValue(dispatch.getStatus(), "PENDING_APPROVAL") : null);
+    dto.setDispatchStatusLabel(
+        dispatch != null ? resolveDispatchStatusLabel(dispatch.getStatus()) : null);
+    dto.setRelatedPlanNo(plan != null ? plan.getPlanNo() : dispatch != null ? dispatch.getRelatedPlanNo() : null);
+    dto.setSourcePoint(plan != null ? plan.getSourcePoint() : null);
+    dto.setDestinationPoint(plan != null ? plan.getDestinationPoint() : null);
+    dto.setCargoType(plan != null ? plan.getCargoType() : null);
+    return dto;
+  }
+
+  private FleetDispatchOrder resolveActiveDispatch(List<FleetDispatchOrder> rows) {
+    if (rows == null || rows.isEmpty()) {
+      return null;
+    }
+    return rows.stream()
+        .filter(item -> "IN_PROGRESS".equalsIgnoreCase(item.getStatus()))
+        .findFirst()
+        .or(() -> rows.stream().filter(item -> "APPROVED".equalsIgnoreCase(item.getStatus())).findFirst())
+        .or(() -> rows.stream().filter(item -> "PENDING_APPROVAL".equalsIgnoreCase(item.getStatus())).findFirst())
+        .orElse(rows.get(0));
+  }
+
+  private FleetTransportPlan resolveTrackingPlan(
+      FleetDispatchOrder dispatch, FleetProfile profile, List<FleetTransportPlan> rows) {
+    if (rows == null || rows.isEmpty()) {
+      return null;
+    }
+    if (dispatch != null && StringUtils.hasText(dispatch.getRelatedPlanNo())) {
+      FleetTransportPlan matched =
+          rows.stream()
+              .filter(item -> dispatch.getRelatedPlanNo().equalsIgnoreCase(item.getPlanNo()))
+              .findFirst()
+              .orElse(null);
+      if (matched != null) {
+        return matched;
+      }
+    }
+    return rows.stream()
+        .filter(item -> "ACTIVE".equalsIgnoreCase(item.getStatus()))
+        .findFirst()
+        .or(() -> rows.stream().filter(item -> "DRAFT".equalsIgnoreCase(item.getStatus())).findFirst())
+        .orElse(rows.get(0));
+  }
+
+  private FleetTrackingHistoryDto toTrackingHistoryDto(
+      Vehicle vehicle,
+      FleetProfile profile,
+      FleetDispatchOrder dispatch,
+      FleetTransportPlan plan,
+      List<VehicleTrackPoint> points,
+      long minStopMinutes) {
+    FleetTrackingHistoryDto dto = new FleetTrackingHistoryDto();
+    dto.setVehicleId(vehicle.getId() != null ? String.valueOf(vehicle.getId()) : null);
+    dto.setPlateNo(vehicle.getPlateNo());
+    dto.setFleetId(profile != null && profile.getId() != null ? String.valueOf(profile.getId()) : null);
+    dto.setFleetName(
+        profile != null && StringUtils.hasText(profile.getFleetName())
+            ? profile.getFleetName()
+            : vehicle.getFleetName());
+    dto.setStartTime(points.isEmpty() ? null : formatDateTime(points.get(0).getLocateTime()));
+    dto.setEndTime(points.isEmpty() ? null : formatDateTime(points.get(points.size() - 1).getLocateTime()));
+    dto.setDispatchOrderNo(dispatch != null ? dispatch.getOrderNo() : null);
+    dto.setRelatedPlanNo(plan != null ? plan.getPlanNo() : dispatch != null ? dispatch.getRelatedPlanNo() : null);
+    dto.setSourcePoint(plan != null ? plan.getSourcePoint() : null);
+    dto.setDestinationPoint(plan != null ? plan.getDestinationPoint() : null);
+    dto.setCargoType(plan != null ? plan.getCargoType() : null);
+    dto.setPointCount(points.size());
+    dto.setTotalDistanceKm(calculateTrackDistance(points));
+    dto.setMaxSpeed(calculateMaxTrackSpeed(points));
+    dto.setAverageSpeed(calculateAverageTrackSpeed(points));
+    dto.setPoints(points.stream().map(this::toTrackPointDto).toList());
+    dto.setStops(calculateStops(points, minStopMinutes));
     return dto;
   }
 
@@ -765,6 +1223,79 @@ public class FleetManagementController {
     return entity;
   }
 
+  private Vehicle requireVehicle(Long id, Long tenantId) {
+    Vehicle entity = vehicleMapper.selectById(id);
+    if (entity == null || !Objects.equals(entity.getTenantId(), tenantId)) {
+      throw new BizException(404, "车辆不存在");
+    }
+    return entity;
+  }
+
+  private FleetProfile resolveFleetProfile(Map<String, FleetProfile> profileMap, Vehicle vehicle) {
+    if (profileMap.isEmpty() || !StringUtils.hasText(vehicle.getFleetName())) {
+      return null;
+    }
+    FleetProfile matched = profileMap.get(buildFleetKey(vehicle.getOrgId(), vehicle.getFleetName()));
+    if (matched != null) {
+      return matched;
+    }
+    return profileMap.get(buildFleetKey(null, vehicle.getFleetName()));
+  }
+
+  private boolean matchesFleetProfile(Vehicle vehicle, FleetProfile profile) {
+    if (!StringUtils.hasText(vehicle.getFleetName()) || !StringUtils.hasText(profile.getFleetName())) {
+      return false;
+    }
+    if (!vehicle.getFleetName().trim().equalsIgnoreCase(profile.getFleetName().trim())) {
+      return false;
+    }
+    return profile.getOrgId() == null || Objects.equals(vehicle.getOrgId(), profile.getOrgId());
+  }
+
+  private String buildFleetKey(Long orgId, String fleetName) {
+    return (orgId != null ? orgId : -1L) + "::" + fleetName.trim().toUpperCase();
+  }
+
+  private boolean matchesTrackingKeyword(FleetTrackingItemDto item, String keyword) {
+    return !StringUtils.hasText(keyword)
+        || contains(item.getPlateNo(), keyword)
+        || contains(item.getFleetName(), keyword)
+        || contains(item.getOrgName(), keyword)
+        || contains(item.getDriverName(), keyword)
+        || contains(item.getDispatchOrderNo(), keyword)
+        || contains(item.getRelatedPlanNo(), keyword)
+        || contains(item.getDestinationPoint(), keyword);
+  }
+
+  private boolean matchesTrackingStatus(FleetTrackingItemDto item, String status) {
+    if (!StringUtils.hasText(status)) {
+      return true;
+    }
+    return switch (status) {
+      case "MOVING", "STOPPED", "OFFLINE" ->
+          status.equalsIgnoreCase(item.getTrackingStatus());
+      case "DELIVERING" ->
+          "APPROVED".equalsIgnoreCase(item.getDispatchStatus())
+              || "IN_PROGRESS".equalsIgnoreCase(item.getDispatchStatus());
+      case "WARNING" -> StringUtils.hasText(item.getWarningLabel());
+      default -> true;
+    };
+  }
+
+  private int trackingSortScore(FleetTrackingItemDto item) {
+    if ("IN_PROGRESS".equalsIgnoreCase(item.getDispatchStatus())) {
+      return 400;
+    }
+    if ("APPROVED".equalsIgnoreCase(item.getDispatchStatus())) {
+      return 300;
+    }
+    return switch (defaultValue(item.getTrackingStatus(), "STOPPED")) {
+      case "MOVING" -> 200;
+      case "STOPPED" -> 100;
+      default -> 0;
+    };
+  }
+
   private <T> PageResult<T> paginate(List<T> rows, int pageNo, int pageSize) {
     int safePageNo = Math.max(pageNo, 1);
     int safePageSize = Math.max(pageSize, 1);
@@ -774,19 +1305,7 @@ public class FleetManagementController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null || user.getTenantId() == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 
   private String resolveOrgName(Org org, Long orgId) {
@@ -834,6 +1353,95 @@ public class FleetManagementController {
     };
   }
 
+  private String resolveTrackingStatus(Vehicle vehicle) {
+    if (vehicle.getStatus() != null && vehicle.getStatus() == 3) {
+      return "OFFLINE";
+    }
+    if ("OFFLINE".equalsIgnoreCase(vehicle.getRunningStatus()) || isGpsExpired(vehicle)) {
+      return "OFFLINE";
+    }
+    if ("MOVING".equalsIgnoreCase(vehicle.getRunningStatus())
+        || (vehicle.getCurrentSpeed() != null && vehicle.getCurrentSpeed().compareTo(BigDecimal.ONE) > 0)) {
+      return "MOVING";
+    }
+    return "STOPPED";
+  }
+
+  private String resolveTrackingStatusLabel(String status) {
+    return switch (defaultValue(status, "STOPPED")) {
+      case "MOVING" -> "行驶中";
+      case "OFFLINE" -> "离线";
+      default -> "停留中";
+    };
+  }
+
+  private String resolveVehicleRunningStatusLabel(String status) {
+    return switch (defaultValue(status, "STOPPED")) {
+      case "MOVING" -> "行驶中";
+      case "OFFLINE" -> "离线";
+      default -> "静止";
+    };
+  }
+
+  private String resolveVehicleStatusLabel(Integer status) {
+    if (status == null) {
+      return "未知";
+    }
+    return switch (status) {
+      case 1 -> "在用";
+      case 2 -> "维修";
+      case 3 -> "禁用";
+      case 4 -> "待命";
+      case 5 -> "停用";
+      default -> "状态" + status;
+    };
+  }
+
+  private boolean hasVehicleWarning(Vehicle vehicle) {
+    return !"正常".equals(resolveVehicleWarningLabel(vehicle));
+  }
+
+  private String resolveVehicleWarningLabel(Vehicle vehicle) {
+    if (isGpsExpired(vehicle)) {
+      return "定位超时";
+    }
+    List<LocalDate> dates = new ArrayList<>();
+    if (vehicle.getNextMaintainDate() != null) {
+      dates.add(vehicle.getNextMaintainDate());
+    }
+    if (vehicle.getAnnualInspectionExpireDate() != null) {
+      dates.add(vehicle.getAnnualInspectionExpireDate());
+    }
+    if (vehicle.getInsuranceExpireDate() != null) {
+      dates.add(vehicle.getInsuranceExpireDate());
+    }
+    if (dates.isEmpty()) {
+      return "正常";
+    }
+    long minDays =
+        dates.stream()
+            .map(date -> ChronoUnit.DAYS.between(LocalDate.now(), date))
+            .min(Long::compareTo)
+            .orElse(999L);
+    if (minDays < 0) {
+      return "证照到期";
+    }
+    if (minDays <= 7) {
+      return "7日内到期";
+    }
+    if (minDays <= 30) {
+      return "30日内到期";
+    }
+    return "正常";
+  }
+
+  private boolean isGpsExpired(Vehicle vehicle) {
+    if (vehicle.getGpsTime() == null) {
+      return true;
+    }
+    return ChronoUnit.MINUTES.between(vehicle.getGpsTime(), LocalDateTime.now()) > 120;
+  }
+
   private String resolveUserName(User user) {
     return StringUtils.hasText(user.getName()) ? user.getName() : user.getUsername();
   }
@@ -864,12 +1472,231 @@ public class FleetManagementController {
     return value != null ? value.format(ISO_DATE) : null;
   }
 
+  private String normalizeMonth(String value) {
+    if (!StringUtils.hasText(value)) {
+      return null;
+    }
+    try {
+      return LocalDate.parse(value.trim() + "-01", DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+          .format(ISO_MONTH);
+    } catch (Exception ex) {
+      throw new BizException(400, "月份格式错误，应为 yyyy-MM");
+    }
+  }
+
   private String formatDateTime(LocalDateTime value) {
     return value != null ? value.format(ISO_DATE_TIME) : null;
   }
 
+  private String buildFinanceCsv(List<FleetFinanceRecordListItemDto> rows) {
+    StringBuilder builder =
+        new StringBuilder("结算单号,车队,所属单位,运输合同号,账期,收入,成本,其他费用,利润,已结算,未结金额,状态,备注\n");
+    for (FleetFinanceRecordListItemDto row : rows) {
+      builder
+          .append(csv(row.getRecordNo())).append(',')
+          .append(csv(row.getFleetName())).append(',')
+          .append(csv(row.getOrgName())).append(',')
+          .append(csv(row.getContractNo())).append(',')
+          .append(csv(row.getStatementMonth())).append(',')
+          .append(defaultDecimal(row.getRevenueAmount())).append(',')
+          .append(defaultDecimal(row.getCostAmount())).append(',')
+          .append(defaultDecimal(row.getOtherAmount())).append(',')
+          .append(defaultDecimal(row.getProfitAmount())).append(',')
+          .append(defaultDecimal(row.getSettledAmount())).append(',')
+          .append(defaultDecimal(row.getOutstandingAmount())).append(',')
+          .append(csv(row.getStatusLabel())).append(',')
+          .append(csv(row.getRemark())).append('\n');
+    }
+    return builder.toString();
+  }
+
+  private String buildReportCsv(List<FleetReportItemDto> rows) {
+    StringBuilder builder =
+        new StringBuilder("车队,所属单位,运输计划数,调度申请数,已批准调度,计划方量,收入,成本,利润\n");
+    for (FleetReportItemDto row : rows) {
+      builder
+          .append(csv(row.getFleetName())).append(',')
+          .append(csv(row.getOrgName())).append(',')
+          .append(row.getTotalPlans() != null ? row.getTotalPlans() : 0).append(',')
+          .append(row.getTotalDispatchOrders() != null ? row.getTotalDispatchOrders() : 0).append(',')
+          .append(row.getApprovedDispatchOrders() != null ? row.getApprovedDispatchOrders() : 0).append(',')
+          .append(defaultDecimal(row.getPlannedVolume())).append(',')
+          .append(defaultDecimal(row.getRevenueAmount())).append(',')
+          .append(defaultDecimal(row.getCostAmount())).append(',')
+          .append(defaultDecimal(row.getProfitAmount())).append('\n');
+    }
+    return builder.toString();
+  }
+
+  private String csv(String value) {
+    if (value == null) {
+      return "";
+    }
+    return "\"" + value.replace("\"", "\"\"") + "\"";
+  }
+
   private boolean contains(String source, String keyword) {
     return StringUtils.hasText(source) && source.toLowerCase().contains(keyword.toLowerCase());
+  }
+
+  private LocalDateTime parseDateTime(String value) {
+    if (!StringUtils.hasText(value)) {
+      return null;
+    }
+    try {
+      if (value.contains("T")) {
+        return LocalDateTime.parse(value.trim(), DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+      }
+      return LocalDateTime.parse(value.trim(), ISO_DATE_TIME);
+    } catch (Exception ex) {
+      throw new BizException(400, "时间格式错误，应为 yyyy-MM-dd HH:mm:ss");
+    }
+  }
+
+  private List<VehicleTrackPoint> loadTrackPoints(
+      Long tenantId, Vehicle vehicle, LocalDateTime start, LocalDateTime end) {
+    List<VehicleTrackPoint> rows =
+        vehicleTrackPointMapper.selectList(
+            new LambdaQueryWrapper<VehicleTrackPoint>()
+                .eq(VehicleTrackPoint::getTenantId, tenantId)
+                .eq(VehicleTrackPoint::getVehicleId, vehicle.getId())
+                .ge(start != null, VehicleTrackPoint::getLocateTime, start)
+                .le(end != null, VehicleTrackPoint::getLocateTime, end)
+                .orderByAsc(VehicleTrackPoint::getLocateTime)
+                .orderByAsc(VehicleTrackPoint::getId));
+    if (!rows.isEmpty() || vehicle.getLng() == null || vehicle.getLat() == null) {
+      return rows;
+    }
+    LocalDateTime baseTime = vehicle.getGpsTime() != null ? vehicle.getGpsTime() : LocalDateTime.now();
+    if (start != null && baseTime.isBefore(start)) {
+      return Collections.emptyList();
+    }
+    if (end != null && baseTime.isAfter(end)) {
+      return Collections.emptyList();
+    }
+    VehicleTrackPoint fallback = new VehicleTrackPoint();
+    fallback.setId(-1L);
+    fallback.setTenantId(tenantId);
+    fallback.setVehicleId(vehicle.getId());
+    fallback.setPlateNo(vehicle.getPlateNo());
+    fallback.setLng(vehicle.getLng());
+    fallback.setLat(vehicle.getLat());
+    fallback.setSpeed(vehicle.getCurrentSpeed());
+    fallback.setDirection(BigDecimal.ZERO);
+    fallback.setLocateTime(baseTime);
+    fallback.setSourceType("REALTIME");
+    fallback.setRemark("当前定位");
+    return List.of(fallback);
+  }
+
+  private VehicleTrackPointDto toTrackPointDto(VehicleTrackPoint point) {
+    VehicleTrackPointDto dto = new VehicleTrackPointDto();
+    dto.setId(point.getId() != null ? String.valueOf(point.getId()) : null);
+    dto.setLng(point.getLng());
+    dto.setLat(point.getLat());
+    dto.setSpeed(point.getSpeed());
+    dto.setDirection(point.getDirection());
+    dto.setLocateTime(formatDateTime(point.getLocateTime()));
+    dto.setSourceType(point.getSourceType());
+    dto.setRemark(point.getRemark());
+    return dto;
+  }
+
+  private List<FleetTrackingStopDto> calculateStops(List<VehicleTrackPoint> points, long minStopMinutes) {
+    if (points.size() < 2) {
+      return Collections.emptyList();
+    }
+    List<FleetTrackingStopDto> rows = new ArrayList<>();
+    VehicleTrackPoint stopStart = null;
+    for (VehicleTrackPoint point : points) {
+      boolean stopped = point.getSpeed() == null || point.getSpeed().compareTo(BigDecimal.ONE) <= 0;
+      if (stopped && stopStart == null) {
+        stopStart = point;
+      } else if (!stopped && stopStart != null) {
+        long duration = ChronoUnit.MINUTES.between(stopStart.getLocateTime(), point.getLocateTime());
+        if (duration >= minStopMinutes) {
+          rows.add(
+              new FleetTrackingStopDto(
+                  formatDateTime(stopStart.getLocateTime()),
+                  formatDateTime(point.getLocateTime()),
+                  duration,
+                  stopStart.getLng(),
+                  stopStart.getLat(),
+                  stopStart.getRemark()));
+        }
+        stopStart = null;
+      }
+    }
+    if (stopStart != null) {
+      VehicleTrackPoint last = points.get(points.size() - 1);
+      long duration = ChronoUnit.MINUTES.between(stopStart.getLocateTime(), last.getLocateTime());
+      if (duration >= minStopMinutes) {
+        rows.add(
+            new FleetTrackingStopDto(
+                formatDateTime(stopStart.getLocateTime()),
+                formatDateTime(last.getLocateTime()),
+                duration,
+                stopStart.getLng(),
+                stopStart.getLat(),
+                stopStart.getRemark()));
+      }
+    }
+    rows.sort(
+        Comparator.comparing(
+                FleetTrackingStopDto::getStartTime, Comparator.nullsLast(String::compareTo))
+            .reversed());
+    return rows;
+  }
+
+  private BigDecimal calculateTrackDistance(List<VehicleTrackPoint> points) {
+    if (points.size() < 2) {
+      return ZERO;
+    }
+    double total = 0D;
+    for (int index = 1; index < points.size(); index++) {
+      total += haversineKm(points.get(index - 1), points.get(index));
+    }
+    return BigDecimal.valueOf(total).setScale(2, RoundingMode.HALF_UP);
+  }
+
+  private BigDecimal calculateMaxTrackSpeed(List<VehicleTrackPoint> points) {
+    return points.stream()
+        .map(VehicleTrackPoint::getSpeed)
+        .filter(Objects::nonNull)
+        .max(BigDecimal::compareTo)
+        .orElse(ZERO)
+        .setScale(2, RoundingMode.HALF_UP);
+  }
+
+  private BigDecimal calculateAverageTrackSpeed(List<VehicleTrackPoint> points) {
+    List<BigDecimal> speeds =
+        points.stream().map(VehicleTrackPoint::getSpeed).filter(Objects::nonNull).toList();
+    if (speeds.isEmpty()) {
+      return ZERO;
+    }
+    BigDecimal total = speeds.stream().reduce(ZERO, BigDecimal::add);
+    return total.divide(BigDecimal.valueOf(speeds.size()), 2, RoundingMode.HALF_UP);
+  }
+
+  private double haversineKm(VehicleTrackPoint left, VehicleTrackPoint right) {
+    if (left.getLng() == null
+        || left.getLat() == null
+        || right.getLng() == null
+        || right.getLat() == null) {
+      return 0D;
+    }
+    double earthRadiusKm = 6371D;
+    double deltaLat = Math.toRadians(right.getLat().doubleValue() - left.getLat().doubleValue());
+    double deltaLng = Math.toRadians(right.getLng().doubleValue() - left.getLng().doubleValue());
+    double startLat = Math.toRadians(left.getLat().doubleValue());
+    double endLat = Math.toRadians(right.getLat().doubleValue());
+    double a =
+        Math.sin(deltaLat / 2D) * Math.sin(deltaLat / 2D)
+            + Math.cos(startLat)
+                * Math.cos(endLat)
+                * Math.sin(deltaLng / 2D)
+                * Math.sin(deltaLng / 2D);
+    return earthRadiusKm * 2D * Math.atan2(Math.sqrt(a), Math.sqrt(1D - a));
   }
 
   private BigDecimal percentage(int numerator, int denominator) {

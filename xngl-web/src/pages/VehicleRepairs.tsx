@@ -4,10 +4,13 @@ import {
   Card,
   Col,
   DatePicker,
+  Descriptions,
+  Drawer,
   Form,
   Input,
   InputNumber,
   Modal,
+  Popconfirm,
   Row,
   Select,
   Space,
@@ -24,6 +27,9 @@ import {
   approveVehicleRepair,
   completeVehicleRepair,
   createVehicleRepair,
+  deleteVehicleRepair,
+  exportVehicleRepairs,
+  fetchVehicleRepairDetail,
   fetchVehicleRepairSummary,
   fetchVehicleRepairs,
   rejectVehicleRepair,
@@ -35,11 +41,15 @@ import {
 } from '../utils/vehicleRepairApi';
 import { fetchVehicleCompanyCapacity, fetchVehicles } from '../utils/vehicleApi';
 
+const { RangePicker } = DatePicker;
+
 type RepairFormValues = {
   vehicleId: string;
   urgencyLevel?: string;
   repairReason: string;
   repairContent?: string;
+  diagnosisResult?: string;
+  safetyImpact?: string;
   budgetAmount?: number;
   applyDate?: Dayjs;
   applicantName?: string;
@@ -54,7 +64,15 @@ type AuditFormValues = {
 type CompleteFormValues = {
   completedDate: Dayjs;
   vendorName?: string;
+  repairManager?: string;
+  technicianName?: string;
+  acceptanceResult?: string;
+  signoffStatus?: string;
+  attachmentUrls?: string;
   actualAmount?: number;
+  partsCost?: number;
+  laborCost?: number;
+  otherCost?: number;
   remark?: string;
 };
 
@@ -111,6 +129,8 @@ const VehicleRepairs: React.FC = () => {
   const [urgencyLevel, setUrgencyLevel] = useState('all');
   const [orgId, setOrgId] = useState<string | undefined>(undefined);
   const [vehicleId, setVehicleId] = useState<string | undefined>(undefined);
+  const [applyDateRange, setApplyDateRange] = useState<[Dayjs, Dayjs] | null>(null);
+  const [completedDateRange, setCompletedDateRange] = useState<[Dayjs, Dayjs] | null>(null);
   const [pageNo, setPageNo] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
@@ -119,8 +139,10 @@ const VehicleRepairs: React.FC = () => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<VehicleRepairOrderRecord | null>(null);
   const [currentRecord, setCurrentRecord] = useState<VehicleRepairOrderRecord | null>(null);
+  const [detailRecord, setDetailRecord] = useState<VehicleRepairOrderRecord | null>(null);
   const [auditAction, setAuditAction] = useState<'approve' | 'reject'>('approve');
   const [form] = Form.useForm<RepairFormValues>();
   const [auditForm] = Form.useForm<AuditFormValues>();
@@ -133,8 +155,12 @@ const VehicleRepairs: React.FC = () => {
       urgencyLevel: urgencyLevel === 'all' ? undefined : urgencyLevel,
       orgId,
       vehicleId,
+      applyDateFrom: applyDateRange?.[0]?.format('YYYY-MM-DD'),
+      applyDateTo: applyDateRange?.[1]?.format('YYYY-MM-DD'),
+      completedDateFrom: completedDateRange?.[0]?.format('YYYY-MM-DD'),
+      completedDateTo: completedDateRange?.[1]?.format('YYYY-MM-DD'),
     }),
-    [keyword, status, urgencyLevel, orgId, vehicleId]
+    [keyword, status, urgencyLevel, orgId, vehicleId, applyDateRange, completedDateRange]
   );
 
   const loadList = async () => {
@@ -206,7 +232,24 @@ const VehicleRepairs: React.FC = () => {
     setUrgencyLevel('all');
     setOrgId(undefined);
     setVehicleId(undefined);
+    setApplyDateRange(null);
+    setCompletedDateRange(null);
     setPageNo(1);
+  };
+
+  const handleExport = async () => {
+    try {
+      const blob = await exportVehicleRepairs(queryParams);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'vehicle_repairs.csv';
+      link.click();
+      window.URL.revokeObjectURL(url);
+      message.success('维修台账已导出');
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const openCreate = () => {
@@ -228,6 +271,8 @@ const VehicleRepairs: React.FC = () => {
       urgencyLevel: record.urgencyLevel || 'MEDIUM',
       repairReason: record.repairReason || undefined,
       repairContent: record.repairContent || undefined,
+      diagnosisResult: record.diagnosisResult || undefined,
+      safetyImpact: record.safetyImpact || undefined,
       budgetAmount: record.budgetAmount,
       applyDate: record.applyDate ? dayjs(record.applyDate) : undefined,
       applicantName: record.applicantName || undefined,
@@ -254,9 +299,27 @@ const VehicleRepairs: React.FC = () => {
       completedDate: dayjs(),
       vendorName: record.vendorName || undefined,
       actualAmount: record.actualAmount || record.budgetAmount,
+      repairManager: record.repairManager || record.applicantName || undefined,
+      technicianName: record.technicianName || undefined,
+      acceptanceResult: record.acceptanceResult || undefined,
+      signoffStatus: record.signoffStatus || 'SIGNED',
+      attachmentUrls: record.attachmentUrls || undefined,
+      partsCost: record.partsCost || 0,
+      laborCost: record.laborCost || 0,
+      otherCost: record.otherCost || 0,
       remark: record.remark || undefined,
     });
     setCompleteOpen(true);
+  };
+
+  const openDetail = async (record: VehicleRepairOrderRecord) => {
+    try {
+      setDetailRecord(await fetchVehicleRepairDetail(record.id));
+      setDetailOpen(true);
+    } catch (error) {
+      console.error(error);
+      message.error('获取维修单详情失败');
+    }
   };
 
   const handleSubmit = async () => {
@@ -267,6 +330,8 @@ const VehicleRepairs: React.FC = () => {
         urgencyLevel: values.urgencyLevel,
         repairReason: values.repairReason,
         repairContent: values.repairContent,
+        diagnosisResult: values.diagnosisResult,
+        safetyImpact: values.safetyImpact,
         budgetAmount: values.budgetAmount,
         applyDate: values.applyDate?.format('YYYY-MM-DD'),
         applicantName: values.applicantName,
@@ -327,7 +392,15 @@ const VehicleRepairs: React.FC = () => {
       const payload: VehicleRepairCompletePayload = {
         completedDate: values.completedDate?.format('YYYY-MM-DD'),
         vendorName: values.vendorName,
+        repairManager: values.repairManager,
+        technicianName: values.technicianName,
+        acceptanceResult: values.acceptanceResult,
+        signoffStatus: values.signoffStatus,
+        attachmentUrls: values.attachmentUrls,
         actualAmount: values.actualAmount,
+        partsCost: values.partsCost,
+        laborCost: values.laborCost,
+        otherCost: values.otherCost,
         remark: values.remark,
       };
       setSubmitLoading(true);
@@ -341,6 +414,18 @@ const VehicleRepairs: React.FC = () => {
       }
     } finally {
       setSubmitLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteVehicleRepair(id);
+      message.success('维修单已删除');
+      setPageNo(1);
+      await Promise.all([loadSummary(), loadList()]);
+    } catch (error) {
+      console.error(error);
+      message.error((error as any)?.response?.data?.message || '删除维修单失败');
     }
   };
 
@@ -398,6 +483,9 @@ const VehicleRepairs: React.FC = () => {
       key: 'action',
       render: (_, record) => (
         <Space size={0}>
+          <Button type="link" size="small" onClick={() => void openDetail(record)}>
+            详情
+          </Button>
           {record.status !== 'COMPLETED' ? (
             <Button type="link" size="small" onClick={() => openEdit(record)}>
               编辑
@@ -417,6 +505,13 @@ const VehicleRepairs: React.FC = () => {
             <Button type="link" size="small" onClick={() => openComplete(record)}>
               完成维修
             </Button>
+          ) : null}
+          {record.status !== 'COMPLETED' ? (
+            <Popconfirm title="确认删除当前维修单？" onConfirm={() => void handleDelete(record.id)}>
+              <Button type="link" size="small" danger>
+                删除
+              </Button>
+            </Popconfirm>
           ) : null}
         </Space>
       ),
@@ -475,7 +570,18 @@ const VehicleRepairs: React.FC = () => {
           <Select value={urgencyLevel} onChange={(value) => { setUrgencyLevel(value); setPageNo(1); }} options={urgencyOptions} style={{ width: 160 }} />
           <Select allowClear placeholder="所属单位" value={orgId} onChange={(value) => { setOrgId(value); setPageNo(1); }} options={companyOptions} style={{ width: 220 }} />
           <Select allowClear placeholder="车辆" value={vehicleId} onChange={(value) => { setVehicleId(value); setPageNo(1); }} options={vehicleOptions} showSearch optionFilterProp="label" style={{ width: 260 }} />
+          <RangePicker
+            value={applyDateRange}
+            onChange={(value) => { setApplyDateRange(value as [Dayjs, Dayjs] | null); setPageNo(1); }}
+            placeholder={['申请开始', '申请结束']}
+          />
+          <RangePicker
+            value={completedDateRange}
+            onChange={(value) => { setCompletedDateRange(value as [Dayjs, Dayjs] | null); setPageNo(1); }}
+            placeholder={['完工开始', '完工结束']}
+          />
           <Button onClick={handleReset}>重置</Button>
+          <Button onClick={() => void handleExport()}>导出台账</Button>
         </div>
         <Table<VehicleRepairOrderRecord>
           rowKey="id"
@@ -494,6 +600,50 @@ const VehicleRepairs: React.FC = () => {
           }}
         />
       </Card>
+
+      <Drawer
+        title={detailRecord ? `维修单详情 - ${detailRecord.orderNo}` : '维修单详情'}
+        width={860}
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+      >
+        <Descriptions bordered size="small" column={2}>
+          <Descriptions.Item label="维修单号">{detailRecord?.orderNo || '-'}</Descriptions.Item>
+          <Descriptions.Item label="车牌号">{detailRecord?.plateNo || '-'}</Descriptions.Item>
+          <Descriptions.Item label="所属单位">{detailRecord?.orgName || '-'}</Descriptions.Item>
+          <Descriptions.Item label="紧急度">
+            {detailRecord ? <Tag color={urgencyColorMap[detailRecord.urgencyLevel || ''] || 'default'}>{detailRecord.urgencyLabel}</Tag> : '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="维修原因">{detailRecord?.repairReason || '-'}</Descriptions.Item>
+          <Descriptions.Item label="申请人">{detailRecord?.applicantName || '-'}</Descriptions.Item>
+          <Descriptions.Item label="申请日期">{detailRecord?.applyDate || '-'}</Descriptions.Item>
+          <Descriptions.Item label="状态">
+            {detailRecord ? <Tag color={statusColorMap[detailRecord.status] || 'default'}>{detailRecord.statusLabel}</Tag> : '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="维修内容" span={2}>{detailRecord?.repairContent || '-'}</Descriptions.Item>
+          <Descriptions.Item label="诊断结果" span={2}>{detailRecord?.diagnosisResult || '-'}</Descriptions.Item>
+          <Descriptions.Item label="安全影响">{detailRecord?.safetyImpact || '-'}</Descriptions.Item>
+          <Descriptions.Item label="审批意见">{detailRecord?.auditRemark || '-'}</Descriptions.Item>
+          <Descriptions.Item label="审批人 / 时间">{`${detailRecord?.approvedBy || '-'} / ${detailRecord?.approvedTime || '-'}`}</Descriptions.Item>
+          <Descriptions.Item label="完工日期">{detailRecord?.completedDate || '-'}</Descriptions.Item>
+          <Descriptions.Item label="维修单位">{detailRecord?.vendorName || '-'}</Descriptions.Item>
+          <Descriptions.Item label="维修负责人">{detailRecord?.repairManager || '-'}</Descriptions.Item>
+          <Descriptions.Item label="维修技师">{detailRecord?.technicianName || '-'}</Descriptions.Item>
+          <Descriptions.Item label="验收结果" span={2}>{detailRecord?.acceptanceResult || '-'}</Descriptions.Item>
+          <Descriptions.Item label="预算 / 实际">
+            {(detailRecord?.budgetAmount ?? 0).toFixed(2)} / {(detailRecord?.actualAmount ?? 0).toFixed(2)}
+          </Descriptions.Item>
+          <Descriptions.Item label="配件 / 人工 / 其他">
+            {(detailRecord?.partsCost ?? 0).toFixed(2)} / {(detailRecord?.laborCost ?? 0).toFixed(2)} / {(detailRecord?.otherCost ?? 0).toFixed(2)}
+          </Descriptions.Item>
+          <Descriptions.Item label="预算偏差">{(detailRecord?.costVariance ?? 0).toFixed(2)}</Descriptions.Item>
+          <Descriptions.Item label="签字状态">
+            {detailRecord?.signoffStatusLabel ? <Tag color={detailRecord.signoffStatus === 'SIGNED' ? 'success' : detailRecord.signoffStatus === 'WAIVED' ? 'default' : 'warning'}>{detailRecord.signoffStatusLabel}</Tag> : '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="附件" span={2}>{detailRecord?.attachmentUrls || '-'}</Descriptions.Item>
+          <Descriptions.Item label="备注" span={2}>{detailRecord?.remark || '-'}</Descriptions.Item>
+        </Descriptions>
+      </Drawer>
 
       <Modal
         title={editingRecord ? '编辑维修单' : '新增维修单'}
@@ -534,6 +684,22 @@ const VehicleRepairs: React.FC = () => {
             <Col span={12}>
               <Form.Item name="budgetAmount" label="预算金额(元)">
                 <InputNumber min={0} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={24}>
+              <Form.Item name="diagnosisResult" label="诊断结果">
+                <Input.TextArea rows={2} placeholder="请输入故障诊断结果" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="safetyImpact" label="安全影响">
+                <Select
+                  options={[
+                    { label: '高', value: '高' },
+                    { label: '中', value: '中' },
+                    { label: '低', value: '低' },
+                  ]}
+                />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -590,9 +756,55 @@ const VehicleRepairs: React.FC = () => {
                 <InputNumber min={0} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
+            <Col span={8}>
+              <Form.Item name="partsCost" label="配件费(元)">
+                <InputNumber min={0} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="laborCost" label="人工费(元)">
+                <InputNumber min={0} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="otherCost" label="其他费用(元)">
+                <InputNumber min={0} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
             <Col span={24}>
               <Form.Item name="vendorName" label="维修单位">
                 <Input placeholder="请输入维修单位" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="repairManager" label="维修负责人">
+                <Input placeholder="请输入维修负责人" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="technicianName" label="维修技师">
+                <Input placeholder="请输入维修技师" />
+              </Form.Item>
+            </Col>
+            <Col span={24}>
+              <Form.Item name="acceptanceResult" label="验收结果">
+                <Input.TextArea rows={2} placeholder="请输入验收结果" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="signoffStatus" label="签字状态">
+                <Select
+                  options={[
+                    { label: '未签字', value: 'UNSIGNED' },
+                    { label: '已签字', value: 'SIGNED' },
+                    { label: '免签', value: 'WAIVED' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={24}>
+              <Form.Item name="attachmentUrls" label="附件地址">
+                <Input.TextArea rows={2} placeholder="多个地址可用换行分隔" />
               </Form.Item>
             </Col>
             <Col span={24}>

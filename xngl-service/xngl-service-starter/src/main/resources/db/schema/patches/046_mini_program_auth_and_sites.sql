@@ -1,0 +1,42 @@
+CREATE TABLE IF NOT EXISTS mini_user_binding (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  tenant_id BIGINT NOT NULL COMMENT '租户ID',
+  user_id BIGINT NOT NULL COMMENT '平台用户ID',
+  username VARCHAR(64) NOT NULL COMMENT '平台账号',
+  mobile VARCHAR(32) NOT NULL COMMENT '手机号',
+  open_id VARCHAR(96) NULL COMMENT '微信 openId',
+  union_id VARCHAR(96) NULL COMMENT '微信 unionId',
+  source_channel VARCHAR(32) NOT NULL DEFAULT 'MINI' COMMENT '来源渠道',
+  last_login_time DATETIME NULL COMMENT '最后登录时间',
+  last_login_ip VARCHAR(64) NULL COMMENT '最后登录 IP',
+  last_login_device VARCHAR(128) NULL COMMENT '最后登录设备',
+  status VARCHAR(32) NOT NULL DEFAULT 'BOUND' COMMENT '绑定状态',
+  remark VARCHAR(255) NULL COMMENT '备注',
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted INT NOT NULL DEFAULT 0,
+  UNIQUE KEY uk_mini_binding_user (tenant_id, user_id, deleted),
+  KEY idx_mini_binding_mobile (tenant_id, mobile, deleted),
+  KEY idx_mini_binding_open (open_id, deleted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='小程序用户绑定';
+
+CREATE TABLE IF NOT EXISTS mini_sms_code_record (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  tenant_id BIGINT NOT NULL COMMENT '租户ID',
+  user_id BIGINT NULL COMMENT '平台用户ID',
+  mobile VARCHAR(32) NOT NULL COMMENT '手机号',
+  biz_type VARCHAR(32) NOT NULL DEFAULT 'LOGIN' COMMENT '业务类型',
+  verify_code VARCHAR(16) NOT NULL COMMENT '验证码',
+  expires_at DATETIME NOT NULL COMMENT '失效时间',
+  used_flag INT NOT NULL DEFAULT 0 COMMENT '是否已使用',
+  used_time DATETIME NULL COMMENT '使用时间',
+  send_status VARCHAR(32) NOT NULL DEFAULT 'SENT' COMMENT '发送状态',
+  channel VARCHAR(32) NOT NULL DEFAULT 'SMS' COMMENT '发送通道',
+  ext_json TEXT NULL COMMENT '扩展信息',
+  remark VARCHAR(255) NULL COMMENT '备注',
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted INT NOT NULL DEFAULT 0,
+  KEY idx_mini_sms_mobile (tenant_id, mobile, biz_type, used_flag),
+  KEY idx_mini_sms_expire (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='小程序短信验证码记录';

@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, ExportOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import {
   createSysParam,
   deleteSysParam,
+  exportSysParams,
   fetchSysParams,
   updateSysParam,
   updateSysParamStatus,
@@ -28,12 +29,27 @@ const SystemParams: React.FC = () => {
   const [paramType, setParamType] = useState('ALL');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<SysParamRecord | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [form] = Form.useForm<SysParamPayload>();
+
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  };
 
   const loadData = async () => {
     setLoading(true);
     try {
-      setRecords(await fetchSysParams());
+      setRecords(
+        await fetchSysParams({
+          keyword: keyword.trim() || undefined,
+          paramType: paramType === 'ALL' ? undefined : paramType,
+        }),
+      );
     } catch (error) {
       console.error(error);
       message.error('获取系统参数失败');
@@ -44,16 +60,7 @@ const SystemParams: React.FC = () => {
 
   useEffect(() => {
     void loadData();
-  }, []);
-
-  const filteredRecords = useMemo(() => {
-    const keywordValue = keyword.trim();
-    return records.filter((item) => {
-      const matchedKeyword = !keywordValue || item.paramKey.includes(keywordValue) || item.paramName.includes(keywordValue);
-      const matchedType = paramType === 'ALL' || item.paramType === paramType;
-      return matchedKeyword && matchedType;
-    });
-  }, [keyword, paramType, records]);
+  }, [keyword, paramType]);
 
   const openCreate = () => {
     setEditingRecord(null);
@@ -94,6 +101,25 @@ const SystemParams: React.FC = () => {
       message.error('保存系统参数失败');
     } finally {
       setSubmitLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      downloadBlob(
+        await exportSysParams({
+          keyword: keyword.trim() || undefined,
+          paramType: paramType === 'ALL' ? undefined : paramType,
+        }),
+        'sys_params.csv',
+      );
+      message.success('系统参数导出成功');
+    } catch (error) {
+      console.error(error);
+      message.error('系统参数导出失败');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -174,9 +200,14 @@ const SystemParams: React.FC = () => {
           <h1 className="text-2xl font-bold g-text-primary m-0">系统参数</h1>
           <p className="g-text-secondary mt-1">统一维护阈值、预警天数、周期等可配置参数</p>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-          新增参数
-        </Button>
+        <Space>
+          <Button icon={<ExportOutlined />} onClick={() => void handleExport()} loading={exporting}>
+            导出
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            新增参数
+          </Button>
+        </Space>
       </div>
 
       <Card className="glass-panel g-border-panel border">
@@ -184,7 +215,7 @@ const SystemParams: React.FC = () => {
           <Input allowClear value={keyword} onChange={(event) => setKeyword(event.target.value)} prefix={<SearchOutlined />} placeholder="搜索参数键 / 参数名称" className="w-72" />
           <Select value={paramType} options={paramTypeOptions} onChange={setParamType} className="w-40" />
         </div>
-        <Table rowKey="id" loading={loading} columns={columns} dataSource={filteredRecords} pagination={false} />
+        <Table rowKey="id" loading={loading} columns={columns} dataSource={records} pagination={false} />
       </Card>
 
       <Modal

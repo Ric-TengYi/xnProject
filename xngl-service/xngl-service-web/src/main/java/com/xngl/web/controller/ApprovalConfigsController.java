@@ -4,14 +4,16 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.xngl.infrastructure.persistence.entity.organization.User;
 import com.xngl.manager.approval.entity.ApprovalConfig;
 import com.xngl.manager.approval.mapper.ApprovalConfigMapper;
-import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.user.StatusUpdateDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
+import com.xngl.web.support.CsvExportSupport;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Objects;
 import lombok.Data;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,11 +30,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class ApprovalConfigsController {
 
   private final ApprovalConfigMapper mapper;
-  private final UserService userService;
+  private final UserContext userContext;
 
-  public ApprovalConfigsController(ApprovalConfigMapper mapper, UserService userService) {
+  public ApprovalConfigsController(ApprovalConfigMapper mapper, UserContext userContext) {
     this.mapper = mapper;
-    this.userService = userService;
+    this.userContext = userContext;
   }
 
   @GetMapping
@@ -64,6 +66,54 @@ public class ApprovalConfigsController {
                 .orderByAsc(ApprovalConfig::getSortOrder)
                 .orderByAsc(ApprovalConfig::getId));
     return ApiResult.ok(rows);
+  }
+
+  @GetMapping("/export")
+  public ResponseEntity<byte[]> export(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String processKey,
+      @RequestParam(required = false) String status,
+      HttpServletRequest request) {
+    User user = requireCurrentUser(request);
+    String keywordValue = trimToNull(keyword);
+    List<ApprovalConfig> rows =
+        mapper.selectList(
+            new LambdaQueryWrapper<ApprovalConfig>()
+                .eq(ApprovalConfig::getTenantId, user.getTenantId())
+                .eq(StringUtils.hasText(processKey), ApprovalConfig::getProcessKey, trimToNull(processKey))
+                .eq(StringUtils.hasText(status), ApprovalConfig::getStatus, trimToNull(status))
+                .and(
+                    StringUtils.hasText(keywordValue),
+                    wrapper ->
+                        wrapper
+                            .like(ApprovalConfig::getConfigName, keywordValue)
+                            .or()
+                            .like(ApprovalConfig::getNodeName, keywordValue)
+                            .or()
+                            .like(ApprovalConfig::getApprovers, keywordValue)
+                            .or()
+                            .like(ApprovalConfig::getConditions, keywordValue))
+                .orderByAsc(ApprovalConfig::getProcessKey)
+                .orderByAsc(ApprovalConfig::getSortOrder)
+                .orderByAsc(ApprovalConfig::getId));
+    return CsvExportSupport.csvResponse(
+        "approval_configs",
+        List.of("流程编码", "流程名称", "节点编码", "节点名称", "审批方式", "审批人表达式", "流转条件", "超时小时", "排序", "状态"),
+        rows.stream()
+            .map(
+                row ->
+                    List.of(
+                        CsvExportSupport.value(row.getProcessKey()),
+                        CsvExportSupport.value(row.getConfigName()),
+                        CsvExportSupport.value(row.getNodeCode()),
+                        CsvExportSupport.value(row.getNodeName()),
+                        CsvExportSupport.value(row.getApprovalType()),
+                        CsvExportSupport.value(row.getApprovers()),
+                        CsvExportSupport.value(row.getConditions()),
+                        CsvExportSupport.value(row.getTimeoutHours()),
+                        CsvExportSupport.value(row.getSortOrder()),
+                        CsvExportSupport.value(row.getStatus())))
+            .toList());
   }
 
   @GetMapping("/{id}")
@@ -168,19 +218,7 @@ public class ApprovalConfigsController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null || user.getTenantId() == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 
   @Data

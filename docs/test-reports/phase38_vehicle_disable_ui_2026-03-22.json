@@ -1,0 +1,14 @@
+{
+  "results": [
+    {
+      "name": "UI violation list page load",
+      "ok": true,
+      "detail": "违规车辆清单页成功打开并展示真实违规记录"
+    },
+    {
+      "name": "UI violation search filter",
+      "ok": true,
+      "detail": "页面可按关键字检索并展示已解禁记录"
+    }
+  ]
+}

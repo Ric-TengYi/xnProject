@@ -20,6 +20,7 @@ import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from '@ant
 import {
   createVehicleModel,
   deleteVehicleModel,
+  exportVehicleModels,
   fetchVehicleModelDetail,
   fetchVehicleModels,
   updateVehicleModel,
@@ -172,6 +173,24 @@ const VehicleModelsManagement: React.FC = () => {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const blob = await exportVehicleModels({ keyword });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'vehicle_models.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      message.success('车型库已导出');
+    } catch (error) {
+      console.error(error);
+      message.error('导出车型库失败');
+    }
+  };
+
   const columns: ColumnsType<VehicleModelRecord> = [
     {
       title: '车型编码',
@@ -279,6 +298,7 @@ const VehicleModelsManagement: React.FC = () => {
             onChange={(event) => setKeyword(event.target.value)}
             className="max-w-md"
           />
+          <Button onClick={() => void handleExport()}>导出车型库</Button>
         </div>
         <Table
           rowKey="id"

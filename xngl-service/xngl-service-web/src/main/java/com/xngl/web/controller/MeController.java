@@ -15,6 +15,7 @@ import com.xngl.web.auth.dto.CurrentUserPermissionsDto;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.user.MenuTreeNodeDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -33,6 +34,7 @@ public class MeController {
   private static final long PERMISSION_VERSION = 1L;
 
   private final UserService userService;
+  private final UserContext userContext;
   private final RoleService roleService;
   private final TenantService tenantService;
   private final MenuService menuService;
@@ -40,11 +42,13 @@ public class MeController {
 
   public MeController(
       UserService userService,
+      UserContext userContext,
       RoleService roleService,
       TenantService tenantService,
       MenuService menuService,
       PermissionService permissionService) {
     this.userService = userService;
+    this.userContext = userContext;
     this.roleService = roleService;
     this.tenantService = tenantService;
     this.menuService = menuService;
@@ -107,19 +111,7 @@ public class MeController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (userId == null || userId.isBlank()) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 
   private List<Role> getCurrentRoles(Long userId) {

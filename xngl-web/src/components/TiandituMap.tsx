@@ -10,6 +10,7 @@ type MapPoint = [number, number];
 type MapMarker = {
   id: string;
   position: MapPoint;
+  title?: string;
 };
 
 type MapPolyline = {
@@ -20,6 +21,16 @@ type MapPolyline = {
   opacity?: number;
 };
 
+type MapPolygon = {
+  id: string;
+  path: MapPoint[];
+  color?: string;
+  weight?: number;
+  opacity?: number;
+  fillColor?: string;
+  fillOpacity?: number;
+};
+
 interface TiandituMapProps {
   center: MapPoint;
   zoom?: number;
@@ -27,6 +38,7 @@ interface TiandituMapProps {
   style?: CSSProperties;
   markers?: MapMarker[];
   polylines?: MapPolyline[];
+  polygons?: MapPolygon[];
   loadingText?: string;
 }
 
@@ -85,6 +97,7 @@ const TiandituMap: React.FC<TiandituMapProps> = ({
   style,
   markers = [],
   polylines = [],
+  polygons = [],
   loadingText = '天地图加载中...'
 }) => {
   const mapElementRef = useRef<HTMLDivElement>(null);
@@ -162,9 +175,30 @@ const TiandituMap: React.FC<TiandituMapProps> = ({
       overlayRef.current.push(line);
     });
 
+    polygons.forEach((polygon) => {
+      if (polygon.path.length < 3) {
+        return;
+      }
+      const overlay = new T.Polygon(
+        polygon.path.map(([lng, lat]) => new T.LngLat(lng, lat)),
+        {
+          color: polygon.color ?? '#1677ff',
+          weight: polygon.weight ?? 3,
+          opacity: polygon.opacity ?? 0.9,
+          fillColor: polygon.fillColor ?? '#91caff',
+          fillOpacity: polygon.fillOpacity ?? 0.22,
+        }
+      );
+      map.addOverLay(overlay);
+      overlayRef.current.push(overlay);
+    });
+
     markers.forEach((marker) => {
       const point = new T.LngLat(marker.position[0], marker.position[1]);
       const markerOverlay = new T.Marker(point);
+      if (marker.title && typeof markerOverlay.setTitle === 'function') {
+        markerOverlay.setTitle(marker.title);
+      }
       map.addOverLay(markerOverlay);
       overlayRef.current.push(markerOverlay);
     });
@@ -172,12 +206,13 @@ const TiandituMap: React.FC<TiandituMapProps> = ({
     const viewportPoints = [
       ...markers.map((marker) => new T.LngLat(marker.position[0], marker.position[1])),
       ...polylines.flatMap((polyline) => polyline.path.map(([lng, lat]) => new T.LngLat(lng, lat))),
+      ...polygons.flatMap((polygon) => polygon.path.map(([lng, lat]) => new T.LngLat(lng, lat))),
     ];
 
     if (viewportPoints.length > 1 && typeof map.setViewport === 'function') {
       map.setViewport(viewportPoints);
     }
-  }, [center, zoom, markers, polylines]);
+  }, [center, zoom, markers, polylines, polygons]);
 
   return (
     <div className={className} style={style}>
@@ -202,5 +237,5 @@ const TiandituMap: React.FC<TiandituMapProps> = ({
   );
 };
 
-export type { MapMarker, MapPoint, MapPolyline };
+export type { MapMarker, MapPoint, MapPolygon, MapPolyline };
 export default TiandituMap;

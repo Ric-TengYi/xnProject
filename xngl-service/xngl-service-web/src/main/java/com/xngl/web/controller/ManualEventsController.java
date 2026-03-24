@@ -12,10 +12,12 @@ import com.xngl.infrastructure.persistence.mapper.ManualEventMapper;
 import com.xngl.infrastructure.persistence.mapper.ProjectMapper;
 import com.xngl.infrastructure.persistence.mapper.SiteMapper;
 import com.xngl.infrastructure.persistence.mapper.VehicleMapper;
-import com.xngl.manager.user.UserService;
+import com.xngl.manager.message.MessageRecordService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -29,6 +31,9 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.Data;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -50,7 +55,8 @@ public class ManualEventsController {
   private final ProjectMapper projectMapper;
   private final SiteMapper siteMapper;
   private final VehicleMapper vehicleMapper;
-  private final UserService userService;
+  private final MessageRecordService messageRecordService;
+  private final UserContext userContext;
 
   public ManualEventsController(
       ManualEventMapper eventMapper,
@@ -58,13 +64,15 @@ public class ManualEventsController {
       ProjectMapper projectMapper,
       SiteMapper siteMapper,
       VehicleMapper vehicleMapper,
-      UserService userService) {
+      MessageRecordService messageRecordService,
+      UserContext userContext) {
     this.eventMapper = eventMapper;
     this.auditLogMapper = auditLogMapper;
     this.projectMapper = projectMapper;
     this.siteMapper = siteMapper;
     this.vehicleMapper = vehicleMapper;
-    this.userService = userService;
+    this.messageRecordService = messageRecordService;
+    this.userContext = userContext;
   }
 
   @GetMapping
@@ -74,30 +82,40 @@ public class ManualEventsController {
       @RequestParam(required = false) String status,
       @RequestParam(required = false) String priority,
       @RequestParam(required = false) String sourceChannel,
+      @RequestParam(required = false) Long projectId,
+      @RequestParam(required = false) Long siteId,
+      @RequestParam(required = false) Long vehicleId,
+      @RequestParam(required = false) Boolean overdueOnly,
+      @RequestParam(required = false) String occurTimeFrom,
+      @RequestParam(required = false) String occurTimeTo,
+      @RequestParam(required = false) String deadlineTimeFrom,
+      @RequestParam(required = false) String deadlineTimeTo,
+      @RequestParam(required = false) String reportTimeFrom,
+      @RequestParam(required = false) String reportTimeTo,
+      @RequestParam(required = false) String closeTimeFrom,
+      @RequestParam(required = false) String closeTimeTo,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    String keywordValue = trimToNull(keyword);
     List<ManualEvent> events =
-        eventMapper.selectList(
-            new LambdaQueryWrapper<ManualEvent>()
-                .eq(ManualEvent::getTenantId, currentUser.getTenantId())
-                .eq(StringUtils.hasText(eventType), ManualEvent::getEventType, eventType)
-                .eq(StringUtils.hasText(status), ManualEvent::getStatus, status)
-                .eq(StringUtils.hasText(priority), ManualEvent::getPriority, priority)
-                .eq(StringUtils.hasText(sourceChannel), ManualEvent::getSourceChannel, sourceChannel)
-                .and(
-                    StringUtils.hasText(keywordValue),
-                    wrapper ->
-                        wrapper
-                            .like(ManualEvent::getEventNo, keywordValue)
-                            .or()
-                            .like(ManualEvent::getTitle, keywordValue)
-                            .or()
-                            .like(ManualEvent::getReporterName, keywordValue)
-                            .or()
-                            .like(ManualEvent::getContent, keywordValue))
-                .orderByDesc(ManualEvent::getReportTime)
-                .orderByDesc(ManualEvent::getId));
+        queryEvents(
+            currentUser.getTenantId(),
+            keyword,
+            eventType,
+            status,
+            priority,
+            sourceChannel,
+            projectId,
+            siteId,
+            vehicleId,
+            overdueOnly,
+            parseDateTime(occurTimeFrom),
+            parseDateTime(occurTimeTo),
+            parseDateTime(deadlineTimeFrom),
+            parseDateTime(deadlineTimeTo),
+            parseDateTime(reportTimeFrom),
+            parseDateTime(reportTimeTo),
+            parseDateTime(closeTimeFrom),
+            parseDateTime(closeTimeTo));
     return ApiResult.ok(enrich(events, currentUser.getTenantId()));
   }
 
@@ -115,14 +133,46 @@ public class ManualEventsController {
   }
 
   @GetMapping("/summary")
-  public ApiResult<Map<String, Object>> summary(HttpServletRequest request) {
+  public ApiResult<Map<String, Object>> summary(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String eventType,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) String priority,
+      @RequestParam(required = false) String sourceChannel,
+      @RequestParam(required = false) Long projectId,
+      @RequestParam(required = false) Long siteId,
+      @RequestParam(required = false) Long vehicleId,
+      @RequestParam(required = false) Boolean overdueOnly,
+      @RequestParam(required = false) String occurTimeFrom,
+      @RequestParam(required = false) String occurTimeTo,
+      @RequestParam(required = false) String deadlineTimeFrom,
+      @RequestParam(required = false) String deadlineTimeTo,
+      @RequestParam(required = false) String reportTimeFrom,
+      @RequestParam(required = false) String reportTimeTo,
+      @RequestParam(required = false) String closeTimeFrom,
+      @RequestParam(required = false) String closeTimeTo,
+      HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
     List<ManualEvent> events =
-        eventMapper.selectList(
-            new LambdaQueryWrapper<ManualEvent>()
-                .eq(ManualEvent::getTenantId, currentUser.getTenantId())
-                .orderByDesc(ManualEvent::getReportTime)
-                .orderByDesc(ManualEvent::getId));
+        queryEvents(
+            currentUser.getTenantId(),
+            keyword,
+            eventType,
+            status,
+            priority,
+            sourceChannel,
+            projectId,
+            siteId,
+            vehicleId,
+            overdueOnly,
+            parseDateTime(occurTimeFrom),
+            parseDateTime(occurTimeTo),
+            parseDateTime(deadlineTimeFrom),
+            parseDateTime(deadlineTimeTo),
+            parseDateTime(reportTimeFrom),
+            parseDateTime(reportTimeTo),
+            parseDateTime(closeTimeFrom),
+            parseDateTime(closeTimeTo));
     LocalDateTime now = LocalDateTime.now();
     Map<String, Object> result = new LinkedHashMap<>();
     result.put("total", events.size());
@@ -151,7 +201,53 @@ public class ManualEventsController {
     return ApiResult.ok(result);
   }
 
-  @GetMapping("/{id}")
+  @GetMapping("/export")
+  public ResponseEntity<byte[]> export(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String eventType,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) String priority,
+      @RequestParam(required = false) String sourceChannel,
+      @RequestParam(required = false) Long projectId,
+      @RequestParam(required = false) Long siteId,
+      @RequestParam(required = false) Long vehicleId,
+      @RequestParam(required = false) Boolean overdueOnly,
+      @RequestParam(required = false) String occurTimeFrom,
+      @RequestParam(required = false) String occurTimeTo,
+      @RequestParam(required = false) String deadlineTimeFrom,
+      @RequestParam(required = false) String deadlineTimeTo,
+      @RequestParam(required = false) String reportTimeFrom,
+      @RequestParam(required = false) String reportTimeTo,
+      @RequestParam(required = false) String closeTimeFrom,
+      @RequestParam(required = false) String closeTimeTo,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<Map<String, Object>> rows =
+        enrich(
+            queryEvents(
+                currentUser.getTenantId(),
+                keyword,
+                eventType,
+                status,
+                priority,
+                sourceChannel,
+                projectId,
+                siteId,
+                vehicleId,
+                overdueOnly,
+                parseDateTime(occurTimeFrom),
+                parseDateTime(occurTimeTo),
+                parseDateTime(deadlineTimeFrom),
+                parseDateTime(deadlineTimeTo),
+                parseDateTime(reportTimeFrom),
+                parseDateTime(reportTimeTo),
+                parseDateTime(closeTimeFrom),
+                parseDateTime(closeTimeTo)),
+            currentUser.getTenantId());
+    return csvResponse("manual_events.csv", buildEventCsv(rows));
+  }
+
+  @GetMapping("/{id:\\d+}")
   public ApiResult<Map<String, Object>> get(@PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
     ManualEvent event = requireEvent(id, currentUser.getTenantId());
@@ -206,6 +302,10 @@ public class ManualEventsController {
     event.setCurrentAuditNode("MANUAL_EVENT_AUDIT");
     eventMapper.updateById(event);
     insertAuditLog(currentUser, event, "SUBMIT", "PENDING_AUDIT", "提交审核");
+    pushEventMessage(
+        event,
+        "事件已提交审核",
+        "事件 " + event.getEventNo() + "（" + event.getTitle() + "）已提交审核，请等待处理结果。");
     return ApiResult.ok();
   }
 
@@ -218,6 +318,10 @@ public class ManualEventsController {
     event.setCurrentAuditNode("EVENT_DISPATCH");
     eventMapper.updateById(event);
     insertAuditLog(currentUser, event, "APPROVE", "PROCESSING", trimToNull(body != null ? body.getComment() : null));
+    pushEventMessage(
+        event,
+        "事件审核已通过",
+        "事件 " + event.getEventNo() + "（" + event.getTitle() + "）已审核通过，当前进入处理中。");
     return ApiResult.ok();
   }
 
@@ -230,6 +334,15 @@ public class ManualEventsController {
     event.setCurrentAuditNode("APPLICANT_REWORK");
     eventMapper.updateById(event);
     insertAuditLog(currentUser, event, "REJECT", "REJECTED", trimToNull(body != null ? body.getComment() : null));
+    pushEventMessage(
+        event,
+        "事件审核已退回",
+        "事件 "
+            + event.getEventNo()
+            + "（"
+            + event.getTitle()
+            + "）已被退回。"
+            + (body != null && StringUtils.hasText(body.getComment()) ? " 原因：" + body.getComment().trim() : ""));
     return ApiResult.ok();
   }
 
@@ -244,6 +357,15 @@ public class ManualEventsController {
     event.setCloseRemark(trimToNull(body != null ? body.getComment() : null));
     eventMapper.updateById(event);
     insertAuditLog(currentUser, event, "CLOSE", "CLOSED", event.getCloseRemark());
+    pushEventMessage(
+        event,
+        "事件已关闭",
+        "事件 "
+            + event.getEventNo()
+            + "（"
+            + event.getTitle()
+            + "）已关闭。"
+            + (StringUtils.hasText(event.getCloseRemark()) ? " 关闭说明：" + event.getCloseRemark() : ""));
     return ApiResult.ok();
   }
 
@@ -292,12 +414,90 @@ public class ManualEventsController {
     auditLogMapper.insert(log);
   }
 
+  private void pushEventMessage(ManualEvent event, String title, String content) {
+    if (event == null || event.getTenantId() == null || event.getReporterId() == null) {
+      return;
+    }
+    messageRecordService.pushUserMessage(
+        event.getTenantId(),
+        event.getReporterId(),
+        title,
+        content,
+        "事件通知",
+        "/alerts/events?eventId=" + event.getId(),
+        "MANUAL_EVENT",
+        String.valueOf(event.getId()),
+        "事件管理");
+  }
+
   private ManualEvent requireEvent(Long id, Long tenantId) {
     ManualEvent event = eventMapper.selectById(id);
     if (event == null || !Objects.equals(event.getTenantId(), tenantId)) {
       throw new BizException(404, "事件不存在");
     }
     return event;
+  }
+
+  private List<ManualEvent> queryEvents(
+      Long tenantId,
+      String keyword,
+      String eventType,
+      String status,
+      String priority,
+      String sourceChannel,
+      Long projectId,
+      Long siteId,
+      Long vehicleId,
+      Boolean overdueOnly,
+      LocalDateTime occurTimeFrom,
+      LocalDateTime occurTimeTo,
+      LocalDateTime deadlineTimeFrom,
+      LocalDateTime deadlineTimeTo,
+      LocalDateTime reportTimeFrom,
+      LocalDateTime reportTimeTo,
+      LocalDateTime closeTimeFrom,
+      LocalDateTime closeTimeTo) {
+    String keywordValue = trimToNull(keyword);
+    List<ManualEvent> rows =
+        eventMapper.selectList(
+            new LambdaQueryWrapper<ManualEvent>()
+                .eq(ManualEvent::getTenantId, tenantId)
+                .eq(StringUtils.hasText(eventType), ManualEvent::getEventType, eventType)
+                .eq(StringUtils.hasText(status), ManualEvent::getStatus, status)
+                .eq(StringUtils.hasText(priority), ManualEvent::getPriority, priority)
+                .eq(StringUtils.hasText(sourceChannel), ManualEvent::getSourceChannel, sourceChannel)
+                .eq(projectId != null, ManualEvent::getProjectId, projectId)
+                .eq(siteId != null, ManualEvent::getSiteId, siteId)
+                .eq(vehicleId != null, ManualEvent::getVehicleId, vehicleId)
+                .ge(occurTimeFrom != null, ManualEvent::getOccurTime, occurTimeFrom)
+                .le(occurTimeTo != null, ManualEvent::getOccurTime, occurTimeTo)
+                .ge(deadlineTimeFrom != null, ManualEvent::getDeadlineTime, deadlineTimeFrom)
+                .le(deadlineTimeTo != null, ManualEvent::getDeadlineTime, deadlineTimeTo)
+                .ge(reportTimeFrom != null, ManualEvent::getReportTime, reportTimeFrom)
+                .le(reportTimeTo != null, ManualEvent::getReportTime, reportTimeTo)
+                .ge(closeTimeFrom != null, ManualEvent::getCloseTime, closeTimeFrom)
+                .le(closeTimeTo != null, ManualEvent::getCloseTime, closeTimeTo)
+                .and(
+                    StringUtils.hasText(keywordValue),
+                    wrapper ->
+                        wrapper
+                            .like(ManualEvent::getEventNo, keywordValue)
+                            .or()
+                            .like(ManualEvent::getTitle, keywordValue)
+                            .or()
+                            .like(ManualEvent::getReporterName, keywordValue)
+                            .or()
+                            .like(ManualEvent::getContent, keywordValue))
+                .orderByDesc(ManualEvent::getReportTime)
+                .orderByDesc(ManualEvent::getId));
+    if (!Boolean.TRUE.equals(overdueOnly)) {
+      return rows;
+    }
+    LocalDateTime now = LocalDateTime.now();
+    return rows.stream()
+        .filter(item -> item.getDeadlineTime() != null && item.getDeadlineTime().isBefore(now))
+        .filter(item -> !"CLOSED".equalsIgnoreCase(item.getStatus()))
+        .toList();
   }
 
   private List<Map<String, Object>> enrich(List<ManualEvent> events, Long tenantId) {
@@ -452,20 +652,69 @@ public class ManualEventsController {
     return StringUtils.hasText(value) ? value.trim() : null;
   }
 
-  private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
+  private LocalDateTime parseDateTime(String value) {
+    if (!StringUtils.hasText(value)) {
+      return null;
     }
     try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null || user.getTenantId() == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
+      return LocalDateTime.parse(value.trim(), DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+    } catch (Exception ex) {
+      return null;
     }
+  }
+
+  private ResponseEntity<byte[]> csvResponse(String fileName, String content) {
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName)
+        .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+        .body(content.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private String buildEventCsv(List<Map<String, Object>> rows) {
+    StringBuilder builder =
+        new StringBuilder("事件编号,事件类型,标题,优先级,状态,来源,申报人,项目,场地,车辆,上报地点,联系电话,是否超期,发生时间,要求完成时间,上报时间,关闭时间,责任人,责任人电话,派单说明,关闭说明,内容\n");
+    for (Map<String, Object> row : rows) {
+      builder
+          .append(csv(row.get("eventNo"))).append(',')
+          .append(csv(row.get("eventType"))).append(',')
+          .append(csv(row.get("title"))).append(',')
+          .append(csv(row.get("priority"))).append(',')
+          .append(csv(row.get("status"))).append(',')
+          .append(csv(row.get("sourceChannel"))).append(',')
+          .append(csv(row.get("reporterName"))).append(',')
+          .append(csv(row.get("projectName"))).append(',')
+          .append(csv(row.get("siteName"))).append(',')
+          .append(csv(row.get("vehicleNo"))).append(',')
+          .append(csv(row.get("reportAddress"))).append(',')
+          .append(csv(row.get("contactPhone"))).append(',')
+          .append(csv(Boolean.TRUE.equals(row.get("isOverdue")) ? "是" : "否")).append(',')
+          .append(csv(formatDateTime((LocalDateTime) row.get("occurTime")))).append(',')
+          .append(csv(formatDateTime((LocalDateTime) row.get("deadlineTime")))).append(',')
+          .append(csv(formatDateTime((LocalDateTime) row.get("reportTime")))).append(',')
+          .append(csv(formatDateTime((LocalDateTime) row.get("closeTime")))).append(',')
+          .append(csv(row.get("assigneeName"))).append(',')
+          .append(csv(row.get("assigneePhone"))).append(',')
+          .append(csv(row.get("dispatchRemark"))).append(',')
+          .append(csv(row.get("closeRemark"))).append(',')
+          .append(csv(row.get("content"))).append('\n');
+    }
+    return builder.toString();
+  }
+
+  private String formatDateTime(LocalDateTime value) {
+    return value != null ? value.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : null;
+  }
+
+  private String csv(Object value) {
+    if (value == null) {
+      return "";
+    }
+    String text = String.valueOf(value).replace("\"", "\"\"");
+    return "\"" + text + "\"";
+  }
+
+  private User requireCurrentUser(HttpServletRequest request) {
+    return userContext.requireCurrentUser(request);
   }
 
   @Data

@@ -1,4 +1,4 @@
-import http from './request';
+import http, { request } from './request';
 
 export interface AlertRecord {
   id: string;
@@ -31,6 +31,7 @@ export interface AlertRecord {
   occurTime?: string | null;
   resolveTime?: string | null;
   durationMinutes?: number | null;
+  isOverdue?: boolean;
 }
 
 export interface AlertSummaryRecord {
@@ -118,6 +119,7 @@ const mapRecord = (item: any): AlertRecord => ({
   occurTime: item.occurTime || null,
   resolveTime: item.resolveTime || null,
   durationMinutes: item.durationMinutes != null ? Number(item.durationMinutes) : null,
+  isOverdue: Boolean(item.isOverdue),
 });
 
 const mapBucket = (item: any): AlertBucketRecord => ({
@@ -138,6 +140,28 @@ export async function fetchAlertDetail(id: string) {
 
 export async function fetchAlertSummary() {
   const res = await http.get<Partial<AlertSummaryRecord>>('/alerts/summary');
+  return {
+    total: Number(res.data.total || 0),
+    pending: Number(res.data.pending || 0),
+    processing: Number(res.data.processing || 0),
+    closed: Number(res.data.closed || 0),
+    confirmed: Number(res.data.confirmed || 0),
+    vehicleCount: Number(res.data.vehicleCount || 0),
+    siteCount: Number(res.data.siteCount || 0),
+    projectCount: Number(res.data.projectCount || 0),
+    contractCount: Number(res.data.contractCount || 0),
+    userCount: Number(res.data.userCount || 0),
+    highRiskCount: Number(res.data.highRiskCount || 0),
+    avgHandleMinutes: Number(res.data.avgHandleMinutes || 0),
+    overdueCount: Number(res.data.overdueCount || 0),
+    enabledRuleCount: Number(res.data.enabledRuleCount || 0),
+    enabledFenceCount: Number(res.data.enabledFenceCount || 0),
+    enabledPushCount: Number(res.data.enabledPushCount || 0),
+  };
+}
+
+export async function fetchAlertSummaryByParams(params: Record<string, any> = {}) {
+  const res = await http.get<Partial<AlertSummaryRecord>>('/alerts/summary', { params });
   return {
     total: Number(res.data.total || 0),
     pending: Number(res.data.pending || 0),
@@ -180,13 +204,45 @@ export async function fetchAlertAnalytics(): Promise<AlertAnalyticsRecord> {
   };
 }
 
+export async function fetchAlertAnalyticsByParams(
+  params: Record<string, any> = {},
+): Promise<AlertAnalyticsRecord> {
+  const res = await http.get<any>('/alerts/analytics', { params });
+  return {
+    levelBuckets: (res.data.levelBuckets || []).map(mapBucket),
+    targetBuckets: (res.data.targetBuckets || []).map(mapBucket),
+    sourceBuckets: (res.data.sourceBuckets || []).map(mapBucket),
+    statusBuckets: (res.data.statusBuckets || []).map(mapBucket),
+    ruleBuckets: (res.data.ruleBuckets || []).map(mapBucket),
+    trend7d: (res.data.trend7d || []).map((item: any) => ({
+      date: item.date || '',
+      count: Number(item.count || 0),
+    })),
+    modelCoverage: {
+      totalRules: Number(res.data.modelCoverage?.totalRules || 0),
+      enabledRules: Number(res.data.modelCoverage?.enabledRules || 0),
+      connectedFenceRules: Number(res.data.modelCoverage?.connectedFenceRules || 0),
+      connectedPushRules: Number(res.data.modelCoverage?.connectedPushRules || 0),
+      sceneCoverage: res.data.modelCoverage?.sceneCoverage || {},
+    },
+  };
+}
+
 export async function fetchTopRiskVehicles() {
   const res = await http.get<any[]>('/alerts/top-risk');
   return Array.isArray(res.data) ? res.data : [];
 }
 
-export async function fetchTopRiskTargets(targetType: 'VEHICLE' | 'CONTRACT' | 'USER') {
-  const res = await http.get<any[]>('/alerts/top-risk-targets', { params: { targetType } });
+export async function fetchTopRiskVehiclesByParams(params: Record<string, any> = {}) {
+  const res = await http.get<any[]>('/alerts/top-risk', { params });
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function fetchTopRiskTargets(
+  targetType: 'VEHICLE' | 'CONTRACT' | 'USER',
+  params: Record<string, any> = {},
+) {
+  const res = await http.get<any[]>('/alerts/top-risk-targets', { params: { ...params, targetType } });
   return (Array.isArray(res.data) ? res.data : []).map(
     (item): AlertTopRiskRecord => ({
       targetId: String(item.targetId || ''),
@@ -222,4 +278,12 @@ export async function handleAlert(id: string, payload: { status?: string; handle
 
 export async function closeAlert(id: string, payload: { handleRemark?: string }) {
   await http.post(`/alerts/${id}/close`, payload);
+}
+
+export async function exportAlerts(params: Record<string, any> = {}) {
+  const response = await request.get('/alerts/export', {
+    params,
+    responseType: 'blob',
+  });
+  return response.data as Blob;
 }

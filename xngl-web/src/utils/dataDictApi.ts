@@ -16,12 +16,17 @@ export interface DataDictRecord {
 
 export interface DataDictPayload {
   dictType: string;
-  dictCode: string;
+  dictCode?: string;
   dictLabel: string;
-  dictValue: string;
+  dictValue?: string;
   sort?: number;
   status?: string;
   remark?: string;
+}
+
+export interface DictTypeItem {
+  typeCode: string;
+  typeLabel: string;
 }
 
 const mapRecord = (item: any): DataDictRecord => ({
@@ -59,4 +64,29 @@ export async function updateDataDictStatus(id: string, status: string) {
 
 export async function deleteDataDict(id: string) {
   await http.delete(`/data-dicts/${id}`);
+}
+
+export async function exportDataDicts(params: Record<string, any> = {}) {
+  const res = await http.get<Blob>('/data-dicts/export', {
+    params,
+    responseType: 'blob',
+  });
+  return res.data;
+}
+
+/**
+ * 平台预置的字典类型列表。
+ * 字典类型由平台开发阶段确定，不开放用户新增，因此直接在前端维护映射。
+ */
+export const PREDEFINED_DICT_TYPES: DictTypeItem[] = [
+  { typeCode: 'ORG_TYPE', typeLabel: '组织类型' },
+  { typeCode: 'alert_level', typeLabel: '预警级别' },
+  { typeCode: 'event_type', typeLabel: '事件类型' },
+  { typeCode: 'VEHICLE_MODEL', typeLabel: '车型分类' },
+  { typeCode: 'contract_type', typeLabel: '合同类型' },
+  { typeCode: 'settlement_type', typeLabel: '结算方式' },
+];
+
+export function fetchDictTypes(): DictTypeItem[] {
+  return PREDEFINED_DICT_TYPES;
 }

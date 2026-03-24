@@ -38,4 +38,39 @@ public class ExportTaskServiceImpl implements ExportTaskService {
     }
     return task;
   }
+
+  @Override
+  @Transactional(rollbackFor = Exception.class)
+  public void markProcessing(Long taskId, Long tenantId) {
+    ReportExportTask task = getExportTask(taskId, tenantId);
+    ReportExportTask update = new ReportExportTask();
+    update.setId(task.getId());
+    update.setStatus("PROCESSING");
+    update.setFailReason(null);
+    taskMapper.updateById(update);
+  }
+
+  @Override
+  @Transactional(rollbackFor = Exception.class)
+  public void completeExportTask(Long taskId, Long tenantId, String fileName, String fileUrl) {
+    ReportExportTask task = getExportTask(taskId, tenantId);
+    ReportExportTask update = new ReportExportTask();
+    update.setId(task.getId());
+    update.setStatus("COMPLETED");
+    update.setFileName(fileName);
+    update.setFileUrl(fileUrl);
+    update.setFailReason(null);
+    taskMapper.updateById(update);
+  }
+
+  @Override
+  @Transactional(rollbackFor = Exception.class)
+  public void failExportTask(Long taskId, Long tenantId, String failReason) {
+    ReportExportTask task = getExportTask(taskId, tenantId);
+    ReportExportTask update = new ReportExportTask();
+    update.setId(task.getId());
+    update.setStatus("FAILED");
+    update.setFailReason(failReason);
+    taskMapper.updateById(update);
+  }
 }

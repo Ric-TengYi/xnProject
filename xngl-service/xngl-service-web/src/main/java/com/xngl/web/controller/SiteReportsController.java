@@ -11,18 +11,26 @@ import com.xngl.infrastructure.persistence.mapper.ContractMapper;
 import com.xngl.infrastructure.persistence.mapper.ContractTicketMapper;
 import com.xngl.manager.contract.ExportTaskService;
 import com.xngl.manager.site.SiteService;
-import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
 import com.xngl.web.dto.report.ReportTrendItemDto;
 import com.xngl.web.dto.report.SiteReportItemDto;
 import com.xngl.web.dto.report.SiteReportSummaryDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.BufferedWriter;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -51,12 +59,14 @@ public class SiteReportsController {
   private static final DateTimeFormatter ISO_DATE = DateTimeFormatter.ISO_LOCAL_DATE;
   private static final DateTimeFormatter YM_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM");
   private static final DateTimeFormatter YEAR_FORMATTER = DateTimeFormatter.ofPattern("yyyy");
+  private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+  private static final String EXPORT_DIR = "xngl-exports/site-reports";
 
   private final ContractMapper contractMapper;
   private final ContractTicketMapper contractTicketMapper;
   private final SiteService siteService;
   private final ExportTaskService exportTaskService;
-  private final UserService userService;
+  private final UserContext userContext;
   private final ObjectMapper objectMapper;
 
   public SiteReportsController(
@@ -64,13 +74,13 @@ public class SiteReportsController {
       ContractTicketMapper contractTicketMapper,
       SiteService siteService,
       ExportTaskService exportTaskService,
-      UserService userService,
+      UserContext userContext,
       ObjectMapper objectMapper) {
     this.contractMapper = contractMapper;
     this.contractTicketMapper = contractTicketMapper;
     this.siteService = siteService;
     this.exportTaskService = exportTaskService;
-    this.userService = userService;
+    this.userContext = userContext;
     this.objectMapper = objectMapper;
   }
 
@@ -78,11 +88,13 @@ public class SiteReportsController {
   public ApiResult<SiteReportSummaryDto> summary(
       @RequestParam(required = false) String periodType,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
       @RequestParam(required = false) Long siteId,
       @RequestParam(required = false) String keyword,
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
-    PeriodWindow period = resolvePeriodWindow(periodType, date);
+    PeriodWindow period = resolvePeriodWindow(periodType, date, startDate, endDate);
     List<SiteReportItemDto> rows = buildSiteRows(user.getTenantId(), period, siteId, keyword);
     return ApiResult.ok(toSummary(period, rows));
   }
@@ -91,13 +103,15 @@ public class SiteReportsController {
   public ApiResult<PageResult<SiteReportItemDto>> list(
       @RequestParam(required = false) String periodType,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
       @RequestParam(required = false) Long siteId,
       @RequestParam(required = false) String keyword,
       @RequestParam(defaultValue = "1") int pageNo,
       @RequestParam(defaultValue = "20") int pageSize,
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
-    PeriodWindow period = resolvePeriodWindow(periodType, date);
+    PeriodWindow period = resolvePeriodWindow(periodType, date, startDate, endDate);
     List<SiteReportItemDto> rows =
         new ArrayList<>(buildSiteRows(user.getTenantId(), period, siteId, keyword));
     rows.sort(
@@ -111,16 +125,15 @@ public class SiteReportsController {
   public ApiResult<List<ReportTrendItemDto>> trend(
       @RequestParam(required = false) String periodType,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
       @RequestParam(required = false) Long siteId,
       @RequestParam(required = false) String keyword,
       @RequestParam(defaultValue = "6") int limit,
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
-    PeriodWindow current = resolvePeriodWindow(periodType, date);
     List<ReportTrendItemDto> records = new ArrayList<>();
-    int safeLimit = Math.max(limit, 1);
-    for (int i = safeLimit - 1; i >= 0; i--) {
-      PeriodWindow period = shiftPeriod(current, -i);
+    for (PeriodWindow period : resolveTrendWindows(periodType, date, startDate, endDate, limit)) {
       List<SiteReportItemDto> rows = buildSiteRows(user.getTenantId(), period, siteId, keyword);
       SiteReportSummaryDto summary = toSummary(period, rows);
       records.add(
@@ -138,14 +151,27 @@ public class SiteReportsController {
   public ApiResult<Map<String, String>> export(
       @RequestBody(required = false) Map<String, Object> body, HttpServletRequest request) {
     User user = requireCurrentUser(request);
+    Map<String, Object> safeBody = body != null ? body : Collections.emptyMap();
     try {
+      String periodType = readString(safeBody.get("periodType"));
+      LocalDate date = parseDate(safeBody.get("date"));
+      LocalDate startDate = parseDate(safeBody.get("startDate"));
+      LocalDate endDate = parseDate(safeBody.get("endDate"));
+      Long siteId = parseLong(safeBody.get("siteId"));
+      String keyword = readString(safeBody.get("keyword"));
       long taskId =
           exportTaskService.createExportTask(
               user.getTenantId(),
               user.getId(),
               "SITE_REPORT",
               "EXCEL",
-              objectMapper.writeValueAsString(body));
+              objectMapper.writeValueAsString(safeBody));
+      generateSiteReportCsv(
+          taskId,
+          user.getTenantId(),
+          resolvePeriodWindow(periodType, date, startDate, endDate),
+          siteId,
+          keyword);
       return ApiResult.ok(Map.of("taskId", String.valueOf(taskId)));
     } catch (JsonProcessingException ex) {
       throw new BizException(400, "查询参数序列化失败");
@@ -355,8 +381,22 @@ public class SiteReportsController {
     return "正常";
   }
 
-  private PeriodWindow resolvePeriodWindow(String rawType, LocalDate date) {
+  private PeriodWindow resolvePeriodWindow(
+      String rawType, LocalDate date, LocalDate startDate, LocalDate endDate) {
     String type = StringUtils.hasText(rawType) ? rawType.trim().toUpperCase() : "MONTH";
+    if ("CUSTOM".equals(type) || startDate != null || endDate != null) {
+      if (startDate == null || endDate == null) {
+        throw new BizException(400, "自定义时间查询需要同时传入开始和结束日期");
+      }
+      if (endDate.isBefore(startDate)) {
+        throw new BizException(400, "结束日期不能早于开始日期");
+      }
+      return new PeriodWindow(
+          startDate,
+          endDate,
+          ISO_DATE.format(startDate) + " ~ " + ISO_DATE.format(endDate),
+          "CUSTOM");
+    }
     LocalDate baseDate = date != null ? date : LocalDate.now();
     return switch (type) {
       case "DAY" -> new PeriodWindow(baseDate, baseDate, ISO_DATE.format(baseDate), "DAY");
@@ -372,6 +412,24 @@ public class SiteReportsController {
     };
   }
 
+  private List<PeriodWindow> resolveTrendWindows(
+      String rawType,
+      LocalDate date,
+      LocalDate startDate,
+      LocalDate endDate,
+      int limit) {
+    PeriodWindow current = resolvePeriodWindow(rawType, date, startDate, endDate);
+    if ("CUSTOM".equals(current.type())) {
+      return resolveCustomTrendWindows(current.start(), current.end());
+    }
+    List<PeriodWindow> windows = new ArrayList<>();
+    int safeLimit = Math.max(limit, 1);
+    for (int i = safeLimit - 1; i >= 0; i--) {
+      windows.add(shiftPeriod(current, -i));
+    }
+    return windows;
+  }
+
   private PeriodWindow shiftPeriod(PeriodWindow current, int step) {
     return switch (current.type()) {
       case "DAY" -> {
@@ -380,32 +438,144 @@ public class SiteReportsController {
       }
       case "YEAR" -> {
         LocalDate next = current.start().plusYears(step);
-        yield resolvePeriodWindow("YEAR", next);
+        yield resolvePeriodWindow("YEAR", next, null, null);
       }
       default -> {
         LocalDate next = current.start().plusMonths(step);
-        yield resolvePeriodWindow("MONTH", next);
+        yield resolvePeriodWindow("MONTH", next, null, null);
       }
     };
   }
 
-  private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
+  private List<PeriodWindow> resolveCustomTrendWindows(LocalDate startDate, LocalDate endDate) {
+    long dayCount = ChronoUnit.DAYS.between(startDate, endDate) + 1;
+    List<PeriodWindow> windows = new ArrayList<>();
+    if (dayCount <= 31) {
+      LocalDate cursor = startDate;
+      while (!cursor.isAfter(endDate)) {
+        windows.add(new PeriodWindow(cursor, cursor, ISO_DATE.format(cursor), "DAY"));
+        cursor = cursor.plusDays(1);
+      }
+      return windows;
+    }
+    YearMonth month = YearMonth.from(startDate);
+    YearMonth last = YearMonth.from(endDate);
+    while (!month.isAfter(last)) {
+      LocalDate monthStart = month.atDay(1);
+      LocalDate monthEnd = month.atEndOfMonth();
+      LocalDate actualStart = monthStart.isBefore(startDate) ? startDate : monthStart;
+      LocalDate actualEnd = monthEnd.isAfter(endDate) ? endDate : monthEnd;
+      windows.add(new PeriodWindow(actualStart, actualEnd, YM_FORMATTER.format(actualStart), "MONTH"));
+      month = month.plusMonths(1);
+    }
+    return windows;
+  }
+
+  private void generateSiteReportCsv(
+      Long taskId, Long tenantId, PeriodWindow period, Long siteId, String keyword) {
+    exportTaskService.markProcessing(taskId, tenantId);
+    try {
+      List<SiteReportItemDto> rows = new ArrayList<>(buildSiteRows(tenantId, period, siteId, keyword));
+      rows.sort(
+          Comparator.comparing(SiteReportItemDto::getPeriodVolume, Comparator.nullsFirst(BigDecimal::compareTo))
+              .reversed()
+              .thenComparing(SiteReportItemDto::getSiteName, Comparator.nullsLast(String::compareTo)));
+      Path exportDir = Paths.get(System.getProperty("java.io.tmpdir"), EXPORT_DIR);
+      Files.createDirectories(exportDir);
+      String fileName = "site_reports_" + LocalDateTime.now().format(FILE_TIME) + ".csv";
+      Path filePath = exportDir.resolve(fileName);
+      writeCsv(filePath, rows);
+      exportTaskService.completeExportTask(taskId, tenantId, fileName, filePath.toString());
+    } catch (Exception ex) {
+      exportTaskService.failExportTask(taskId, tenantId, truncateFailReason(ex.getMessage()));
+      throw ex instanceof RuntimeException runtimeException
+          ? runtimeException
+          : new BizException(500, "场地报表导出失败");
+    }
+  }
+
+  private void writeCsv(Path filePath, List<SiteReportItemDto> rows) throws IOException {
+    try (BufferedWriter writer = Files.newBufferedWriter(filePath, StandardCharsets.UTF_8)) {
+      writer.write('\uFEFF');
+      writer.write("场地名称,场地编码,场地类型,统计周期,本期消纳量,本期结算金额,本期趟次,累计消纳量,总容量,剩余容量,容量使用率,状态");
+      writer.newLine();
+      for (SiteReportItemDto row : rows) {
+        List<String> values =
+            List.of(
+                valueOf(row.getSiteName()),
+                valueOf(row.getSiteCode()),
+                valueOf(row.getSiteType()),
+                valueOf(row.getReportPeriod()),
+                decimalOf(row.getPeriodVolume()),
+                decimalOf(row.getPeriodAmount()),
+                numberOf(row.getPeriodTrips()),
+                decimalOf(row.getAccumulatedVolume()),
+                decimalOf(row.getCapacity()),
+                decimalOf(row.getRemainingCapacity()),
+                numberOf(row.getUtilizationRate()) + "%",
+                valueOf(row.getStatus()));
+        writer.write(String.join(",", values.stream().map(this::escapeCsv).toList()));
+        writer.newLine();
+      }
+    }
+  }
+
+  private String escapeCsv(String value) {
+    String sanitized = value == null ? "" : value;
+    boolean needQuote =
+        sanitized.contains(",")
+            || sanitized.contains("\"")
+            || sanitized.contains("\n")
+            || sanitized.contains("\r");
+    if (!needQuote) {
+      return sanitized;
+    }
+    return "\"" + sanitized.replace("\"", "\"\"") + "\"";
+  }
+
+  private String decimalOf(BigDecimal value) {
+    return value == null ? "0" : value.stripTrailingZeros().toPlainString();
+  }
+
+  private String numberOf(Integer value) {
+    return value == null ? "0" : String.valueOf(value);
+  }
+
+  private String valueOf(String value) {
+    return value == null ? "" : value;
+  }
+
+  private String truncateFailReason(String message) {
+    if (!StringUtils.hasText(message)) {
+      return "导出失败";
+    }
+    String trimmed = message.trim();
+    return trimmed.length() > 180 ? trimmed.substring(0, 180) : trimmed;
+  }
+
+  private String readString(Object value) {
+    return value == null ? null : String.valueOf(value).trim();
+  }
+
+  private LocalDate parseDate(Object value) {
+    String text = readString(value);
+    return StringUtils.hasText(text) ? LocalDate.parse(text) : null;
+  }
+
+  private Long parseLong(Object value) {
+    String text = readString(value);
+    if (!StringUtils.hasText(text)) {
+      return null;
     }
     try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      if (user.getTenantId() == null) {
-        throw new BizException(403, "当前用户未绑定租户");
-      }
-      return user;
+      return Long.parseLong(text);
     } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
+      throw new BizException(400, "场地参数格式不正确");
     }
+  }
+
+  private User requireCurrentUser(HttpServletRequest request) {
+    return userContext.requireCurrentUser(request);
   }
 
   private record PeriodWindow(LocalDate start, LocalDate end, String label, String type) {}

@@ -23,4 +23,11 @@ public class Site extends BaseEntity {
   private BigDecimal disposalUnitPrice;
   private BigDecimal disposalFeeRate;
   private BigDecimal serviceFeeUnitPrice;
+  private String siteLevel;
+  private Long parentSiteId;
+  private String managementArea;
+  private Long weighbridgeSiteId;
+  private BigDecimal lng;
+  private BigDecimal lat;
+  private String boundaryGeoJson;
 }

@@ -7,8 +7,19 @@ import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.contract.ExportTaskDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.format.DateTimeFormatter;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,10 +33,12 @@ public class ExportTaskController {
 
   private final ExportTaskService exportTaskService;
   private final UserService userService;
+  private final UserContext userContext;
 
-  public ExportTaskController(ExportTaskService exportTaskService, UserService userService) {
+  public ExportTaskController(ExportTaskService exportTaskService, UserService userService, UserContext userContext) {
     this.exportTaskService = exportTaskService;
     this.userService = userService;
+    this.userContext = userContext;
   }
 
   @GetMapping("/{id}")
@@ -37,11 +50,33 @@ public class ExportTaskController {
   }
 
   @GetMapping("/{id}/download")
-  public ApiResult<ExportTaskDto> download(
+  public ResponseEntity<Resource> download(
       @PathVariable Long id, HttpServletRequest request) {
     User user = requireCurrentUser(request);
     ReportExportTask task = exportTaskService.getExportTask(id, user.getTenantId());
-    return ApiResult.ok(toDto(task));
+    if (!"COMPLETED".equalsIgnoreCase(task.getStatus())) {
+      throw new BizException(409, "导出任务尚未完成");
+    }
+    if (!StringUtils.hasText(task.getFileUrl())) {
+      throw new BizException(404, "导出文件不存在");
+    }
+    Path path = Path.of(task.getFileUrl());
+    if (!Files.exists(path) || !Files.isRegularFile(path)) {
+      throw new BizException(404, "导出文件不存在或已过期");
+    }
+    FileSystemResource resource = new FileSystemResource(path);
+    ContentDisposition disposition = ContentDisposition.attachment()
+        .filename(StringUtils.hasText(task.getFileName()) ? task.getFileName() : path.getFileName().toString())
+        .build();
+    try {
+      return ResponseEntity.ok()
+          .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+          .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
+          .contentLength(Files.size(path))
+          .body(resource);
+    } catch (IOException ex) {
+      throw new BizException(500, "读取导出文件失败");
+    }
   }
 
   private ExportTaskDto toDto(ReportExportTask task) {
@@ -50,7 +85,7 @@ public class ExportTaskController {
     dto.setBizType(task.getBizType());
     dto.setExportType(task.getExportType());
     dto.setFileName(task.getFileName());
-    dto.setFileUrl(task.getFileUrl());
+    dto.setFileUrl("/api/export-tasks/" + task.getId() + "/download");
     dto.setStatus(task.getStatus());
     dto.setFailReason(task.getFailReason());
     dto.setCreatorId(task.getCreatorId() != null ? String.valueOf(task.getCreatorId()) : null);
@@ -60,21 +95,6 @@ public class ExportTaskController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (userId == null || userId.isBlank()) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      if (user.getTenantId() == null) {
-        throw new BizException(403, "当前用户未绑定租户");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 }

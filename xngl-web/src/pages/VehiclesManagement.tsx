@@ -32,8 +32,11 @@ import {
 import { motion } from 'framer-motion';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
+  batchDeleteVehicles,
+  batchUpdateVehicleStatus,
   createVehicle,
   deleteVehicle,
+  exportVehicles,
   fetchVehicleCompanyCapacity,
   fetchVehicleDetail,
   fetchVehicleStats,
@@ -119,6 +122,7 @@ const VehiclesManagement: React.FC = () => {
   const [pageNo, setPageNo] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [filterForm] = Form.useForm();
   const [createForm] = Form.useForm<VehicleFormValues>();
 
@@ -427,6 +431,61 @@ const VehiclesManagement: React.FC = () => {
     }
   };
 
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleExport = async () => {
+    try {
+      const blob = await exportVehicles({
+        keyword: keyword.trim() || undefined,
+        status: status === 'all' ? undefined : status,
+        orgId: orgId || undefined,
+        vehicleType: vehicleType || undefined,
+      });
+      downloadBlob(blob, 'vehicles.csv');
+      message.success('车辆台账已导出');
+    } catch (error) {
+      console.error(error);
+      message.error('导出车辆台账失败');
+    }
+  };
+
+  const handleBatchStatus = async (nextStatus: number, label: string) => {
+    try {
+      const ids = selectedRowKeys.map((item) => Number(item)).filter((item) => Number.isFinite(item));
+      const result = await batchUpdateVehicleStatus({ ids, status: nextStatus });
+      message.success(`已批量更新 ${result.updated} 台车辆为${label}`);
+      setSelectedRowKeys([]);
+      await Promise.all([refreshOverview(), reloadVehicleTable(1)]);
+      setPageNo(1);
+    } catch (error) {
+      console.error(error);
+      message.error('批量更新车辆状态失败');
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    try {
+      const ids = selectedRowKeys.map((item) => Number(item)).filter((item) => Number.isFinite(item));
+      const result = await batchDeleteVehicles(ids);
+      message.success(`已批量删除 ${result.deleted} 台车辆`);
+      setSelectedRowKeys([]);
+      await Promise.all([refreshOverview(), reloadVehicleTable(1)]);
+      setPageNo(1);
+    } catch (error) {
+      console.error(error);
+      message.error('批量删除车辆失败');
+    }
+  };
+
   const vehicleColumns: ColumnsType<VehicleRecord> = [
     {
       title: '车牌号',
@@ -619,6 +678,34 @@ const VehiclesManagement: React.FC = () => {
             </Button>
           </div>
           <Space>
+            <Button onClick={() => void handleExport()}>导出台账</Button>
+            <Button
+              disabled={selectedRowKeys.length === 0}
+              onClick={() => void handleBatchStatus(1, '在用')}
+            >
+              批量设为在用
+            </Button>
+            <Button
+              disabled={selectedRowKeys.length === 0}
+              onClick={() => void handleBatchStatus(2, '维修')}
+            >
+              批量设为维修
+            </Button>
+            <Button
+              disabled={selectedRowKeys.length === 0}
+              onClick={() => void handleBatchStatus(3, '禁用')}
+            >
+              批量设为禁用
+            </Button>
+            <Popconfirm
+              title={`确认批量删除已选 ${selectedRowKeys.length} 台车辆？`}
+              disabled={selectedRowKeys.length === 0}
+              onConfirm={() => void handleBatchDelete()}
+            >
+              <Button danger disabled={selectedRowKeys.length === 0}>
+                批量删除
+              </Button>
+            </Popconfirm>
             <Button type="primary" icon={<PlusOutlined />} className="g-btn-primary border-none" onClick={openCreate}>
               新增车辆
             </Button>
@@ -631,6 +718,10 @@ const VehiclesManagement: React.FC = () => {
             dataSource={vehicles}
             rowKey="id"
             loading={listLoading}
+            rowSelection={{
+              selectedRowKeys,
+              onChange: (keys) => setSelectedRowKeys(keys),
+            }}
             locale={{ emptyText: <Empty description="暂无车辆数据" /> }}
             pagination={{
               current: pageNo,

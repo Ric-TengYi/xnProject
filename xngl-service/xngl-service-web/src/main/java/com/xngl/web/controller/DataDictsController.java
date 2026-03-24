@@ -4,15 +4,20 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.xngl.infrastructure.persistence.entity.organization.User;
 import com.xngl.manager.dict.entity.DataDict;
 import com.xngl.manager.dict.mapper.DataDictMapper;
-import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.user.StatusUpdateDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
+import com.xngl.web.support.CsvExportSupport;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.Data;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,12 +33,27 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/data-dicts")
 public class DataDictsController {
 
-  private final DataDictMapper mapper;
-  private final UserService userService;
+  /** 平台预置的字典类型：typeCode → 中文名称。只有运维/超管可见此菜单。 */
+  private static final Map<String, String> PREDEFINED_TYPES;
+  static {
+    PREDEFINED_TYPES = new LinkedHashMap<>();
+    PREDEFINED_TYPES.put("ORG_TYPE", "组织类型");
+    PREDEFINED_TYPES.put("alert_level", "预警级别");
+    PREDEFINED_TYPES.put("event_type", "事件类型");
+    PREDEFINED_TYPES.put("VEHICLE_MODEL", "车型分类");
+    PREDEFINED_TYPES.put("contract_type", "合同类型");
+    PREDEFINED_TYPES.put("settlement_type", "结算方式");
+  }
 
-  public DataDictsController(DataDictMapper mapper, UserService userService) {
+  /** 自增序列用于生成 dictCode */
+  private static final AtomicLong CODE_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
+
+  private final DataDictMapper mapper;
+  private final UserContext userContext;
+
+  public DataDictsController(DataDictMapper mapper, UserContext userContext) {
     this.mapper = mapper;
-    this.userService = userService;
+    this.userContext = userContext;
   }
 
   @GetMapping
@@ -68,9 +88,59 @@ public class DataDictsController {
     return ApiResult.ok(rows);
   }
 
+  @GetMapping("/export")
+  public ResponseEntity<byte[]> export(
+      @RequestParam(required = false) String dictType,
+      @RequestParam(required = false) String keyword,
+      HttpServletRequest request) {
+    User user = requireCurrentUser(request);
+    List<DataDict> rows =
+        mapper.selectList(
+            new LambdaQueryWrapper<DataDict>()
+                .eq(DataDict::getTenantId, user.getTenantId())
+                .eq(StringUtils.hasText(trimToNull(dictType)), DataDict::getDictType, trimToNull(dictType))
+                .and(
+                    StringUtils.hasText(trimToNull(keyword)),
+                    wrapper ->
+                        wrapper
+                            .like(DataDict::getDictType, trimToNull(keyword))
+                            .or()
+                            .like(DataDict::getDictLabel, trimToNull(keyword))
+                            .or()
+                            .like(DataDict::getDictCode, trimToNull(keyword))
+                            .or()
+                            .like(DataDict::getDictValue, trimToNull(keyword)))
+                .orderByAsc(DataDict::getDictType)
+                .orderByAsc(DataDict::getSort)
+                .orderByAsc(DataDict::getId));
+    return CsvExportSupport.csvResponse(
+        "data_dicts",
+        List.of("字典类型", "字典编码", "字典标签", "字典值", "排序", "状态", "备注"),
+        rows.stream()
+            .map(
+                row ->
+                    List.of(
+                        CsvExportSupport.value(row.getDictType()),
+                        CsvExportSupport.value(row.getDictCode()),
+                        CsvExportSupport.value(row.getDictLabel()),
+                        CsvExportSupport.value(row.getDictValue()),
+                        CsvExportSupport.value(row.getSort()),
+                        CsvExportSupport.value(row.getStatus()),
+                        CsvExportSupport.value(row.getRemark())))
+            .toList());
+  }
+
   @PostMapping
   public ApiResult<DataDict> create(@RequestBody DictUpsertRequest body, HttpServletRequest request) {
     User user = requireCurrentUser(request);
+    // dictCode 为空时自动生成
+    if (!StringUtils.hasText(body.getDictCode())) {
+      body.setDictCode(generateDictCode(body.getDictType()));
+    }
+    // dictValue 为空时自动生成（与 dictCode 相同）
+    if (!StringUtils.hasText(body.getDictValue())) {
+      body.setDictValue(body.getDictCode());
+    }
     validate(body, user.getTenantId(), null);
     DataDict entity = new DataDict();
     entity.setTenantId(user.getTenantId());
@@ -113,11 +183,15 @@ public class DataDictsController {
   }
 
   private void validate(DictUpsertRequest body, Long tenantId, Long currentId) {
-    if (body == null || !StringUtils.hasText(body.getDictType()) || !StringUtils.hasText(body.getDictCode())) {
-      throw new BizException(400, "字典类型和编码不能为空");
+    if (body == null || !StringUtils.hasText(body.getDictType())) {
+      throw new BizException(400, "字典类型不能为空");
     }
-    if (!StringUtils.hasText(body.getDictLabel()) || !StringUtils.hasText(body.getDictValue())) {
-      throw new BizException(400, "字典标签和值不能为空");
+    if (!StringUtils.hasText(body.getDictLabel())) {
+      throw new BizException(400, "字典标签不能为空");
+    }
+    // dictCode 在 create 阶段已自动生成，此处保证有值
+    if (!StringUtils.hasText(body.getDictCode())) {
+      throw new BizException(400, "字典编码不能为空");
     }
     DataDict existing =
         mapper.selectOne(
@@ -128,6 +202,16 @@ public class DataDictsController {
     if (existing != null && !Objects.equals(existing.getId(), currentId)) {
       throw new BizException(400, "同类型下字典编码已存在");
     }
+  }
+
+  /** 根据 dictType 前缀 + 自增序列生成唯一 dictCode */
+  private String generateDictCode(String dictType) {
+    String prefix = StringUtils.hasText(dictType) ? dictType.trim().toUpperCase() : "DICT";
+    // 取前缀的前8个字符 + 5位序列号
+    if (prefix.length() > 8) {
+      prefix = prefix.substring(0, 8);
+    }
+    return prefix + "_" + String.format("%05d", CODE_SEQ.incrementAndGet() % 100000);
   }
 
   private void apply(DataDict entity, DictUpsertRequest body) {
@@ -156,19 +240,7 @@ public class DataDictsController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null || user.getTenantId() == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 
   @Data

@@ -118,6 +118,14 @@ export async function fetchApprovalRules(params: Record<string, any> = {}) {
   return (res.data.records || []).map(mapRecord);
 }
 
+export async function exportApprovalRules(params: Record<string, any> = {}) {
+  const res = await http.get<Blob>('/approval-actor-rules/export', {
+    params,
+    responseType: 'blob',
+  });
+  return res.data;
+}
+
 export async function fetchApprovalRuleDetail(id: string) {
   const res = await http.get<ApprovalRuleRecord>(`/approval-actor-rules/${id}`);
   return mapRecord(res.data || {});
@@ -145,6 +153,14 @@ export async function fetchApprovalMaterialConfigs(params: Record<string, any> =
     params,
   });
   return (Array.isArray(res.data) ? res.data : []).map(mapMaterialRecord);
+}
+
+export async function exportApprovalMaterialConfigs(params: Record<string, any> = {}) {
+  const res = await http.get<Blob>('/approval-material-configs/export', {
+    params,
+    responseType: 'blob',
+  });
+  return res.data;
 }
 
 export async function fetchApprovalMaterialConfigDetail(id: string) {
@@ -182,6 +198,14 @@ export async function deleteApprovalMaterialConfig(id: string) {
 export async function fetchApprovalFlowConfigs(params: Record<string, any> = {}) {
   const res = await http.get<ApprovalFlowConfigRecord[]>('/approval-configs', { params });
   return (Array.isArray(res.data) ? res.data : []).map(mapFlowRecord);
+}
+
+export async function exportApprovalFlowConfigs(params: Record<string, any> = {}) {
+  const res = await http.get<Blob>('/approval-configs/export', {
+    params,
+    responseType: 'blob',
+  });
+  return res.data;
 }
 
 export async function fetchApprovalFlowConfigDetail(id: string) {

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Card,
+  DatePicker,
   Descriptions,
   Drawer,
   Form,
@@ -21,6 +22,7 @@ import {
   approveManualEvent,
   closeManualEvent,
   createManualEvent,
+  exportManualEvents,
   fetchManualEventDetail,
   fetchManualEvents,
   fetchManualEventSummary,
@@ -35,6 +37,10 @@ import {
 import { fetchProjects } from '../utils/projectApi';
 import { fetchSites } from '../utils/siteApi';
 import { fetchVehicles } from '../utils/vehicleApi';
+import type { Dayjs } from 'dayjs';
+import { useSearchParams } from 'react-router-dom';
+
+const { RangePicker } = DatePicker;
 
 const eventTypeOptions = [
   { label: '全部类型', value: 'ALL' },
@@ -68,6 +74,11 @@ const statusOptions = [
   { label: '已关闭', value: 'CLOSED' },
 ];
 
+const overdueOptions = [
+  { label: '全部时效', value: 'ALL' },
+  { label: '仅超期', value: 'Y' },
+];
+
 const statusColorMap: Record<string, string> = {
   DRAFT: 'default',
   PENDING_AUDIT: 'warning',
@@ -90,13 +101,43 @@ const emptySummary: ManualEventSummaryRecord = {
   sourceBuckets: [],
 };
 
+const downloadBlob = (blob: Blob, fileName: string) => {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  window.URL.revokeObjectURL(url);
+};
+
+const formatRangeParams = (
+  params: Record<string, string>,
+  keyFrom: string,
+  keyTo: string,
+  range: [Dayjs, Dayjs] | null,
+) => {
+  if (!range) {
+    return;
+  }
+  params[keyFrom] = range[0].format('YYYY-MM-DDTHH:mm:ss');
+  params[keyTo] = range[1].format('YYYY-MM-DDTHH:mm:ss');
+};
+
+const parseAttachmentUrls = (value?: string | null) =>
+  (value || '')
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
 const EventsManagement: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [summary, setSummary] = useState<ManualEventSummaryRecord>(emptySummary);
   const [records, setRecords] = useState<ManualEventRecord[]>([]);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detail, setDetail] = useState<ManualEventDetailRecord | null>(null);
+  const [queryHandledId, setQueryHandledId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ManualEventRecord | null>(null);
   const [projects, setProjects] = useState<any[]>([]);
@@ -108,7 +149,11 @@ const EventsManagement: React.FC = () => {
     status: 'ALL',
     priority: 'ALL',
     sourceChannel: 'ALL',
+    projectId: 'ALL',
+    overdueOnly: 'ALL',
   });
+  const [reportRange, setReportRange] = useState<[Dayjs, Dayjs] | null>(null);
+  const [deadlineRange, setDeadlineRange] = useState<[Dayjs, Dayjs] | null>(null);
   const [form] = Form.useForm<ManualEventPayload>();
 
   const loadMasters = async () => {
@@ -131,8 +176,12 @@ const EventsManagement: React.FC = () => {
       if (filters.status !== 'ALL') params.status = filters.status;
       if (filters.priority !== 'ALL') params.priority = filters.priority;
       if (filters.sourceChannel !== 'ALL') params.sourceChannel = filters.sourceChannel;
+      if (filters.projectId !== 'ALL') params.projectId = filters.projectId;
+      if (filters.overdueOnly === 'Y') params.overdueOnly = 'true';
+      formatRangeParams(params, 'reportTimeFrom', 'reportTimeTo', reportRange);
+      formatRangeParams(params, 'deadlineTimeFrom', 'deadlineTimeTo', deadlineRange);
       const [summaryData, listData] = await Promise.all([
-        fetchManualEventSummary(),
+        fetchManualEventSummary(params),
         fetchManualEvents(params),
       ]);
       setSummary(summaryData);
@@ -154,7 +203,32 @@ const EventsManagement: React.FC = () => {
 
   useEffect(() => {
     void loadData();
-  }, [filters.keyword, filters.eventType, filters.status, filters.priority, filters.sourceChannel]);
+  }, [
+    filters.keyword,
+    filters.eventType,
+    filters.status,
+    filters.priority,
+    filters.sourceChannel,
+    filters.projectId,
+    filters.overdueOnly,
+    reportRange,
+    deadlineRange,
+  ]);
+
+  useEffect(() => {
+    const eventId = searchParams.get('eventId');
+    if (!eventId || queryHandledId === eventId) {
+      return;
+    }
+    setQueryHandledId(eventId);
+    setDetailOpen(true);
+    void fetchManualEventDetail(eventId)
+      .then((data) => setDetail(data))
+      .catch((error) => {
+        console.error(error);
+        message.error('获取事件详情失败');
+      });
+  }, [queryHandledId, searchParams]);
 
   const openCreateModal = () => {
     setEditingRecord(null);
@@ -277,6 +351,30 @@ const EventsManagement: React.FC = () => {
     }
   };
 
+  const buildParams = () => {
+    const params: Record<string, string> = {};
+    if (filters.keyword.trim()) params.keyword = filters.keyword.trim();
+    if (filters.eventType !== 'ALL') params.eventType = filters.eventType;
+    if (filters.status !== 'ALL') params.status = filters.status;
+    if (filters.priority !== 'ALL') params.priority = filters.priority;
+    if (filters.sourceChannel !== 'ALL') params.sourceChannel = filters.sourceChannel;
+    if (filters.projectId !== 'ALL') params.projectId = filters.projectId;
+    if (filters.overdueOnly === 'Y') params.overdueOnly = 'true';
+    formatRangeParams(params, 'reportTimeFrom', 'reportTimeTo', reportRange);
+    formatRangeParams(params, 'deadlineTimeFrom', 'deadlineTimeTo', deadlineRange);
+    return params;
+  };
+
+  const handleExport = async () => {
+    try {
+      downloadBlob(await exportManualEvents(buildParams()), 'manual_events.csv');
+      message.success('事件导出成功');
+    } catch (error) {
+      console.error(error);
+      message.error('事件导出失败');
+    }
+  };
+
   const columns: ColumnsType<ManualEventRecord> = useMemo(
     () => [
       {
@@ -365,13 +463,18 @@ const EventsManagement: React.FC = () => {
           <h1 className="text-2xl font-bold g-text-primary m-0">事件管理</h1>
           <p className="g-text-secondary mt-1">支持人工事件上报、审核流转、退回修改和闭环归档</p>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-          新建事件
-        </Button>
+        <Space>
+          <Button onClick={() => void handleExport()}>
+            导出
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+            新建事件
+          </Button>
+        </Space>
       </div>
 
       <Card className="glass-panel g-border-panel border">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4 xl:grid-cols-8">
           <Input
             allowClear
             placeholder="搜索编号 / 标题 / 申报人 / 内容"
@@ -382,6 +485,24 @@ const EventsManagement: React.FC = () => {
           <Select value={filters.status} options={statusOptions} onChange={(value) => setFilters((prev) => ({ ...prev, status: value }))} />
           <Select value={filters.priority} options={priorityOptions} onChange={(value) => setFilters((prev) => ({ ...prev, priority: value }))} />
           <Select value={filters.sourceChannel} options={sourceOptions} onChange={(value) => setFilters((prev) => ({ ...prev, sourceChannel: value }))} />
+          <Select
+            value={filters.projectId}
+            options={[{ label: '全部项目', value: 'ALL' }, ...projects.map((item) => ({ label: item.name, value: String(item.id) }))]}
+            onChange={(value) => setFilters((prev) => ({ ...prev, projectId: value }))}
+          />
+          <Select value={filters.overdueOnly} options={overdueOptions} onChange={(value) => setFilters((prev) => ({ ...prev, overdueOnly: value }))} />
+          <RangePicker
+            showTime
+            value={reportRange}
+            onChange={(value) => setReportRange((value as [Dayjs, Dayjs] | null) || null)}
+            placeholder={['上报开始', '上报结束']}
+          />
+          <RangePicker
+            showTime
+            value={deadlineRange}
+            onChange={(value) => setDeadlineRange((value as [Dayjs, Dayjs] | null) || null)}
+            placeholder={['截止开始', '截止结束']}
+          />
         </div>
       </Card>
 
@@ -481,7 +602,17 @@ const EventsManagement: React.FC = () => {
           <Descriptions.Item label="派单说明">{detail?.record.dispatchRemark || '-'}</Descriptions.Item>
           <Descriptions.Item label="关闭时间">{detail?.record.closeTime || '-'}</Descriptions.Item>
           <Descriptions.Item label="关闭说明">{detail?.record.closeRemark || '-'}</Descriptions.Item>
-          <Descriptions.Item label="附件">{detail?.record.attachmentUrls || '-'}</Descriptions.Item>
+          <Descriptions.Item label="附件">
+            <Space wrap>
+              {parseAttachmentUrls(detail?.record.attachmentUrls).length
+                ? parseAttachmentUrls(detail?.record.attachmentUrls).map((item) => (
+                    <a key={item} href={item} target="_blank" rel="noreferrer">
+                      {item}
+                    </a>
+                  ))
+                : '-'}
+            </Space>
+          </Descriptions.Item>
           <Descriptions.Item label="审核次数">{detail?.record.auditCount ?? 0}</Descriptions.Item>
           <Descriptions.Item label="最近审核动作">{detail?.record.lastAuditAction || '-'} / {detail?.record.lastAuditTime || '-'}</Descriptions.Item>
           <Descriptions.Item label="内容">{detail?.record.content || '-'}</Descriptions.Item>

@@ -11,6 +11,8 @@ import lombok.NoArgsConstructor;
 public class SettlementLineDto {
 
   private String id;
+  private String contractId;
+  private String contractNo;
   private String sourceRecordType;
   private String sourceRecordId;
   private String projectId;

@@ -1,0 +1,198 @@
+{
+  "date": "2026-03-23",
+  "phase": "Phase61",
+  "scope": [
+    "平台对接统一回归",
+    "合同管理统一回归",
+    "处置证统一回归"
+  ],
+  "passed": 37,
+  "failed": 0,
+  "results": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "health",
+      "status": "PASS",
+      "detail": "{'status': 'UP', 'service': 'xngl-service'}"
+    },
+    {
+      "name": "platform_overview",
+      "status": "PASS",
+      "detail": "enabled=1"
+    },
+    {
+      "name": "platform_configs",
+      "status": "PASS",
+      "detail": "configs=5"
+    },
+    {
+      "name": "platform_video_channels",
+      "status": "PASS",
+      "detail": "channels=2"
+    },
+    {
+      "name": "platform_sync_logs",
+      "status": "PASS",
+      "detail": "logs=3"
+    },
+    {
+      "name": "platform_gov_sync_logs",
+      "status": "PASS",
+      "detail": "govLogs=1"
+    },
+    {
+      "name": "platform_weighbridge_records",
+      "status": "PASS",
+      "detail": "records=1"
+    },
+    {
+      "name": "platform_sso_ticket",
+      "status": "PASS",
+      "detail": "ticket=572361d2..., target=PLAN5"
+    },
+    {
+      "name": "contracts_stats",
+      "status": "PASS",
+      "detail": "effective=10"
+    },
+    {
+      "name": "contracts_list",
+      "status": "PASS",
+      "detail": "records=17"
+    },
+    {
+      "name": "contracts_detail",
+      "status": "PASS",
+      "detail": "contractNo=ON-1774233394-A"
+    },
+    {
+      "name": "contracts_approval_records",
+      "status": "PASS",
+      "detail": "records=1"
+    },
+    {
+      "name": "contracts_materials",
+      "status": "PASS",
+      "detail": "materials=1"
+    },
+    {
+      "name": "contracts_invoices",
+      "status": "PASS",
+      "detail": "invoices=0"
+    },
+    {
+      "name": "contracts_tickets",
+      "status": "PASS",
+      "detail": "tickets=0"
+    },
+    {
+      "name": "contracts_receipts_by_contract",
+      "status": "PASS",
+      "detail": "receipts=0"
+    },
+    {
+      "name": "contracts_export",
+      "status": "PASS",
+      "detail": "taskId=32, file=contracts_20260323194139.csv, bytes=4195"
+    },
+    {
+      "name": "contracts_import_preview",
+      "status": "PASS",
+      "detail": "batchId=8, valid=0, errors=1"
+    },
+    {
+      "name": "contract_change_list",
+      "status": "PASS",
+      "detail": "records=1"
+    },
+    {
+      "name": "contract_extension_list",
+      "status": "PASS",
+      "detail": "records=1"
+    },
+    {
+      "name": "contract_transfer_list",
+      "status": "PASS",
+      "detail": "records=4"
+    },
+    {
+      "name": "contract_receipts_list",
+      "status": "PASS",
+      "detail": "records=8"
+    },
+    {
+      "name": "settlements_stats",
+      "status": "PASS",
+      "detail": "totalOrders=10"
+    },
+    {
+      "name": "settlements_list",
+      "status": "PASS",
+      "detail": "records=10"
+    },
+    {
+      "name": "contract_monthly_summary",
+      "status": "PASS",
+      "detail": "month=2026-03"
+    },
+    {
+      "name": "contract_monthly_trend",
+      "status": "PASS",
+      "detail": "points=6"
+    },
+    {
+      "name": "contract_monthly_types",
+      "status": "PASS",
+      "detail": "rows=3"
+    },
+    {
+      "name": "permits_list",
+      "status": "PASS",
+      "detail": "records=12"
+    },
+    {
+      "name": "permits_detail",
+      "status": "PASS",
+      "detail": "permitNo=PHASE52-P-1774232802"
+    },
+    {
+      "name": "ui_platform_integrations",
+      "status": "PASS",
+      "detail": "title=平台对接中心, tables=4, url=http://127.0.0.1:5173/settings/platform-integrations"
+    },
+    {
+      "name": "ui_contracts",
+      "status": "PASS",
+      "detail": "title=合同与财务结算, tables=3, url=http://127.0.0.1:5173/contracts"
+    },
+    {
+      "name": "ui_contract_transfers",
+      "status": "PASS",
+      "detail": "title=内拨申请, tables=1, url=http://127.0.0.1:5173/contracts/transfers"
+    },
+    {
+      "name": "ui_contract_payments",
+      "status": "PASS",
+      "detail": "title=合同入账管理, tables=1, url=http://127.0.0.1:5173/contracts/payments"
+    },
+    {
+      "name": "ui_settlements",
+      "status": "PASS",
+      "detail": "title=结算管理, tables=1, url=http://127.0.0.1:5173/contracts/settlements"
+    },
+    {
+      "name": "ui_monthly_report",
+      "status": "PASS",
+      "detail": "title=月报统计, tables=1, url=http://127.0.0.1:5173/contracts/monthly-report"
+    },
+    {
+      "name": "ui_project_permits",
+      "status": "PASS",
+      "detail": "title=处置证清单, tables=1, url=http://127.0.0.1:5173/projects/permits"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "report": "phase80_governance_logs_acceptance_regression_2026-03-23",
+  "date": "2026-03-23",
+  "phaseCount": 3,
+  "passed": 24,
+  "failed": 0,
+  "results": [
+    {
+      "script": "phase70_governance_unified_regression.py",
+      "status": "PASS",
+      "passed": 16,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS governance_role_create_runtime: role_id=15\nPASS governance_role_update_runtime: Phase70 角色-更新\nPASS governance_org_create_update_runtime: org_id=22\nPASS governance_user_create_update_runtime: user_id=20\nPASS governance_org_role_user_cleanup_runtime: user/org/role cleanup ok\nPASS governance_data_dict_crud_runtime: dict_id=2036062958697603074\nPASS governance_approval_actor_rule_runtime: rule_id=10\nPASS governance_approval_material_runtime: material_id=8\nPASS governance_approval_flow_runtime: flow_id=2036062959125422081\nPASS governance_approval_cleanup_runtime: approval cleanup ok\nPASS governance_sys_param_crud_runtime: sys_param_id=2036062959347720194\nPASS governance_logs_export_runtime: login=5, operate=0, error=5\nPASS governance_messages_runtime: messages=2\nPASS governance_messages_cleanup_runtime: message cleanup ok\nPASS governance_pages_visible: 组织与人员管理 / 角色与权限管理 / 数据字典 / 审核审批配置 / 系统参数 / 系统日志 / 消息管理\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase76_message_linkage_regression.py",
+      "status": "PASS",
+      "passed": 4,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS event_message_runtime: event_id=42, message_count=3\nPASS security_message_runtime: inspection_id=41, message_count=1\nPASS message_jump_pages_visible: 事件消息跳转 / 安全台账消息跳转\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase77_contract_message_jump_regression.py",
+      "status": "PASS",
+      "passed": 4,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS contract_transfer_message_runtime: transfer_id=7, transfer_no=NB202603232050331077, message_count=2\nPASS settlement_message_runtime: settlement_id=32, settlement_no=JS202603232050338157, message_count=2\nPASS contract_message_jump_pages_visible: 内拨申请消息跳转 / 结算消息跳转\n",
+      "stderr_tail": ""
+    }
+  ]
+}

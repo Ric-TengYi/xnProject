@@ -1,0 +1,43 @@
+{
+  "report": "phase73_project_runtime_regression_2026-03-23",
+  "date": "2026-03-23",
+  "results": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "name": "project_daily_runtime",
+      "status": "PASS",
+      "detail": "project_id=1, export_task_id=37"
+    },
+    {
+      "name": "project_config_checkin_location_preload_runtime",
+      "status": "PASS",
+      "detail": "checkin=proj-punch-001, radius=200.0, preload=1500.0"
+    },
+    {
+      "name": "project_config_route_violation_runtime",
+      "status": "PASS",
+      "detail": "route_points=5, fence=PROJECT-FENCE-001"
+    },
+    {
+      "name": "project_reports_runtime",
+      "status": "PASS",
+      "detail": "list_total=1, trend_points=6, export_task_id=38"
+    },
+    {
+      "name": "project_violation_runtime",
+      "status": "PASS",
+      "detail": "violations=9, fleet_rows=5, plate_rows=6"
+    },
+    {
+      "name": "project_pages_visible",
+      "status": "PASS",
+      "detail": "项目日报 / 项目报表 / 项目配置"
+    }
+  ],
+  "passed": 7,
+  "failed": 0
+}

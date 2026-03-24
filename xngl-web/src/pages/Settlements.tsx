@@ -28,6 +28,7 @@ import {
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import type { Dayjs } from 'dayjs';
+import { useSearchParams } from 'react-router-dom';
 import { fetchProjects, type ProjectRecord } from '../utils/projectApi';
 import { fetchSites, type SiteRecord } from '../utils/siteApi';
 import {
@@ -39,6 +40,7 @@ import {
   generateSiteSettlement,
   rejectSettlement,
   submitSettlement,
+  type SettlementContractSummary,
   type SettlementDetail,
   type SettlementLine,
   type SettlementRecord,
@@ -119,6 +121,7 @@ const formatPeriod = (start?: string | null, end?: string | null) =>
   start || end ? `${start || '-'} ~ ${end || '-'}` : '-';
 
 const Settlements: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [form] = Form.useForm<GenerateFormValues>();
   const [rejectForm] = Form.useForm<{ reason?: string }>();
   const [loading, setLoading] = useState(false);
@@ -142,6 +145,7 @@ const Settlements: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
   const [rejectingRecord, setRejectingRecord] = useState<SettlementRecord | null>(null);
+  const [queryHandledId, setQueryHandledId] = useState<string | null>(null);
   const generateSettlementType = Form.useWatch('settlementType', form) || 'SITE';
 
   const projectNameMap = useMemo(
@@ -247,6 +251,15 @@ const Settlements: React.FC = () => {
   useEffect(() => {
     void loadSettlements();
   }, [pageNo, pageSize, settlementType, status, targetId]);
+
+  useEffect(() => {
+    const settlementId = searchParams.get('settlementId');
+    if (!settlementId || queryHandledId === settlementId) {
+      return;
+    }
+    setQueryHandledId(settlementId);
+    void openDetail(settlementId);
+  }, [queryHandledId, searchParams]);
 
   const openDetail = async (id: string) => {
     setDetailOpen(true);
@@ -378,6 +391,7 @@ const Settlements: React.FC = () => {
   };
 
   const lineColumns: ColumnsType<SettlementLine> = [
+    { title: '关联合同', dataIndex: 'contractNo', key: 'contractNo', render: (value) => value || '-' },
     { title: '业务日期', dataIndex: 'bizDate', key: 'bizDate', render: (value) => value || '-' },
     {
       title: '来源类型',
@@ -407,6 +421,29 @@ const Settlements: React.FC = () => {
       render: (value) => formatCurrency(value),
     },
     { title: '备注', dataIndex: 'remark', key: 'remark', render: (value) => value || '-' },
+  ];
+
+  const contractSummaryColumns: ColumnsType<SettlementContractSummary> = [
+    { title: '合同编号', dataIndex: 'contractNo', key: 'contractNo', render: (value) => value || '-' },
+    { title: '明细条数', dataIndex: 'itemCount', key: 'itemCount', render: (value) => Number(value || 0) },
+    {
+      title: '结算方量(m3)',
+      dataIndex: 'totalVolume',
+      key: 'totalVolume',
+      render: (value?: number | null) => formatNumber(value),
+    },
+    {
+      title: '结算金额(元)',
+      dataIndex: 'totalAmount',
+      key: 'totalAmount',
+      render: (value?: number | null) => formatCurrency(value),
+    },
+    {
+      title: '平均单价(元)',
+      dataIndex: 'averageUnitPrice',
+      key: 'averageUnitPrice',
+      render: (value?: number | null) => formatCurrency(value),
+    },
   ];
 
   const columns: ColumnsType<SettlementRecord> = [
@@ -779,6 +816,14 @@ const Settlements: React.FC = () => {
             </Row>
 
             <Card size="small" title={`结算明细 (${selectedDetail.items?.length || 0})`}>
+              <Table
+                columns={contractSummaryColumns}
+                dataSource={selectedDetail.contractSummaries || []}
+                rowKey={(record) => String(record.contractId || record.contractNo || 'unknown')}
+                pagination={false}
+                locale={{ emptyText: <Empty description="暂无关联合同汇总" /> }}
+                className="mb-4"
+              />
               <Table
                 columns={lineColumns}
                 dataSource={selectedDetail.items || []}

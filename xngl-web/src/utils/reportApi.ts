@@ -1,4 +1,4 @@
-import http from './request';
+import http, { request } from './request';
 
 export interface PageResult<T> {
   pageNo: number;
@@ -33,6 +33,60 @@ export interface ProjectRankingItem {
   rank: number;
   status: string;
   progressPercent: number;
+}
+
+export interface ProjectReportSummary {
+  periodType: string;
+  reportPeriod: string;
+  projectCount: number;
+  activeProjectCount: number;
+  totalTrips: number;
+  periodVolume: number;
+  periodAmount: number;
+  projectTotal: number;
+  accumulatedVolume: number;
+  progressPercent: number;
+}
+
+export interface ProjectReportItem {
+  projectId: string;
+  projectCode?: string;
+  projectName: string;
+  orgName?: string;
+  reportPeriod: string;
+  periodVolume: number;
+  periodAmount: number;
+  periodTrips: number;
+  accumulatedVolume: number;
+  projectTotal: number;
+  remainingVolume: number;
+  progressPercent: number;
+  status: string;
+}
+
+export interface ProjectViolationSummary {
+  reportPeriod: string;
+  totalViolations: number;
+  handledCount: number;
+  pendingCount: number;
+  vehicleCount: number;
+  fleetCount: number;
+  teamCount: number;
+}
+
+export interface ProjectViolationStatItem {
+  name: string;
+  violationCount: number;
+  handledCount: number;
+  pendingCount: number;
+  latestTriggerTime?: string | null;
+}
+
+export interface ProjectViolationAnalysis {
+  summary: ProjectViolationSummary;
+  byFleet: ProjectViolationStatItem[];
+  byPlate: ProjectViolationStatItem[];
+  byTeam: ProjectViolationStatItem[];
 }
 
 export interface SiteRankingItem {
@@ -83,17 +137,42 @@ export interface ReportTrendItem {
   activeCount: number;
 }
 
+export interface ExportTaskRecord {
+  id: string;
+  bizType?: string;
+  exportType?: string;
+  fileName?: string;
+  fileUrl?: string;
+  status: string;
+  failReason?: string;
+  createTime?: string;
+  expireTime?: string;
+}
+
 export interface DashboardOverview {
   reportDate: string;
   totalSites: number;
   activeSites: number;
   totalProjects: number;
   activeProjects: number;
+  totalOrgs: number;
+  activeOrgs: number;
   totalVehicles: number;
   movingVehicles: number;
   dailyVolume: number;
   monthlyVolume: number;
   warningCount: number;
+}
+
+export interface DashboardOrgItem {
+  orgId: string;
+  orgName: string;
+  activeProjectCount: number;
+  totalVehicles: number;
+  movingVehicles: number;
+  volume: number;
+  warningCount: number;
+  rank: number;
 }
 
 export interface ProjectAlertItem {
@@ -169,6 +248,60 @@ interface ProjectRankingResponse {
   rank: number;
   status: string;
   progressPercent?: number;
+}
+
+interface ProjectReportSummaryResponse {
+  periodType?: string;
+  reportPeriod?: string;
+  projectCount?: number;
+  activeProjectCount?: number;
+  totalTrips?: number;
+  periodVolume?: number;
+  periodAmount?: number;
+  projectTotal?: number;
+  accumulatedVolume?: number;
+  progressPercent?: number;
+}
+
+interface ProjectReportItemResponse {
+  projectId?: string;
+  projectCode?: string;
+  projectName?: string;
+  orgName?: string;
+  reportPeriod?: string;
+  periodVolume?: number;
+  periodAmount?: number;
+  periodTrips?: number;
+  accumulatedVolume?: number;
+  projectTotal?: number;
+  remainingVolume?: number;
+  progressPercent?: number;
+  status?: string;
+}
+
+interface ProjectViolationSummaryResponse {
+  reportPeriod?: string;
+  totalViolations?: number;
+  handledCount?: number;
+  pendingCount?: number;
+  vehicleCount?: number;
+  fleetCount?: number;
+  teamCount?: number;
+}
+
+interface ProjectViolationStatItemResponse {
+  name?: string;
+  violationCount?: number;
+  handledCount?: number;
+  pendingCount?: number;
+  latestTriggerTime?: string;
+}
+
+interface ProjectViolationAnalysisResponse {
+  summary?: ProjectViolationSummaryResponse;
+  byFleet?: ProjectViolationStatItemResponse[];
+  byPlate?: ProjectViolationStatItemResponse[];
+  byTeam?: ProjectViolationStatItemResponse[];
 }
 
 interface SiteRankingResponse {
@@ -260,6 +393,107 @@ export async function fetchProjectRanking(params?: { date?: string; limit?: numb
   }));
 }
 
+export async function fetchProjectReportSummary(params: {
+  periodType?: string;
+  date?: string;
+  projectId?: string;
+  keyword?: string;
+}) {
+  const res = await http.get<ProjectReportSummaryResponse>('/reports/projects/summary', { params });
+  return {
+    periodType: res.data.periodType || 'MONTH',
+    reportPeriod: res.data.reportPeriod || '',
+    projectCount: toNumber(res.data.projectCount),
+    activeProjectCount: toNumber(res.data.activeProjectCount),
+    totalTrips: toNumber(res.data.totalTrips),
+    periodVolume: toNumber(res.data.periodVolume),
+    periodAmount: toNumber(res.data.periodAmount),
+    projectTotal: toNumber(res.data.projectTotal),
+    accumulatedVolume: toNumber(res.data.accumulatedVolume),
+    progressPercent: toNumber(res.data.progressPercent),
+  };
+}
+
+export async function fetchProjectReportList(params: {
+  periodType?: string;
+  date?: string;
+  projectId?: string;
+  keyword?: string;
+  pageNo?: number;
+  pageSize?: number;
+}) {
+  const res = await http.get<PageResult<ProjectReportItemResponse>>('/reports/projects/list', { params });
+  return {
+    ...res.data,
+    records: (res.data.records || []).map((item) => ({
+      projectId: item.projectId || '',
+      projectCode: item.projectCode || '',
+      projectName: item.projectName || '',
+      orgName: item.orgName || '',
+      reportPeriod: item.reportPeriod || '',
+      periodVolume: toNumber(item.periodVolume),
+      periodAmount: toNumber(item.periodAmount),
+      periodTrips: toNumber(item.periodTrips),
+      accumulatedVolume: toNumber(item.accumulatedVolume),
+      projectTotal: toNumber(item.projectTotal),
+      remainingVolume: toNumber(item.remainingVolume),
+      progressPercent: toNumber(item.progressPercent),
+      status: item.status || '-',
+    })),
+  };
+}
+
+export async function fetchProjectReportTrend(params: {
+  periodType?: string;
+  date?: string;
+  projectId?: string;
+  keyword?: string;
+  limit?: number;
+}) {
+  const res = await http.get<Partial<ReportTrendItem>[]>('/reports/projects/trend', { params });
+  return (Array.isArray(res.data) ? res.data : []).map(mapTrend);
+}
+
+export async function exportProjectReport(payload: {
+  periodType?: string;
+  date?: string;
+  projectId?: string;
+  keyword?: string;
+}) {
+  const res = await http.post<{ taskId: string }>('/reports/projects/export', payload);
+  return res.data;
+}
+
+export async function fetchProjectViolationAnalysis(params: {
+  periodType?: string;
+  date?: string;
+  keyword?: string;
+  violationType?: string;
+}) {
+  const res = await http.get<ProjectViolationAnalysisResponse>('/reports/projects/violations', { params });
+  const mapItem = (item: ProjectViolationStatItemResponse): ProjectViolationStatItem => ({
+    name: item.name || '-',
+    violationCount: toNumber(item.violationCount),
+    handledCount: toNumber(item.handledCount),
+    pendingCount: toNumber(item.pendingCount),
+    latestTriggerTime: item.latestTriggerTime || null,
+  });
+  return {
+    summary: {
+      reportPeriod: res.data.summary?.reportPeriod || '',
+      totalViolations: toNumber(res.data.summary?.totalViolations),
+      handledCount: toNumber(res.data.summary?.handledCount),
+      pendingCount: toNumber(res.data.summary?.pendingCount),
+      vehicleCount: toNumber(res.data.summary?.vehicleCount),
+      fleetCount: toNumber(res.data.summary?.fleetCount),
+      teamCount: toNumber(res.data.summary?.teamCount),
+    },
+    byFleet: (res.data.byFleet || []).map(mapItem),
+    byPlate: (res.data.byPlate || []).map(mapItem),
+    byTeam: (res.data.byTeam || []).map(mapItem),
+  };
+}
+
 export async function fetchSiteRanking(params?: { date?: string; limit?: number }) {
   const res = await http.get<SiteRankingResponse[]>('/reports/sites/ranking', { params });
   return (Array.isArray(res.data) ? res.data : []).map((item) => ({
@@ -277,6 +511,8 @@ export async function fetchSiteRanking(params?: { date?: string; limit?: number 
 export async function fetchSiteReportSummary(params: {
   periodType?: string;
   date?: string;
+  startDate?: string;
+  endDate?: string;
   siteId?: string;
   keyword?: string;
 }) {
@@ -298,6 +534,8 @@ export async function fetchSiteReportSummary(params: {
 export async function fetchSiteReportList(params: {
   periodType?: string;
   date?: string;
+  startDate?: string;
+  endDate?: string;
   siteId?: string;
   keyword?: string;
   pageNo?: number;
@@ -327,6 +565,8 @@ export async function fetchSiteReportList(params: {
 export async function fetchSiteReportTrend(params: {
   periodType?: string;
   date?: string;
+  startDate?: string;
+  endDate?: string;
   siteId?: string;
   keyword?: string;
   limit?: number;
@@ -338,11 +578,25 @@ export async function fetchSiteReportTrend(params: {
 export async function exportSiteReport(payload: {
   periodType?: string;
   date?: string;
+  startDate?: string;
+  endDate?: string;
   siteId?: string;
   keyword?: string;
 }) {
   const res = await http.post<{ taskId: string }>('/reports/sites/export', payload);
   return res.data;
+}
+
+export async function fetchExportTask(taskId: string | number) {
+  const res = await http.get<ExportTaskRecord>(`/export-tasks/${taskId}`);
+  return res.data;
+}
+
+export async function downloadExportTask(taskId: string | number) {
+  const res = await request.get(`/export-tasks/${taskId}/download`, {
+    responseType: 'blob',
+  });
+  return res as unknown as Blob;
 }
 
 export async function fetchDashboardOverview(params?: { date?: string }) {
@@ -353,6 +607,8 @@ export async function fetchDashboardOverview(params?: { date?: string }) {
     activeSites: toNumber(res.data.activeSites),
     totalProjects: toNumber(res.data.totalProjects),
     activeProjects: toNumber(res.data.activeProjects),
+    totalOrgs: toNumber(res.data.totalOrgs),
+    activeOrgs: toNumber(res.data.activeOrgs),
     totalVehicles: toNumber(res.data.totalVehicles),
     movingVehicles: toNumber(res.data.movingVehicles),
     dailyVolume: toNumber(res.data.dailyVolume),
@@ -375,6 +631,20 @@ export async function fetchProjectAlerts(params?: { date?: string; limit?: numbe
     progressPercent: toNumber(item.progressPercent),
     status: item.status || '-',
     warningLevel: toNumber(item.warningLevel),
+  }));
+}
+
+export async function fetchDashboardOrgAnalysis(params?: { date?: string; limit?: number }) {
+  const res = await http.get<Partial<DashboardOrgItem>[]>('/reports/dashboard/org-analysis', { params });
+  return (Array.isArray(res.data) ? res.data : []).map((item) => ({
+    orgId: item.orgId || '',
+    orgName: item.orgName || '未归属单位',
+    activeProjectCount: toNumber(item.activeProjectCount),
+    totalVehicles: toNumber(item.totalVehicles),
+    movingVehicles: toNumber(item.movingVehicles),
+    volume: toNumber(item.volume),
+    warningCount: toNumber(item.warningCount),
+    rank: toNumber(item.rank),
   }));
 }
 

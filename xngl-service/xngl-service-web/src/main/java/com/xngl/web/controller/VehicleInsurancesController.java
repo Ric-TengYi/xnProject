@@ -8,15 +8,16 @@ import com.xngl.infrastructure.persistence.entity.vehicle.VehicleInsuranceRecord
 import com.xngl.infrastructure.persistence.mapper.OrgMapper;
 import com.xngl.infrastructure.persistence.mapper.VehicleInsuranceRecordMapper;
 import com.xngl.infrastructure.persistence.mapper.VehicleMapper;
-import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
 import com.xngl.web.dto.vehicle.VehicleInsuranceListItemDto;
 import com.xngl.web.dto.vehicle.VehicleInsuranceSummaryDto;
 import com.xngl.web.dto.vehicle.VehicleInsuranceUpsertDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -29,11 +30,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -49,17 +54,17 @@ public class VehicleInsurancesController {
   private final VehicleInsuranceRecordMapper insuranceMapper;
   private final VehicleMapper vehicleMapper;
   private final OrgMapper orgMapper;
-  private final UserService userService;
+  private final UserContext userContext;
 
   public VehicleInsurancesController(
       VehicleInsuranceRecordMapper insuranceMapper,
       VehicleMapper vehicleMapper,
       OrgMapper orgMapper,
-      UserService userService) {
+      UserContext userContext) {
     this.insuranceMapper = insuranceMapper;
     this.vehicleMapper = vehicleMapper;
     this.orgMapper = orgMapper;
-    this.userService = userService;
+    this.userContext = userContext;
   }
 
   @GetMapping
@@ -68,12 +73,28 @@ public class VehicleInsurancesController {
       @RequestParam(required = false) String status,
       @RequestParam(required = false) Long orgId,
       @RequestParam(required = false) Long vehicleId,
+      @RequestParam(required = false) String startDateFrom,
+      @RequestParam(required = false) String startDateTo,
+      @RequestParam(required = false) String endDateFrom,
+      @RequestParam(required = false) String endDateTo,
+      @RequestParam(required = false) Integer expiringWithinDays,
       @RequestParam(defaultValue = "1") int pageNo,
       @RequestParam(defaultValue = "20") int pageSize,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
     List<VehicleInsuranceListItemDto> rows =
-        new ArrayList<>(loadRows(currentUser.getTenantId(), keyword, status, orgId, vehicleId));
+        new ArrayList<>(
+            loadRows(
+                currentUser.getTenantId(),
+                keyword,
+                status,
+                orgId,
+                vehicleId,
+                parseDate(startDateFrom),
+                parseDate(startDateTo),
+                parseDate(endDateFrom),
+                parseDate(endDateTo),
+                expiringWithinDays));
     rows.sort(
         Comparator.comparing(
                 VehicleInsuranceListItemDto::getEndDate, Comparator.nullsLast(String::compareTo))
@@ -88,9 +109,58 @@ public class VehicleInsurancesController {
       @RequestParam(required = false) String status,
       @RequestParam(required = false) Long orgId,
       @RequestParam(required = false) Long vehicleId,
+      @RequestParam(required = false) String startDateFrom,
+      @RequestParam(required = false) String startDateTo,
+      @RequestParam(required = false) String endDateFrom,
+      @RequestParam(required = false) String endDateTo,
+      @RequestParam(required = false) Integer expiringWithinDays,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    return ApiResult.ok(toSummary(loadRows(currentUser.getTenantId(), keyword, status, orgId, vehicleId)));
+    return ApiResult.ok(
+        toSummary(
+            loadRows(
+                currentUser.getTenantId(),
+                keyword,
+                status,
+                orgId,
+                vehicleId,
+                parseDate(startDateFrom),
+                parseDate(startDateTo),
+                parseDate(endDateFrom),
+                parseDate(endDateTo),
+                expiringWithinDays)));
+  }
+
+  @GetMapping("/export")
+  public ResponseEntity<byte[]> export(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) Long orgId,
+      @RequestParam(required = false) Long vehicleId,
+      @RequestParam(required = false) String startDateFrom,
+      @RequestParam(required = false) String startDateTo,
+      @RequestParam(required = false) String endDateFrom,
+      @RequestParam(required = false) String endDateTo,
+      @RequestParam(required = false) Integer expiringWithinDays,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    List<VehicleInsuranceListItemDto> rows =
+        loadRows(
+            currentUser.getTenantId(),
+            keyword,
+            status,
+            orgId,
+            vehicleId,
+            parseDate(startDateFrom),
+            parseDate(startDateTo),
+            parseDate(endDateFrom),
+            parseDate(endDateTo),
+            expiringWithinDays);
+    String csv = buildInsuranceCsv(rows);
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=vehicle_insurances.csv")
+        .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+        .body(csv.getBytes(StandardCharsets.UTF_8));
   }
 
   @PostMapping
@@ -122,8 +192,27 @@ public class VehicleInsurancesController {
     return ApiResult.ok(loadDto(id, currentUser.getTenantId()));
   }
 
+  @DeleteMapping("/{id}")
+  public ApiResult<Void> delete(@PathVariable Long id, HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    VehicleInsuranceRecord entity = requireInsurance(id, currentUser.getTenantId());
+    Long vehicleId = entity.getVehicleId();
+    insuranceMapper.deleteById(id);
+    syncVehicleInsuranceExpireDate(vehicleId);
+    return ApiResult.ok();
+  }
+
   private List<VehicleInsuranceListItemDto> loadRows(
-      Long tenantId, String keyword, String status, Long orgId, Long vehicleId) {
+      Long tenantId,
+      String keyword,
+      String status,
+      Long orgId,
+      Long vehicleId,
+      LocalDate startDateFrom,
+      LocalDate startDateTo,
+      LocalDate endDateFrom,
+      LocalDate endDateTo,
+      Integer expiringWithinDays) {
     List<VehicleInsuranceRecord> rows =
         insuranceMapper.selectList(
             new LambdaQueryWrapper<VehicleInsuranceRecord>()
@@ -143,7 +232,56 @@ public class VehicleInsurancesController {
         .filter(dto -> matchKeyword(dto, keywordValue))
         .filter(dto -> !StringUtils.hasText(statusValue) || statusValue.equalsIgnoreCase(dto.getStatus()))
         .filter(dto -> orgId == null || Objects.equals(parseLong(dto.getOrgId()), orgId))
+        .filter(dto -> matchDateRange(dto.getStartDate(), startDateFrom, startDateTo))
+        .filter(dto -> matchDateRange(dto.getEndDate(), endDateFrom, endDateTo))
+        .filter(dto -> matchExpiringWithinDays(dto.getRemainingDays(), dto.getStatus(), expiringWithinDays))
         .toList();
+  }
+
+  private boolean matchDateRange(String value, LocalDate from, LocalDate to) {
+    if (value == null && (from != null || to != null)) {
+      return false;
+    }
+    if (!StringUtils.hasText(value)) {
+      return true;
+    }
+    LocalDate date = parseDate(value);
+    if (date == null) {
+      return false;
+    }
+    return (from == null || !date.isBefore(from)) && (to == null || !date.isAfter(to));
+  }
+
+  private boolean matchExpiringWithinDays(Integer remainingDays, String status, Integer expiringWithinDays) {
+    if (expiringWithinDays == null) {
+      return true;
+    }
+    if (!"ACTIVE".equalsIgnoreCase(status) && !"EXPIRING".equalsIgnoreCase(status)) {
+      return false;
+    }
+    return remainingDays != null && remainingDays >= 0 && remainingDays <= expiringWithinDays;
+  }
+
+  private String buildInsuranceCsv(List<VehicleInsuranceListItemDto> rows) {
+    StringBuilder builder =
+        new StringBuilder("车牌号,所属单位,保单号,险种,承保公司,保额,保费,赔付,开始日期,结束日期,剩余天数,状态,备注\n");
+    for (VehicleInsuranceListItemDto row : rows) {
+      builder
+          .append(csv(row.getPlateNo())).append(',')
+          .append(csv(row.getOrgName())).append(',')
+          .append(csv(row.getPolicyNo())).append(',')
+          .append(csv(row.getInsuranceType())).append(',')
+          .append(csv(row.getInsurerName())).append(',')
+          .append(defaultDecimal(row.getCoverageAmount())).append(',')
+          .append(defaultDecimal(row.getPremiumAmount())).append(',')
+          .append(defaultDecimal(row.getClaimAmount())).append(',')
+          .append(csv(row.getStartDate())).append(',')
+          .append(csv(row.getEndDate())).append(',')
+          .append(row.getRemainingDays() != null ? row.getRemainingDays() : "").append(',')
+          .append(csv(row.getStatusLabel())).append(',')
+          .append(csv(row.getRemark())).append('\n');
+    }
+    return builder.toString();
   }
 
   private VehicleInsuranceSummaryDto toSummary(List<VehicleInsuranceListItemDto> rows) {
@@ -368,22 +506,7 @@ public class VehicleInsurancesController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      if (user.getTenantId() == null) {
-        throw new BizException(403, "当前用户未绑定租户");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 
   private BigDecimal defaultDecimal(BigDecimal value) {
@@ -400,6 +523,24 @@ public class VehicleInsurancesController {
 
   private String formatDate(LocalDate value) {
     return value != null ? value.format(ISO_DATE) : null;
+  }
+
+  private LocalDate parseDate(String value) {
+    if (!StringUtils.hasText(value)) {
+      return null;
+    }
+    try {
+      return LocalDate.parse(value.trim(), ISO_DATE);
+    } catch (Exception ex) {
+      throw new BizException(400, "日期格式错误，应为 yyyy-MM-dd");
+    }
+  }
+
+  private String csv(String value) {
+    if (value == null) {
+      return "";
+    }
+    return '"' + value.replace("\"", "\"\"") + '"';
   }
 
   private Long parseLong(String value) {

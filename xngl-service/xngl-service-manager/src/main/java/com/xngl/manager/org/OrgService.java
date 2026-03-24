@@ -10,7 +10,11 @@ public interface OrgService {
 
   List<Org> listTree(Long tenantId, String keyword, String status);
 
+  List<Org> listByTenantId(Long tenantId);
+
   long create(Org org);
+
+  CreateOrgResult createWithAdmin(Long tenantId, Long operatorId, Org org);
 
   void update(Org org);
 

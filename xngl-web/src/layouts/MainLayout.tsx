@@ -11,6 +11,7 @@ import {
   SearchOutlined,
   UserOutlined,
   SettingOutlined,
+  DatabaseOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   FullscreenOutlined,
@@ -57,6 +58,11 @@ const items: MenuItem[] = [
     getItem(<Link to="/projects/payments">交款数据</Link>, '/projects/payments'),
     getItem(<Link to="/projects/permits">处置证清单</Link>, '/projects/permits'),
     getItem(<Link to="/projects/daily-report">项目日报</Link>, '/projects/daily-report'),
+    getItem(<Link to="/projects/reports">项目报表</Link>, '/projects/reports'),
+  ]),
+  getItem('信息查询', 'queries', <DatabaseOutlined />, [
+    getItem(<Link to="/queries/checkins">打卡数据</Link>, '/queries/checkins'),
+    getItem(<Link to="/queries/disposals">消纳信息</Link>, '/queries/disposals'),
   ]),
   getItem('消纳场地', 'sites', <EnvironmentOutlined />, [
     getItem(<Link to="/sites">场地列表</Link>, '/sites'),
@@ -80,6 +86,7 @@ const items: MenuItem[] = [
   getItem('合同与结算', 'contracts', <ContainerOutlined />, [
     getItem(<Link to="/contracts">合同清单</Link>, '/contracts'),
     getItem(<Link to="/contracts/payments">合同入账</Link>, '/contracts/payments'),
+    getItem(<Link to="/contracts/transfers">内拨申请</Link>, '/contracts/transfers'),
     getItem(<Link to="/contracts/settlements">结算管理</Link>, '/contracts/settlements'),
     getItem(<Link to="/contracts/monthly-report">月报统计</Link>, '/contracts/monthly-report'),
   ]),
@@ -89,13 +96,17 @@ const items: MenuItem[] = [
     getItem(<Link to="/alerts/events">事件管理</Link>, '/alerts/events'),
     getItem(<Link to="/alerts/security">安全台账</Link>, '/alerts/security'),
   ]),
+  getItem('消息中心', 'messages', <BellOutlined />, [
+    getItem(<Link to="/messages">消息管理</Link>, '/messages'),
+  ]),
   getItem('系统设置', 'settings', <SettingOutlined />, [
-    getItem(<Link to="/settings/units">单位管理</Link>, '/settings/units'),
-    getItem(<Link to="/settings/organization">组织人员</Link>, '/settings/organization'),
+    getItem(<Link to="/settings/org">组织管理</Link>, '/settings/org'),
+    getItem(<Link to="/settings/users">用户管理</Link>, '/settings/users'),
     getItem(<Link to="/settings/roles">角色管理</Link>, '/settings/roles'),
     getItem(<Link to="/settings/dictionary">数据字典</Link>, '/settings/dictionary'),
     getItem(<Link to="/settings/approvals">审批配置</Link>, '/settings/approvals'),
     getItem(<Link to="/settings/system-params">系统参数</Link>, '/settings/system-params'),
+    getItem(<Link to="/settings/platform-integrations">平台对接</Link>, '/settings/platform-integrations'),
     getItem(<Link to="/settings/logs">系统日志</Link>, '/settings/logs'),
   ]),
 ];
@@ -250,7 +261,7 @@ const MainLayout: React.FC = () => {
             theme="light"
             defaultSelectedKeys={[location.pathname]}
             selectedKeys={[location.pathname]}
-            defaultOpenKeys={['dashboard', 'projects', 'sites', 'vehicles', 'contracts', 'alerts', 'settings'].filter(
+            defaultOpenKeys={['dashboard', 'projects', 'queries', 'sites', 'vehicles', 'contracts', 'alerts', 'messages', 'settings'].filter(
               (key) => location.pathname.includes(key) || (key === 'dashboard' && location.pathname === '/')
             )}
             mode="inline"
@@ -317,18 +328,7 @@ const MainLayout: React.FC = () => {
             boxShadow: '0 3px 6px -4px rgba(0, 0, 0, 0.08)',
           }}
         >
-          <div className="w-1/3">
-            <Input
-              placeholder="搜索项目、场地或车牌号..."
-              prefix={<SearchOutlined className="text-[var(--text-secondary)]" />}
-              style={{
-                background: 'rgba(0,0,0,0.04)',
-                border: '1px solid var(--border-color)',
-                color: 'var(--text-primary)',
-              }}
-              className="hover:border-[var(--primary)] focus:border-[var(--primary)]"
-            />
-          </div>
+          <div className="w-1/3" />
           <div className="flex items-center gap-6">
             <Badge dot color="var(--error)" size="default">
               <Button type="text" icon={<BellOutlined style={{ fontSize: '18px', color: 'var(--text-primary)' }} />} aria-label="报警" />

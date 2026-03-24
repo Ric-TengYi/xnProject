@@ -13,6 +13,7 @@ import com.xngl.web.dto.contract.ApprovalActionDto;
 import com.xngl.web.dto.contract.ContractTransferCreateDto;
 import com.xngl.web.dto.contract.ContractTransferItemDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.time.LocalDateTime;
@@ -40,14 +41,16 @@ public class ContractTransferController {
   private final ContractApplyService contractApplyService;
   private final ContractService contractService;
   private final UserService userService;
+  private final UserContext userContext;
 
   public ContractTransferController(
       ContractApplyService contractApplyService,
       ContractService contractService,
-      UserService userService) {
+      UserService userService, UserContext userContext) {
     this.contractApplyService = contractApplyService;
     this.contractService = contractService;
     this.userService = userService;
+    this.userContext = userContext;
   }
 
   @PostMapping("/transfers")
@@ -153,22 +156,7 @@ public class ContractTransferController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (userId == null || userId.isBlank()) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      if (user.getTenantId() == null) {
-        throw new BizException(403, "当前用户未绑定租户");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 
   private String str(Long value) {

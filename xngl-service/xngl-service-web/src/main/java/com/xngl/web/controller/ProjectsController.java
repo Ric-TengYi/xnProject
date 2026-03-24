@@ -4,28 +4,39 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xngl.infrastructure.persistence.entity.contract.Contract;
+import com.xngl.infrastructure.persistence.entity.contract.ContractTicket;
+import com.xngl.infrastructure.persistence.entity.alert.AlertFence;
 import com.xngl.infrastructure.persistence.entity.organization.Org;
 import com.xngl.infrastructure.persistence.entity.organization.User;
+import com.xngl.infrastructure.persistence.entity.project.ProjectConfig;
 import com.xngl.infrastructure.persistence.entity.project.Project;
 import com.xngl.infrastructure.persistence.entity.site.Site;
+import com.xngl.infrastructure.persistence.mapper.AlertFenceMapper;
 import com.xngl.infrastructure.persistence.mapper.ContractMapper;
+import com.xngl.infrastructure.persistence.mapper.ContractTicketMapper;
 import com.xngl.infrastructure.persistence.mapper.OrgMapper;
+import com.xngl.infrastructure.persistence.mapper.ProjectConfigMapper;
 import com.xngl.infrastructure.persistence.mapper.ProjectMapper;
 import com.xngl.infrastructure.persistence.mapper.SiteMapper;
 import com.xngl.manager.project.ProjectPaymentService;
 import com.xngl.manager.project.ProjectPaymentSummaryVo;
-import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
+import com.xngl.web.dto.project.ProjectConfigDto;
+import com.xngl.web.dto.project.ProjectContractSummaryDto;
 import com.xngl.web.dto.project.ProjectDetailDto;
 import com.xngl.web.dto.project.ProjectListItemDto;
+import com.xngl.web.dto.project.ProjectSiteSummaryDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -51,23 +62,32 @@ public class ProjectsController {
   private final ProjectMapper projectMapper;
   private final OrgMapper orgMapper;
   private final ContractMapper contractMapper;
+  private final ContractTicketMapper contractTicketMapper;
   private final SiteMapper siteMapper;
+  private final ProjectConfigMapper projectConfigMapper;
+  private final AlertFenceMapper alertFenceMapper;
   private final ProjectPaymentService projectPaymentService;
-  private final UserService userService;
+  private final UserContext userContext;
 
   public ProjectsController(
       ProjectMapper projectMapper,
       OrgMapper orgMapper,
       ContractMapper contractMapper,
+      ContractTicketMapper contractTicketMapper,
       SiteMapper siteMapper,
+      ProjectConfigMapper projectConfigMapper,
+      AlertFenceMapper alertFenceMapper,
       ProjectPaymentService projectPaymentService,
-      UserService userService) {
+      UserContext userContext) {
     this.projectMapper = projectMapper;
     this.orgMapper = orgMapper;
     this.contractMapper = contractMapper;
+    this.contractTicketMapper = contractTicketMapper;
     this.siteMapper = siteMapper;
+    this.projectConfigMapper = projectConfigMapper;
+    this.alertFenceMapper = alertFenceMapper;
     this.projectPaymentService = projectPaymentService;
-    this.userService = userService;
+    this.userContext = userContext;
   }
 
   @GetMapping
@@ -158,6 +178,8 @@ public class ProjectsController {
 
   private ProjectDetailDto toDetail(Project project, Org org, Long tenantId) {
     ProjectListItemDto item = toListItem(project, org, tenantId);
+    List<ProjectContractSummaryDto> contractDetails = loadContractDetails(tenantId, project.getId());
+    List<ProjectSiteSummaryDto> siteDetails = summarizeSites(contractDetails);
     ProjectDetailDto dto = new ProjectDetailDto();
     dto.setId(item.getId());
     dto.setCode(item.getCode());
@@ -177,7 +199,170 @@ public class ProjectsController {
     dto.setCreateTime(item.getCreateTime());
     dto.setUpdateTime(item.getUpdateTime());
     dto.setPaymentStatusLabel(resolvePaymentStatusLabel(item.getPaymentStatus()));
+    dto.setContractDetails(contractDetails);
+    dto.setSiteDetails(siteDetails);
+    dto.setConfig(loadProjectConfig(tenantId, project.getId()));
     return dto;
+  }
+
+  private List<ProjectContractSummaryDto> loadContractDetails(Long tenantId, Long projectId) {
+    List<Contract> contracts =
+        contractMapper.selectList(
+            new LambdaQueryWrapper<Contract>()
+                .eq(Contract::getTenantId, tenantId)
+                .eq(Contract::getProjectId, projectId)
+                .orderByDesc(Contract::getUpdateTime)
+                .orderByDesc(Contract::getId));
+    if (contracts.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    LinkedHashSet<Long> siteIds =
+        contracts.stream()
+            .map(Contract::getSiteId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+    Map<Long, Site> siteMap =
+        siteIds.isEmpty()
+            ? Collections.emptyMap()
+            : siteMapper.selectBatchIds(siteIds).stream()
+                .filter(site -> site.getId() != null)
+                .collect(Collectors.toMap(Site::getId, Function.identity(), (left, right) -> left));
+
+    LinkedHashSet<Long> contractIds =
+        contracts.stream()
+            .map(Contract::getId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+    Map<Long, BigDecimal> disposedVolumeMap = new LinkedHashMap<>();
+    if (!contractIds.isEmpty()) {
+      contractTicketMapper.selectList(
+              new LambdaQueryWrapper<ContractTicket>()
+                  .in(ContractTicket::getContractId, contractIds)
+                  .notIn(ContractTicket::getStatus, List.of("VOID", "CANCELLED")))
+          .forEach(
+              ticket ->
+                  disposedVolumeMap.merge(
+                      ticket.getContractId(),
+                      defaultDecimal(ticket.getVolume()),
+                      BigDecimal::add));
+    }
+
+    return contracts.stream()
+        .map(
+            contract -> {
+              Site site = siteMap.get(contract.getSiteId());
+              BigDecimal agreedVolume = defaultDecimal(contract.getAgreedVolume());
+              BigDecimal disposedVolume = defaultDecimal(disposedVolumeMap.get(contract.getId()));
+              BigDecimal remainingVolume = agreedVolume.subtract(disposedVolume);
+              if (remainingVolume.signum() < 0) {
+                remainingVolume = BigDecimal.ZERO;
+              }
+              return new ProjectContractSummaryDto(
+                  stringValue(contract.getId()),
+                  contract.getContractNo(),
+                  contract.getName(),
+                  stringValue(contract.getSiteId()),
+                  site != null ? site.getName() : null,
+                  site != null ? site.getSiteType() : null,
+                  agreedVolume,
+                  disposedVolume,
+                  remainingVolume,
+                  contract.getUnitPrice(),
+                  contract.getContractAmount(),
+                  contract.getContractStatus(),
+                  contract.getApprovalStatus(),
+                  formatDate(contract.getExpireDate()));
+            })
+        .toList();
+  }
+
+  private List<ProjectSiteSummaryDto> summarizeSites(List<ProjectContractSummaryDto> contractDetails) {
+    if (contractDetails.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    LinkedHashSet<Long> siteIds =
+        contractDetails.stream()
+            .map(ProjectContractSummaryDto::getSiteId)
+            .filter(StringUtils::hasText)
+            .map(Long::valueOf)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+    Map<Long, Site> siteMap =
+        siteIds.isEmpty()
+            ? Collections.emptyMap()
+            : siteMapper.selectBatchIds(siteIds).stream()
+                .filter(site -> site.getId() != null)
+                .collect(Collectors.toMap(Site::getId, Function.identity(), (left, right) -> left));
+
+    Map<String, List<ProjectContractSummaryDto>> grouped =
+        contractDetails.stream()
+            .collect(
+                Collectors.groupingBy(
+                    item -> StringUtils.hasText(item.getSiteId()) ? item.getSiteId() : "UNASSIGNED",
+                    LinkedHashMap::new,
+                    Collectors.toList()));
+    List<ProjectSiteSummaryDto> records = new ArrayList<>();
+    grouped.forEach(
+        (siteId, items) -> {
+          Site site = "UNASSIGNED".equals(siteId) ? null : siteMap.get(Long.valueOf(siteId));
+          BigDecimal contractVolume =
+              items.stream()
+                  .map(ProjectContractSummaryDto::getAgreedVolume)
+                  .reduce(BigDecimal.ZERO, BigDecimal::add);
+          BigDecimal disposedVolume =
+              items.stream()
+                  .map(ProjectContractSummaryDto::getDisposedVolume)
+                  .reduce(BigDecimal.ZERO, BigDecimal::add);
+          BigDecimal remainingVolume =
+              items.stream()
+                  .map(ProjectContractSummaryDto::getRemainingVolume)
+                  .reduce(BigDecimal.ZERO, BigDecimal::add);
+          records.add(
+              new ProjectSiteSummaryDto(
+                  "UNASSIGNED".equals(siteId) ? null : siteId,
+                  site != null ? site.getName() : "未关联场地",
+                  site != null ? site.getSiteType() : null,
+                  site != null ? site.getCapacity() : BigDecimal.ZERO,
+                  site != null ? site.getLng() : null,
+                  site != null ? site.getLat() : null,
+                  (long) items.size(),
+                  contractVolume,
+                  disposedVolume,
+                  remainingVolume));
+        });
+    return records;
+  }
+
+  private ProjectConfigDto loadProjectConfig(Long tenantId, Long projectId) {
+    ProjectConfig config =
+        projectConfigMapper.selectOne(
+            new LambdaQueryWrapper<ProjectConfig>()
+                .eq(ProjectConfig::getTenantId, tenantId)
+                .eq(ProjectConfig::getProjectId, projectId)
+                .last("limit 1"));
+    AlertFence fence = null;
+    if (config != null && StringUtils.hasText(config.getViolationFenceCode())) {
+      fence =
+          alertFenceMapper.selectOne(
+              new LambdaQueryWrapper<AlertFence>()
+                  .eq(AlertFence::getTenantId, tenantId)
+                  .eq(AlertFence::getFenceCode, config.getViolationFenceCode())
+                  .last("limit 1"));
+    }
+    return new ProjectConfigDto(
+        config != null && Objects.equals(config.getCheckinEnabled(), 1),
+        config != null ? config.getCheckinAccount() : null,
+        config != null ? config.getCheckinAuthScope() : null,
+        config != null && Objects.equals(config.getLocationCheckRequired(), 1),
+        config != null ? config.getLocationRadiusMeters() : BigDecimal.ZERO,
+        config != null ? config.getPreloadVolume() : BigDecimal.ZERO,
+        config != null ? config.getRouteGeoJson() : null,
+        config != null && Objects.equals(config.getViolationRuleEnabled(), 1),
+        config != null ? config.getViolationFenceCode() : null,
+        fence != null ? fence.getFenceName() : null,
+        fence != null ? fence.getGeoJson() : null,
+        config != null ? config.getRemark() : null);
   }
 
   private long countContracts(Long tenantId, Long projectId) {
@@ -193,22 +378,7 @@ public class ProjectsController {
   }
 
   private User requireCurrentUser(HttpServletRequest request) {
-    String userId = (String) request.getAttribute("userId");
-    if (!StringUtils.hasText(userId)) {
-      throw new BizException(401, "未登录或 token 无效");
-    }
-    try {
-      User user = userService.getById(Long.parseLong(userId));
-      if (user == null) {
-        throw new BizException(401, "用户不存在");
-      }
-      if (user.getTenantId() == null) {
-        throw new BizException(403, "当前用户未绑定租户");
-      }
-      return user;
-    } catch (NumberFormatException ex) {
-      throw new BizException(401, "token 中的用户信息无效");
-    }
+    return userContext.requireCurrentUser(request);
   }
 
   private String resolveProjectStatusLabel(Integer status) {
@@ -237,6 +407,10 @@ public class ProjectsController {
 
   private String stringValue(Long value) {
     return value != null ? String.valueOf(value) : null;
+  }
+
+  private BigDecimal defaultDecimal(BigDecimal value) {
+    return value != null ? value : BigDecimal.ZERO;
   }
 
   private String formatDate(LocalDate value) {

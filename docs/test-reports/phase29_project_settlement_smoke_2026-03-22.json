@@ -1,0 +1,30 @@
+{
+  "results": [
+    {
+      "name": "API login",
+      "ok": true,
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "API generate project settlement",
+      "ok": true,
+      "detail": "项目结算单生成成功，ID=23"
+    },
+    {
+      "name": "API settlement detail",
+      "ok": true,
+      "detail": "详情返回 1 个合同汇总、1 条结算明细，已包含 contractNo"
+    },
+    {
+      "name": "API settlement list",
+      "ok": true,
+      "detail": "项目结算列表可按项目筛选并回查新生成结算单"
+    },
+    {
+      "name": "API settlement approval",
+      "ok": true,
+      "detail": "项目结算单提交并审批通过后，状态变为 SETTLED / APPROVED"
+    }
+  ],
+  "context": "/tmp/phase29_project_settlement_context.json"
+}

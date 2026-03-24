@@ -1,0 +1,59 @@
+{
+  "phase": 20,
+  "name": "user_create_smoke",
+  "date": "2026-03-21",
+  "total": 9,
+  "passed": 9,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "admin_login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "name": "user_create",
+      "status": "PASS",
+      "detail": "新增人员接口成功创建测试账号"
+    },
+    {
+      "name": "user_detail_binding",
+      "status": "PASS",
+      "detail": "详情返回主组织名称、所属组织列表、角色列表、needResetPassword=1"
+    },
+    {
+      "name": "user_relation_endpoints",
+      "status": "PASS",
+      "detail": "/users/{id}/roles 与 /users/{id}/orgs 可用"
+    },
+    {
+      "name": "user_list_binding",
+      "status": "PASS",
+      "detail": "列表返回 mainOrgName 和 roleNames"
+    },
+    {
+      "name": "default_password_login",
+      "status": "PASS",
+      "detail": "默认初始密码 123456 可登录"
+    },
+    {
+      "name": "frontend_entry",
+      "status": "PASS",
+      "detail": "Organization 已接入新增人员弹窗、主组织/角色选择和默认密码提示"
+    },
+    {
+      "name": "backend_build",
+      "status": "PASS",
+      "detail": "mvn -q -DskipTests install 通过"
+    },
+    {
+      "name": "frontend_build",
+      "status": "PASS",
+      "detail": "npm run build 通过"
+    }
+  ],
+  "notes": [
+    "删除接口为逻辑删除，测试后已物理清理测试账号。",
+    "用户新增默认初始密码为 123456，并设置 needResetPassword=1。"
+  ]
+}

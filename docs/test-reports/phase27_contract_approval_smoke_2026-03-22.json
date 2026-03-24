@@ -1,0 +1,40 @@
+{
+  "results": [
+    {
+      "name": "API login",
+      "ok": true,
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "API contract create",
+      "ok": true,
+      "detail": "创建 3 份审批测试合同成功：HT-APPROVAL-APPROVE-1774151741 / HT-APPROVAL-REJECT-1774151741 / HT-APPROVAL-UI-1774151741",
+      "extra": {
+        "approveId": "48",
+        "rejectId": "49",
+        "uiId": "50"
+      }
+    },
+    {
+      "name": "API submit approval",
+      "ok": true,
+      "detail": "合同 HT-APPROVAL-APPROVE-1774151741 提交后进入 APPROVING，生成 1 条审批记录、1 份材料"
+    },
+    {
+      "name": "API approve contract",
+      "ok": true,
+      "detail": "合同 HT-APPROVAL-APPROVE-1774151741 审批通过，状态 EFFECTIVE/APPROVED，材料累计 2 份"
+    },
+    {
+      "name": "API material download",
+      "ok": true,
+      "detail": "审批文书下载成功，大小 387 bytes"
+    },
+    {
+      "name": "API reject contract",
+      "ok": true,
+      "detail": "合同 HT-APPROVAL-REJECT-1774151741 驳回成功并保留驳回原因，材料累计 2 份"
+    }
+  ],
+  "contextFile": "/tmp/phase27_contract_approval_context.json"
+}

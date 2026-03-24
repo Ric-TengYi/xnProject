@@ -1,0 +1,135 @@
+{
+  "report": "phase75_final_acceptance_regression_2026-03-23",
+  "date": "2026-03-23",
+  "phaseCount": 14,
+  "passed": 179,
+  "failed": 0,
+  "results": [
+    {
+      "script": "phase61_plan5_pending_acceptance_regression.py",
+      "status": "PASS",
+      "passed": 37,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "1\nPASS contract_transfer_list: records=4\nPASS contract_receipts_list: records=8\nPASS settlements_stats: totalOrders=10\nPASS settlements_list: records=10\nPASS contract_monthly_summary: month=2026-03\nPASS contract_monthly_trend: points=6\nPASS contract_monthly_types: rows=3\nPASS permits_list: records=12\nPASS permits_detail: permitNo=PHASE52-P-1774232802\nPASS ui_platform_integrations: title=平台对接中心, tables=4, url=http://127.0.0.1:5173/settings/platform-integrations\nPASS ui_contracts: title=合同与财务结算, tables=3, url=http://127.0.0.1:5173/contracts\nPASS ui_contract_transfers: title=内拨申请, tables=1, url=http://127.0.0.1:5173/contracts/transfers\nPASS ui_contract_payments: title=合同入账管理, tables=1, url=http://127.0.0.1:5173/contracts/payments\nPASS ui_settlements: title=结算管理, tables=1, url=http://127.0.0.1:5173/contracts/settlements\nPASS ui_monthly_report: title=月报统计, tables=1, url=http://127.0.0.1:5173/contracts/monthly-report\nPASS ui_project_permits: title=处置证清单, tables=1, url=http://127.0.0.1:5173/projects/permits\nreport json => docs/test-reports/phase61_plan5_pending_acceptance_regression_2026-03-23.json\nreport md   => docs/test-reports/phase61_plan5_pending_acceptance_regression_2026-03-23.md\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase62_vehicle_master_enhancement_regression.py",
+      "status": "PASS",
+      "passed": 15,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS vehicles_controller_export_endpoint: VehiclesController.java contains @GetMapping(\"/export\")\nPASS vehicles_controller_batch_status_endpoint: VehiclesController.java contains @PutMapping(\"/batch-status\")\nPASS vehicles_controller_batch_delete_endpoint: VehiclesController.java contains @PostMapping(\"/batch-delete\")\nPASS vehicle_models_controller_export_endpoint: VehicleModelsController.java contains @GetMapping(\"/export\")\nPASS vehicles_page_batch_actions: VehiclesManagement.tsx contains 批量设为禁用\nPASS vehicles_page_export_action: VehiclesManagement.tsx contains 导出台账\nPASS vehicle_models_page_export_action: VehicleModelsManagement.tsx contains 导出车型库\nPASS vehicles_export_runtime: bytes=2090\nPASS vehicles_create_temp_runtime: id=12\nPASS vehicles_batch_status_runtime: updated=1, status=3\nPASS vehicles_batch_delete_runtime: deleted=1\nPASS vehicle_models_export_runtime: bytes=442\nPASS vehicles_page_buttons: 车辆页面导出/批量按钮已渲染\nPASS vehicle_models_page_buttons: 车型页面导出按钮已渲染\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase63_vehicle_ops_cleanup_regression.py",
+      "status": "PASS",
+      "passed": 8,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS insurance_create_runtime: id=7\nPASS insurance_delete_runtime: deleted=7\nPASS maintenance_plan_create_runtime: id=9\nPASS maintenance_plan_delete_runtime: deleted=9\nPASS repair_create_runtime: id=10\nPASS repair_delete_runtime: deleted=10\nPASS vehicle_ops_pages_visible: 保险/维保/维修页面已正常渲染\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase64_security_ledger_detail_regression.py",
+      "status": "PASS",
+      "passed": 8,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS security_create_runtime: id=36, objectName=Demo Admin\nPASS security_filter_runtime: filtered_rows=1\nPASS security_detail_timeline_runtime: timeline_count=1\nPASS security_rectify_runtime: timeline_count=2\nPASS security_export_runtime: text/csv;charset=UTF-8\nPASS security_delete_runtime: deleted=36\nPASS security_ledger_page_visible: 安全台账页面与详情时间线区块可见\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase65_vehicle_maintenance_detail_regression.py",
+      "status": "PASS",
+      "passed": 8,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS maintenance_plan_create_runtime: plan_id=10\nPASS maintenance_plan_detail_runtime: plan_no=MPLAN-1774266136315\nPASS maintenance_execute_detail_runtime: record_id=5, cost=1300.0\nPASS maintenance_record_detail_runtime: signoff=已签字\nPASS maintenance_plan_history_runtime: history_count=1\nPASS maintenance_record_export_runtime: text/csv;charset=UTF-8\nPASS vehicle_maintenance_page_visible: 维保计划页面详情抽屉与执行历史可见\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase66_vehicle_repairs_detail_regression.py",
+      "status": "PASS",
+      "passed": 7,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS repair_create_runtime: repair_id=11\nPASS repair_approve_runtime: approved_by=Local Admin\nPASS repair_complete_runtime: actual=1980.0\nPASS repair_detail_runtime: variance=-620.0\nPASS repair_export_runtime: text/csv;charset=UTF-8\nPASS vehicle_repairs_page_visible: 维修管理页面详情抽屉可见\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase67_security_related_profile_regression.py",
+      "status": "PASS",
+      "passed": 8,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS security_person_profile_runtime: id=37, cert=1, learning=1\nPASS security_vehicle_profile_runtime: id=38, insurance=2, maintenance=1\nPASS security_site_profile_runtime: id=39, docs=7, devices=4\nPASS security_related_profile_detail_runtime: person/vehicle/site 详情安全档案已回填\nPASS security_related_profile_export_runtime: text/csv;charset=UTF-8\nPASS security_related_profile_ui_visible: 安全台账详情抽屉已展示对象安全档案区块\nPASS security_related_profile_cleanup_runtime: deleted=3\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase68_vehicle_fleet_unified_regression.py",
+      "status": "PASS",
+      "passed": 29,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "enance_plans_runtime: maintenance_plans=7\nPASS vehicle_maintenance_summary_runtime: plans=7, overdue=1\nPASS vehicle_maintenance_records_export_runtime: text/csv;charset=UTF-8\nPASS vehicle_repair_list_runtime: repairs_total=8\nPASS vehicle_repair_summary_runtime: approved=1, completed=5\nPASS vehicle_repair_export_runtime: text/csv;charset=UTF-8\nPASS vehicle_cards_list_runtime: vehicle_cards=4\nPASS vehicle_cards_summary_runtime: balance=8861.6\nPASS vehicle_cards_transaction_summary_runtime: recharge=4333.32, consume=702.22\nPASS vehicle_cards_export_runtime: text/csv;charset=UTF-8\nPASS vehicle_cards_transaction_export_runtime: text/csv;charset=UTF-8\nPASS vehicle_personnel_list_runtime: personnel_certificates=4\nPASS vehicle_personnel_summary_runtime: unpaid=3400.0\nPASS vehicle_personnel_export_runtime: text/csv;charset=UTF-8\nPASS fleet_finance_list_runtime: fleet_finance=2\nPASS fleet_finance_summary_runtime: outstanding=88000.0, profit=77900.0\nPASS fleet_finance_export_runtime: text/csv;charset=UTF-8\nPASS fleet_report_runtime: fleet_report_rows=9\nPASS fleet_report_export_runtime: text/csv;charset=UTF-8\nPASS vehicle_fleet_pages_visible: 车辆与运力资源 / 车型管理 / 维保计划 / 维修管理 / 油电卡管理 / 人证管理 / 车队管理\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase69_alerts_events_unified_regression.py",
+      "status": "PASS",
+      "passed": 13,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS manual_event_create_runtime: event_id=35\nPASS manual_event_update_runtime: phase69 事件联调-1774266164030-更新\nPASS manual_event_flow_runtime: audit_logs=8\nPASS manual_event_summary_export_runtime: text/csv;charset=UTF-8\nPASS alerts_generate_runtime: created=1, updated=3, closed=0\nPASS alerts_query_runtime: alert_id=20, total_rows=4\nPASS alerts_handle_close_runtime: 浙A12345 线路偏航预警\nPASS alerts_summary_analytics_export_runtime: summary_total=20, fences=7\nPASS alert_rule_flow_runtime: rule_id=16\nPASS alert_fence_flow_runtime: fence_id=12\nPASS alert_push_flow_runtime: push_id=13\nPASS alerts_events_pages_visible: 预警与监控中心 / 事件管理 / 预警配置 / 安全台账管理\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase70_governance_unified_regression.py",
+      "status": "PASS",
+      "passed": 16,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS governance_role_create_runtime: role_id=14\nPASS governance_role_update_runtime: Phase70 角色-更新\nPASS governance_org_create_update_runtime: org_id=19\nPASS governance_user_create_update_runtime: user_id=19\nPASS governance_org_role_user_cleanup_runtime: user/org/role cleanup ok\nPASS governance_data_dict_crud_runtime: dict_id=2036046015785627650\nPASS governance_approval_actor_rule_runtime: rule_id=9\nPASS governance_approval_material_runtime: material_id=7\nPASS governance_approval_flow_runtime: flow_id=2036046016112783362\nPASS governance_approval_cleanup_runtime: approval cleanup ok\nPASS governance_sys_param_crud_runtime: sys_param_id=2036046016301527041\nPASS governance_logs_export_runtime: login=5, operate=0, error=5\nPASS governance_messages_runtime: messages=2\nPASS governance_messages_cleanup_runtime: message cleanup ok\nPASS governance_pages_visible: 组织与人员管理 / 角色与权限管理 / 数据字典 / 审核审批配置 / 系统参数 / 系统日志 / 消息管理\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase71_business_master_regression.py",
+      "status": "PASS",
+      "passed": 11,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS business_units_summary_query_runtime: unit_id=13, total_units=8\nPASS business_units_upsert_cleanup_runtime: temp_unit_id=20\nPASS business_projects_list_detail_runtime: project_id=1, contracts=17\nPASS business_project_payments_runtime: project_id=1, before_total=0, payment_id=5\nPASS business_disposal_permits_runtime: permit_id=2035906049197776897, status=EXPIRING\nPASS business_checkins_void_restore_runtime: ticket_id=9, ticket_no=MD-20260323090251-B02E57\nPASS business_disposals_query_runtime: disposal_id=9, ticket_no=MD-20260323090251-B02E57\nPASS business_sites_runtime: site_id=1, map_layers=2\nPASS business_vehicles_runtime: vehicles=8, companies=4, fleets=7\nPASS business_master_pages_visible: 单位管理 / 消纳项目清单 / 项目交款管理 / 处置证清单 / 打卡数据 / 消纳信息 / 消纳场地管理 / 全局消纳清单 / 场地基础信息 / 车辆与运力资源\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase72_contract_settlement_regression.py",
+      "status": "PASS",
+      "passed": 6,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS contracts_list_detail_assets_runtime: contract_id=54, approvals=2, materials=2\nPASS contracts_receipts_create_cancel_cleanup_runtime: receipt_id=41, before=0, after_cancel=1\nPASS contracts_reports_runtime: export_task_id=33, trend_months=12\nPASS site_settlements_runtime: existing_site_settlement=21, temp_site_settlement=28\nPASS contracts_settlement_pages_visible: 合同与财务结算 / 合同详情: / 合同入账管理 / 月报统计 / 结算管理\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase73_project_runtime_regression.py",
+      "status": "PASS",
+      "passed": 7,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS project_daily_runtime: project_id=1, export_task_id=34\nPASS project_config_checkin_location_preload_runtime: checkin=proj-punch-001, radius=200.0, preload=1500.0\nPASS project_config_route_violation_runtime: route_points=5, fence=PROJECT-FENCE-001\nPASS project_reports_runtime: list_total=1, trend_points=6, export_task_id=35\nPASS project_violation_runtime: violations=9, fleet_rows=5, plate_rows=6\nPASS project_pages_visible: 项目日报 / 项目报表 / 项目配置\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase74_fleet_core_regression.py",
+      "status": "PASS",
+      "passed": 6,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS fleet_query_runtime: fleets=9, plans=2, pending_dispatch=0\nPASS fleet_profile_maintain_runtime: profile_id=16, keyword=联调车队-1774266215484\nPASS fleet_transport_plan_runtime: plan_id=7, plan_no=FTP-PH74-1774266215484\nPASS fleet_dispatch_approval_runtime: dispatch_id=5, order_no=FDO-1774266215761\nPASS fleet_pages_visible: 车队管理 / 车队维护 / 运输计划 / 调度审批\n",
+      "stderr_tail": ""
+    }
+  ]
+}

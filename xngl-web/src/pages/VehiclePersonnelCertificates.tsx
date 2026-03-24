@@ -22,6 +22,7 @@ import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import {
   createVehiclePersonnelCertificate,
+  exportVehiclePersonnelCertificates,
   fetchVehiclePersonnelCertificates,
   fetchVehiclePersonnelCertificateSummary,
   updateVehiclePersonnelCertificate,
@@ -83,6 +84,8 @@ const defaultSummary: VehiclePersonnelCertificateSummaryRecord = {
   unpaidAmount: 0,
 };
 
+const { RangePicker } = DatePicker;
+
 const VehiclePersonnelCertificates: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [summaryLoading, setSummaryLoading] = useState(false);
@@ -94,6 +97,9 @@ const VehiclePersonnelCertificates: React.FC = () => {
   const [status, setStatus] = useState('all');
   const [orgId, setOrgId] = useState<string | undefined>(undefined);
   const [vehicleId, setVehicleId] = useState<string | undefined>(undefined);
+  const [feeDueRange, setFeeDueRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
+  const [expireWithinDays, setExpireWithinDays] = useState<number | undefined>(undefined);
+  const [unpaidOnly, setUnpaidOnly] = useState(false);
   const [pageNo, setPageNo] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
@@ -110,8 +116,12 @@ const VehiclePersonnelCertificates: React.FC = () => {
       status: status === 'all' ? undefined : status,
       orgId,
       vehicleId,
+      feeDueDateFrom: feeDueRange?.[0]?.format('YYYY-MM-DD'),
+      feeDueDateTo: feeDueRange?.[1]?.format('YYYY-MM-DD'),
+      expireWithinDays,
+      unpaidOnly: unpaidOnly || undefined,
     }),
-    [keyword, roleType, status, orgId, vehicleId]
+    [keyword, roleType, status, orgId, vehicleId, feeDueRange, expireWithinDays, unpaidOnly]
   );
 
   const loadList = async () => {
@@ -187,7 +197,28 @@ const VehiclePersonnelCertificates: React.FC = () => {
     setStatus('all');
     setOrgId(undefined);
     setVehicleId(undefined);
+    setFeeDueRange(null);
+    setExpireWithinDays(undefined);
+    setUnpaidOnly(false);
     setPageNo(1);
+  };
+
+  const handleExport = async () => {
+    try {
+      const blob = await exportVehiclePersonnelCertificates(queryParams);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'vehicle_personnel_certificates.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      message.success('人证台账导出成功');
+    } catch (error) {
+      console.error(error);
+      message.error('人证台账导出失败');
+    }
   };
 
   const openCreate = () => {
@@ -445,6 +476,42 @@ const VehiclePersonnelCertificates: React.FC = () => {
             optionFilterProp="label"
             style={{ width: 260 }}
           />
+          <RangePicker
+            value={feeDueRange}
+            onChange={(value) => {
+              setFeeDueRange(value);
+              setPageNo(1);
+            }}
+            placeholder={['费用到期开始', '费用到期结束']}
+          />
+          <Select
+            allowClear
+            placeholder="到期预警"
+            value={expireWithinDays}
+            onChange={(value) => {
+              setExpireWithinDays(value);
+              setPageNo(1);
+            }}
+            options={[
+              { label: '7天内到期', value: 7 },
+              { label: '30天内到期', value: 30 },
+              { label: '60天内到期', value: 60 },
+            ]}
+            style={{ width: 160 }}
+          />
+          <Select
+            value={unpaidOnly ? 'YES' : 'ALL'}
+            onChange={(value) => {
+              setUnpaidOnly(value === 'YES');
+              setPageNo(1);
+            }}
+            options={[
+              { label: '全部费用状态', value: 'ALL' },
+              { label: '仅看未缴费用', value: 'YES' },
+            ]}
+            style={{ width: 160 }}
+          />
+          <Button onClick={() => void handleExport()}>导出台账</Button>
           <Button onClick={handleReset}>重置</Button>
         </div>
         <Table<VehiclePersonnelCertificateRecord>

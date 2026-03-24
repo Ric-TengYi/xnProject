@@ -4,7 +4,10 @@ import {
   Card,
   Descriptions,
   Empty,
+  Form,
+  Input,
   List,
+  Modal,
   Space,
   Spin,
   Table,
@@ -23,11 +26,15 @@ import {
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import {
+  approveContract,
+  downloadContractMaterial,
   fetchApprovalRecords,
   fetchContractDetail,
   fetchContractInvoices,
   fetchContractMaterials,
   fetchContractTickets,
+  rejectContract,
+  submitContract,
   type ApprovalRecord,
   type ContractDetail as ContractDetailType,
   type ContractInvoice,
@@ -63,44 +70,174 @@ const ContractDetail: React.FC = () => {
   const [invoices, setInvoices] = useState<ContractInvoice[]>([]);
   const [tickets, setTickets] = useState<ContractTicket[]>([]);
   const [receipts, setReceipts] = useState<ContractReceipt[]>([]);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectForm] = Form.useForm<{ reason?: string }>();
+
+  const loadData = async (contractId: string) => {
+    setLoading(true);
+    try {
+      const [detailData, approvalData, materialData, invoiceData, ticketData, receiptData] =
+        await Promise.all([
+          fetchContractDetail(contractId),
+          fetchApprovalRecords(contractId),
+          fetchContractMaterials(contractId),
+          fetchContractInvoices(contractId),
+          fetchContractTickets(contractId),
+          listContractReceiptsByContract(contractId),
+        ]);
+      setDetail(detailData);
+      setApprovals(approvalData || []);
+      setMaterials(materialData || []);
+      setInvoices(invoiceData || []);
+      setTickets(ticketData || []);
+      setReceipts(receiptData || []);
+    } catch (error) {
+      console.error(error);
+      message.error('获取合同详情失败');
+      setDetail(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) {
       return;
     }
-
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const [detailData, approvalData, materialData, invoiceData, ticketData, receiptData] =
-          await Promise.all([
-            fetchContractDetail(id),
-            fetchApprovalRecords(id),
-            fetchContractMaterials(id),
-            fetchContractInvoices(id),
-            fetchContractTickets(id),
-            listContractReceiptsByContract(id),
-          ]);
-        setDetail(detailData);
-        setApprovals(approvalData || []);
-        setMaterials(materialData || []);
-        setInvoices(invoiceData || []);
-        setTickets(ticketData || []);
-        setReceipts(receiptData || []);
-      } catch (error) {
-        console.error(error);
-        message.error('获取合同详情失败');
-        setDetail(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void loadData();
+    void loadData(id);
   }, [id]);
 
   const paymentTab = new URLSearchParams(location.search).get('tab');
   const statusText = detail?.contractStatus || detail?.approvalStatus || '未知';
+  const canSubmit =
+    detail &&
+    ['DRAFT', 'REJECTED'].includes(String(detail.contractStatus || '').toUpperCase());
+  const canApprove = detail && String(detail.contractStatus || '').toUpperCase() === 'APPROVING';
+
+  const refreshCurrent = async () => {
+    if (!id) {
+      return;
+    }
+    await loadData(id);
+  };
+
+  const handleSubmitApproval = async () => {
+    if (!id) {
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await submitContract(id);
+      message.success('合同已提交审批');
+      await refreshCurrent();
+    } catch (error) {
+      console.error(error);
+      message.error('提交审批失败');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!id) {
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await approveContract(id);
+      message.success('合同审批通过');
+      await refreshCurrent();
+    } catch (error) {
+      console.error(error);
+      message.error('合同审批失败');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!id) {
+      return;
+    }
+    try {
+      const values = await rejectForm.validateFields();
+      setActionLoading(true);
+      await rejectContract(id, values.reason);
+      message.success('合同已驳回');
+      setRejectOpen(false);
+      rejectForm.resetFields();
+      await refreshCurrent();
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error(error);
+      }
+      if ((error as { errorFields?: unknown[] })?.errorFields) {
+        return;
+      }
+      message.error('合同驳回失败');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handlePreviewMaterial = async (item: ContractMaterial) => {
+    if (!id) {
+      return;
+    }
+    try {
+      const blob = await downloadContractMaterial(id, item.id);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      console.error(error);
+      message.error('预览办事材料失败');
+    }
+  };
+
+  const handleDownloadMaterial = async (item: ContractMaterial) => {
+    if (!id) {
+      return;
+    }
+    try {
+      const blob = await downloadContractMaterial(id, item.id);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${item.materialName || 'contract-material'}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      console.error(error);
+      message.error('下载办事材料失败');
+    }
+  };
+
+  const headerActions = (
+    <Space>
+      {canSubmit ? (
+        <Button type="primary" loading={actionLoading} onClick={() => void handleSubmitApproval()}>
+          提交审批
+        </Button>
+      ) : null}
+      {canApprove ? (
+        <Button loading={actionLoading} onClick={() => void handleApprove()}>
+          审批通过
+        </Button>
+      ) : null}
+      {canApprove ? (
+        <Button danger loading={actionLoading} onClick={() => setRejectOpen(true)}>
+          驳回
+        </Button>
+      ) : null}
+      <Button type="link" icon={<EditOutlined />}>
+        编辑草稿
+      </Button>
+    </Space>
+  );
 
   const items = [
     {
@@ -111,7 +248,7 @@ const ContractDetail: React.FC = () => {
           <Card
             title="合同基础信息"
             className="glass-panel g-border-panel border"
-            extra={<Button type="link" icon={<EditOutlined />}>编辑草稿</Button>}
+            extra={headerActions}
           >
             <Descriptions column={3} className="g-text-secondary">
               <Descriptions.Item label="合同编号">
@@ -278,8 +415,8 @@ const ContractDetail: React.FC = () => {
               renderItem={(item) => (
                 <List.Item
                   actions={[
-                    <a key="preview">预览</a>,
-                    <a key="download">
+                    <a key="preview" onClick={() => void handlePreviewMaterial(item)}>预览</a>,
+                    <a key="download" onClick={() => void handleDownloadMaterial(item)}>
                       <DownloadOutlined /> 下载
                     </a>,
                   ]}
@@ -365,6 +502,26 @@ const ContractDetail: React.FC = () => {
           </Card>
         )}
       </Spin>
+      <Modal
+        title={detail ? `驳回合同 · ${detail.contractNo}` : '驳回合同'}
+        open={rejectOpen}
+        confirmLoading={actionLoading}
+        onOk={() => void handleReject()}
+        onCancel={() => {
+          setRejectOpen(false);
+          rejectForm.resetFields();
+        }}
+      >
+        <Form form={rejectForm} layout="vertical">
+          <Form.Item
+            name="reason"
+            label="驳回原因"
+            rules={[{ required: true, message: '请输入驳回原因' }]}
+          >
+            <Input.TextArea rows={4} placeholder="请输入需要退回修改的说明" maxLength={200} showCount />
+          </Form.Item>
+        </Form>
+      </Modal>
     </motion.div>
   );
 };

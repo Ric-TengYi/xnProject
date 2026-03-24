@@ -15,7 +15,9 @@ import {
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import {
+  downloadExportTask,
   exportSiteReport,
+  fetchExportTask,
   fetchSiteReportList,
   fetchSiteReportSummary,
   fetchSiteReportTrend,
@@ -26,8 +28,9 @@ import type { SiteRecord } from '../utils/siteApi';
 
 const { Search } = Input;
 const { Option } = Select;
+const { RangePicker } = DatePicker;
 
-type PeriodType = 'DAY' | 'MONTH' | 'YEAR';
+type PeriodType = 'DAY' | 'MONTH' | 'YEAR' | 'CUSTOM';
 
 const emptySummary: SiteReportSummary = {
   periodType: 'MONTH',
@@ -45,6 +48,7 @@ const emptySummary: SiteReportSummary = {
 const SitesReports: React.FC = () => {
   const [periodType, setPeriodType] = useState<PeriodType>('MONTH');
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
+  const [customRange, setCustomRange] = useState<[Dayjs, Dayjs]>([dayjs().startOf('month'), dayjs()]);
   const [siteId, setSiteId] = useState<string>();
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -55,6 +59,9 @@ const SitesReports: React.FC = () => {
   const [sites, setSites] = useState<SiteRecord[]>([]);
 
   const dateValue = useMemo(() => {
+    if (periodType === 'CUSTOM') {
+      return undefined;
+    }
     if (periodType === 'YEAR') {
       return selectedDate.startOf('year').format('YYYY-MM-DD');
     }
@@ -64,13 +71,46 @@ const SitesReports: React.FC = () => {
     return selectedDate.format('YYYY-MM-DD');
   }, [periodType, selectedDate]);
 
+  const customStartDate = useMemo(
+    () => (periodType === 'CUSTOM' ? customRange[0]?.format('YYYY-MM-DD') : undefined),
+    [customRange, periodType],
+  );
+  const customEndDate = useMemo(
+    () => (periodType === 'CUSTOM' ? customRange[1]?.format('YYYY-MM-DD') : undefined),
+    [customRange, periodType],
+  );
+
   const loadData = async (searchKeyword = keyword) => {
     setLoading(true);
     try {
       const [summaryRes, listRes, trendRes, siteRes] = await Promise.all([
-        fetchSiteReportSummary({ periodType, date: dateValue, siteId, keyword: searchKeyword }),
-        fetchSiteReportList({ periodType, date: dateValue, siteId, keyword: searchKeyword, pageNo: 1, pageSize: 100 }),
-        fetchSiteReportTrend({ periodType, date: dateValue, siteId, keyword: searchKeyword, limit: 6 }),
+        fetchSiteReportSummary({
+          periodType,
+          date: dateValue,
+          startDate: customStartDate,
+          endDate: customEndDate,
+          siteId,
+          keyword: searchKeyword,
+        }),
+        fetchSiteReportList({
+          periodType,
+          date: dateValue,
+          startDate: customStartDate,
+          endDate: customEndDate,
+          siteId,
+          keyword: searchKeyword,
+          pageNo: 1,
+          pageSize: 100,
+        }),
+        fetchSiteReportTrend({
+          periodType,
+          date: dateValue,
+          startDate: customStartDate,
+          endDate: customEndDate,
+          siteId,
+          keyword: searchKeyword,
+          limit: 6,
+        }),
         fetchSites(),
       ]);
       setSummary(summaryRes);
@@ -90,16 +130,40 @@ const SitesReports: React.FC = () => {
 
   useEffect(() => {
     void loadData();
-  }, [periodType, dateValue, siteId]);
+  }, [periodType, dateValue, customStartDate, customEndDate, siteId]);
 
   const handleExport = async () => {
     setExporting(true);
     try {
-      const result = await exportSiteReport({ periodType, date: dateValue, siteId, keyword });
-      message.success('已生成场地报表导出任务 #' + result.taskId);
+      const result = await exportSiteReport({
+        periodType,
+        date: dateValue,
+        startDate: customStartDate,
+        endDate: customEndDate,
+        siteId,
+        keyword,
+      });
+      let task = await fetchExportTask(result.taskId);
+      for (let i = 0; i < 8 && (task.status === 'PENDING' || task.status === 'PROCESSING'); i += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 400));
+        task = await fetchExportTask(result.taskId);
+      }
+      if (task.status !== 'COMPLETED') {
+        throw new Error(task.failReason || '导出任务未完成');
+      }
+      const blob = await downloadExportTask(result.taskId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = task.fileName || 'site_reports.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      message.success('场地报表已导出');
     } catch (error) {
       console.error(error);
-      message.error('创建导出任务失败');
+      message.error(error instanceof Error ? error.message : '创建导出任务失败');
     } finally {
       setExporting(false);
     }
@@ -159,6 +223,19 @@ const SitesReports: React.FC = () => {
   ];
 
   const renderDatePicker = () => {
+    if (periodType === 'CUSTOM') {
+      return (
+        <RangePicker
+          value={customRange}
+          onChange={(value) => {
+            if (value?.[0] && value?.[1]) {
+              setCustomRange([value[0], value[1]]);
+            }
+          }}
+          className="bg-white g-border-panel border"
+        />
+      );
+    }
     if (periodType === 'YEAR') {
       return <DatePicker picker="year" value={selectedDate} onChange={(value) => setSelectedDate(value || dayjs())} className="bg-white g-border-panel border" />;
     }
@@ -187,6 +264,7 @@ const SitesReports: React.FC = () => {
               <Option value="DAY">日报</Option>
               <Option value="MONTH">月报</Option>
               <Option value="YEAR">年报</Option>
+              <Option value="CUSTOM">自定义</Option>
             </Select>
             {renderDatePicker()}
             <Select allowClear placeholder="全部场地" value={siteId} onChange={(value) => setSiteId(value)} className="w-56">

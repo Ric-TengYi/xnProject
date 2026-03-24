@@ -1,0 +1,18 @@
+{
+  "report": "phase82_risk_model_acceptance_regression_2026-03-23",
+  "date": "2026-03-23",
+  "phaseCount": 1,
+  "passed": 13,
+  "failed": 0,
+  "results": [
+    {
+      "script": "phase69_alerts_events_unified_regression.py",
+      "status": "PASS",
+      "passed": 13,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS manual_event_create_runtime: event_id=45\nPASS manual_event_update_runtime: phase69 事件联调-1774270275265-更新\nPASS manual_event_flow_runtime: audit_logs=8\nPASS manual_event_summary_export_runtime: text/csv;charset=UTF-8\nPASS alerts_generate_runtime: created=1, updated=3, closed=0\nPASS alerts_query_runtime: alert_id=23, total_rows=4\nPASS alerts_handle_close_runtime: 浙A12345 线路偏航预警\nPASS alerts_summary_analytics_export_runtime: summary_total=23, fences=9\nPASS alert_rule_flow_runtime: rule_id=18\nPASS alert_fence_flow_runtime: fence_id=14\nPASS alert_push_flow_runtime: push_id=15\nPASS alerts_events_pages_visible: 预警与监控中心 / 事件管理 / 预警配置 / 安全台账管理\n",
+      "stderr_tail": ""
+    }
+  ]
+}

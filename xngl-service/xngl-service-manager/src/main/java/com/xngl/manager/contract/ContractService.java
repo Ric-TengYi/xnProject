@@ -2,11 +2,11 @@ package com.xngl.manager.contract;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.xngl.infrastructure.persistence.entity.contract.Contract;
+import com.xngl.infrastructure.persistence.entity.contract.ContractMaterial;
 import com.xngl.infrastructure.persistence.entity.contract.ContractReceipt;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 public interface ContractService {
 
@@ -45,6 +45,8 @@ public interface ContractService {
 
   List<ContractMaterialVo> getContractMaterials(Long contractId, Long tenantId);
 
+  ContractMaterial getContractMaterial(Long materialId, Long contractId, Long tenantId);
+
   List<ContractInvoiceVo> getContractInvoices(Long contractId, Long tenantId);
 
   List<ContractTicketVo> getContractTickets(Long contractId, Long tenantId);
@@ -53,11 +55,11 @@ public interface ContractService {
 
   void updateContract(Long contractId, Long tenantId, Contract updates);
 
-  void submitContract(Long contractId, Long tenantId);
+  void submitContract(Long contractId, Long tenantId, Long operatorId);
 
-  void approveContract(Long contractId, Long tenantId);
+  void approveContract(Long contractId, Long tenantId, Long operatorId);
 
-  void rejectContract(Long contractId, Long tenantId, String reason);
+  void rejectContract(Long contractId, Long tenantId, Long operatorId, String reason);
 
-  Map<String, Object> getContractStats(Long tenantId);
+  ContractStatsResult getContractStats(Long tenantId);
 }

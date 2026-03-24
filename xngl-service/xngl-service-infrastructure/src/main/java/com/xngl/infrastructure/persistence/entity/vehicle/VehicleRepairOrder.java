@@ -20,6 +20,8 @@ public class VehicleRepairOrder extends BaseEntity {
   private String urgencyLevel;
   private String repairReason;
   private String repairContent;
+  private String diagnosisResult;
+  private String safetyImpact;
   private BigDecimal budgetAmount;
   private LocalDate applyDate;
   private String applicantName;
@@ -29,6 +31,14 @@ public class VehicleRepairOrder extends BaseEntity {
   private LocalDateTime approvedTime;
   private LocalDate completedDate;
   private String vendorName;
+  private String repairManager;
+  private String technicianName;
+  private String acceptanceResult;
+  private String signoffStatus;
+  private String attachmentUrls;
   private BigDecimal actualAmount;
+  private BigDecimal partsCost;
+  private BigDecimal laborCost;
+  private BigDecimal otherCost;
   private String remark;
 }

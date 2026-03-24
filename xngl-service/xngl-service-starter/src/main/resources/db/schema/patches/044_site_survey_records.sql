@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS biz_site_survey_record (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  tenant_id BIGINT NOT NULL COMMENT '租户ID',
+  site_id BIGINT NOT NULL COMMENT '场地ID',
+  survey_no VARCHAR(64) NOT NULL COMMENT '测绘编号',
+  survey_date DATE NOT NULL COMMENT '测绘日期',
+  measured_volume DECIMAL(18,2) NOT NULL DEFAULT 0 COMMENT '测得方量',
+  deduction_volume DECIMAL(18,2) NOT NULL DEFAULT 0 COMMENT '扣减方量',
+  settlement_volume DECIMAL(18,2) NOT NULL DEFAULT 0 COMMENT '结算方量',
+  survey_company VARCHAR(128) NULL COMMENT '测绘单位',
+  surveyor_name VARCHAR(64) NULL COMMENT '测绘员',
+  status VARCHAR(32) NOT NULL DEFAULT 'DRAFT' COMMENT '状态',
+  report_url VARCHAR(500) NULL COMMENT '报告地址',
+  remark VARCHAR(255) NULL COMMENT '备注',
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted INT NOT NULL DEFAULT 0,
+  UNIQUE KEY uk_site_survey_record (site_id, survey_no, deleted),
+  KEY idx_site_survey_date (site_id, survey_date),
+  KEY idx_site_survey_status (site_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='场地测绘结算记录';
