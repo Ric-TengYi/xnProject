@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Input, Badge, Avatar, Dropdown, Modal, Form, Descriptions, message } from 'antd';
+import { Layout, Menu, Button, Input, Badge, Avatar, Dropdown, Modal, Form, Descriptions, message, Tabs } from 'antd';
 import {
   PieChartOutlined,
   DesktopOutlined,
@@ -18,6 +18,7 @@ import {
   FullscreenExitOutlined,
   LogoutOutlined,
   LockOutlined,
+  CloseOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -162,6 +163,38 @@ const MainLayout: React.FC = () => {
         'alerts': '预警与安全',
         'messages': '消息中心',
         'settings': '系统设置',
+        'payments': '交款数据',
+        'permits': '处置证清单',
+        'daily-report': '项目日报',
+        'reports': '项目报表',
+        'checkins': '打卡数据',
+        'disposals': '消纳信息',
+        'documents': '场地资料',
+        'basic-info': '基础信息',
+        'models': '车型管理',
+        'fleet': '车队管理',
+        'cards': '油电卡管理',
+        'insurances': '保险管理',
+        'maintenance': '维保计划',
+        'personnel-certificates': '人证管理',
+        'repairs': '维修管理',
+        'tracking': '送货跟踪',
+        'violations': '违规车辆清单',
+        'transfers': '内拨申请',
+        'settlements': '结算管理',
+        'monthly-report': '月报统计',
+        'config': '预警配置',
+        'events': '事件管理',
+        'security': '安全台账',
+        'org': '组织管理',
+        'users': '用户管理',
+        'roles': '角色管理',
+        'dictionary': '数据字典',
+        'approvals': '审批配置',
+        'capacity-analysis': '运力分析',
+        'map': '地图展示',
+        'platform-integrations': '平台对接',
+        'logs': '系统日志',
       };
       return menuMap[lastSegment] || lastSegment;
     };
@@ -178,6 +211,16 @@ const MainLayout: React.FC = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userInfo');
     navigate('/login', { replace: true });
+  };
+
+  const handleCloseTab = (path: string) => {
+    setOpenedTabs(prev => prev.filter(tab => tab.path !== path));
+    if (location.pathname === path) {
+      const remaining = openedTabs.filter(tab => tab.path !== path);
+      if (remaining.length > 0) {
+        navigate(remaining[remaining.length - 1].path);
+      }
+    }
   };
 
   const userMenuItems = [
@@ -399,18 +442,32 @@ const MainLayout: React.FC = () => {
             boxShadow: '0 3px 6px -4px rgba(0, 0, 0, 0.08)',
           }}
         >
-          <div className="flex items-center gap-2 flex-1">
-            {openedTabs.map((tab, idx) => (
-              <Button
-                key={tab.path}
-                type={location.pathname === tab.path ? 'primary' : 'default'}
-                size="small"
-                onClick={() => navigate(tab.path)}
-                className="text-xs"
-              >
-                {tab.label}
-              </Button>
-            ))}
+          <div className="flex-1 min-w-0">
+            {openedTabs.length > 0 && (
+              <Tabs
+                activeKey={location.pathname}
+                onChange={(key) => navigate(key)}
+                items={openedTabs.map((tab) => ({
+                  key: tab.path,
+                  label: (
+                    <div className="g-tab-label">
+                      {tab.label}
+                      <span
+                        className="g-tab-close-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCloseTab(tab.path);
+                        }}
+                      >
+                        ✕
+                      </span>
+                    </div>
+                  ),
+                }))}
+                className="g-header-tabs"
+                style={{ marginBottom: 0 }}
+              />
+            )}
           </div>
           <div className="flex items-center gap-6">
             <Badge dot color="var(--error)" size="default">
