@@ -54,7 +54,6 @@ const ZERO_SUMMARY: SummaryState = {
   settlementAmount: 0,
   agreedVolume: 0,
   actualVolume: 0,
-};
 
 const MonthlyReport: React.FC = () => {
   const { isDarkMode } = useTheme();
@@ -372,6 +371,5 @@ const MonthlyReport: React.FC = () => {
     </motion.div>
   );    </div>
   );
-};
 
 export default MonthlyReport;

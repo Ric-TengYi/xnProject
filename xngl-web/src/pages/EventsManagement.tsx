@@ -85,7 +85,6 @@ const statusColorMap: Record<string, string> = {
   PROCESSING: 'processing',
   REJECTED: 'error',
   CLOSED: 'success',
-};
 
 const emptySummary: ManualEventSummaryRecord = {
   total: 0,
@@ -99,7 +98,6 @@ const emptySummary: ManualEventSummaryRecord = {
   todayCount: 0,
   typeBuckets: [],
   sourceBuckets: [],
-};
 
 const downloadBlob = (blob: Blob, fileName: string) => {
   const url = window.URL.createObjectURL(blob);
@@ -108,7 +106,6 @@ const downloadBlob = (blob: Blob, fileName: string) => {
   link.download = fileName;
   link.click();
   window.URL.revokeObjectURL(url);
-};
 
 const formatRangeParams = (
   params: Record<string, string>,
@@ -121,7 +118,6 @@ const formatRangeParams = (
   }
   params[keyFrom] = range[0].format('YYYY-MM-DDTHH:mm:ss');
   params[keyTo] = range[1].format('YYYY-MM-DDTHH:mm:ss');
-};
 
 const parseAttachmentUrls = (value?: string | null) =>
   (value || '')
@@ -710,6 +706,5 @@ const EventsManagement: React.FC = () => {
         </Form>
       </Modal>
   );
-};
 
 export default EventsManagement;

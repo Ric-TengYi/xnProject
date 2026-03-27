@@ -40,14 +40,12 @@ type SiteMapItem = {
     status?: string | null;
     position: MapPoint;
   }[];
-};
 
 type ProjectMapItem = {
   id: string;
   name: string;
   todayVolume: number;
   position: MapPoint;
-};
 
 type VehicleMapItem = {
   id: string;
@@ -55,12 +53,10 @@ type VehicleMapItem = {
   statusLabel: string;
   position: MapPoint;
   gpsTime?: string | null;
-};
 
 type TrackPoint = {
   position: MapPoint;
   locateTime?: string | null;
-};
 
 const MAP_CENTER: MapPoint = [120.1551, 30.2741];
 
@@ -500,6 +496,5 @@ const DashboardMap: React.FC = () => {
     </div>
     </div>
   );
-};
 
 export default DashboardMap;

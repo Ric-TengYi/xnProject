@@ -57,7 +57,6 @@ const statusColorMap: Record<string, string> = {
   TERMINATED: 'default',
   CANCELLED: 'error',
   VOID: 'error',
-};
 
 const ContractDetail: React.FC = () => {
   const { id } = useParams();
@@ -524,6 +523,5 @@ const ContractDetail: React.FC = () => {
     </motion.div>
   );    </div>
   );
-};
 
 export default ContractDetail;

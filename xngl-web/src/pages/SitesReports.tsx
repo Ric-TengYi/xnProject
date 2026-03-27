@@ -43,7 +43,6 @@ const emptySummary: SiteReportSummary = {
   totalCapacity: 0,
   accumulatedVolume: 0,
   utilizationRate: 0,
-};
 
 const SitesReports: React.FC = () => {
   const [periodType, setPeriodType] = useState<PeriodType>('MONTH');
@@ -339,6 +338,5 @@ const SitesReports: React.FC = () => {
     </div>
     </div>
   );
-};
 
 export default SitesReports;

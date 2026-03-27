@@ -238,6 +238,5 @@ const DisposalRecords: React.FC = () => {
     </div>
     </div>
   );
-};
 
 export default DisposalRecords;

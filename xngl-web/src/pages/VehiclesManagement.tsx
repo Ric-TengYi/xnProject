@@ -59,7 +59,6 @@ type VehicleFormValues = Omit<
   nextMaintainDate?: Dayjs;
   annualInspectionExpireDate?: Dayjs;
   insuranceExpireDate?: Dayjs;
-};
 
 const statusOptions = [
   { label: '全部状态', value: 'all' },
@@ -73,7 +72,6 @@ const runningStatusColorMap: Record<string, string> = {
   行驶中: 'processing',
   静止: 'warning',
   离线: 'default',
-};
 
 const statusColorMap: Record<string, string> = {
   在用: 'success',
@@ -81,14 +79,12 @@ const statusColorMap: Record<string, string> = {
   禁用: 'error',
   待命: 'processing',
   停用: 'default',
-};
 
 const warningColorMap: Record<string, string> = {
   正常: 'default',
   '30日内到期': 'warning',
   '7日内到期': 'orange',
   已到期: 'error',
-};
 
 const formatTons = (value?: number | null) => Number(value || 0).toFixed(2);
 
@@ -985,6 +981,5 @@ const VehiclesManagement: React.FC = () => {
     </motion.div>
   );    </div>
   );
-};
 
 export default VehiclesManagement;

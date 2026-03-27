@@ -150,6 +150,5 @@ const ProjectsDailyReport: React.FC = () => {
     </div>
     </div>
   );
-};
 
 export default ProjectsDailyReport;

@@ -28,12 +28,10 @@ const statusColorMap: Record<string, string> = {
   在建: 'processing',
   预警: 'error',
   完工: 'success',
-};
 
 const paymentStatusColorMap: Record<string, string> = {
   已结清: 'success',
   欠款中: 'error',
-};
 
 const formatMoney = (value?: number | null) =>
   '¥ ' + Number(value || 0).toLocaleString();
@@ -439,6 +437,5 @@ const ProjectDetail: React.FC = () => {
       </Spin>
     </motion.div>
   );
-};
 
 export default ProjectDetail;

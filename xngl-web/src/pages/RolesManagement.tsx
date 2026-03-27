@@ -383,6 +383,5 @@ const RolesManagement: React.FC = () => {
             </Modal>
         </motion.div>
     );
-};
 
 export default RolesManagement;

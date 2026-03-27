@@ -47,7 +47,6 @@ type InsuranceFormValues = {
   startDate: Dayjs;
   endDate: Dayjs;
   remark?: string;
-};
 
 const statusOptions = [
   { label: '全部状态', value: 'all' },
@@ -62,7 +61,6 @@ const statusColorMap: Record<string, string> = {
   EXPIRING: 'warning',
   EXPIRED: 'error',
   CANCELLED: 'default',
-};
 
 const expiringOptions = [
   { label: '全部到期范围', value: 'all' },
@@ -79,7 +77,6 @@ const defaultSummary: VehicleInsuranceSummaryRecord = {
   totalCoverageAmount: 0,
   totalPremiumAmount: 0,
   totalClaimAmount: 0,
-};
 
 const VehicleInsurances: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -549,6 +546,5 @@ const VehicleInsurances: React.FC = () => {
         </Form>
       </Modal>
   );
-};
 
 export default VehicleInsurances;

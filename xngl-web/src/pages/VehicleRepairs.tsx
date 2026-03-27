@@ -55,11 +55,9 @@ type RepairFormValues = {
   applicantName?: string;
   status?: string;
   remark?: string;
-};
 
 type AuditFormValues = {
   comment?: string;
-};
 
 type CompleteFormValues = {
   completedDate: Dayjs;
@@ -74,7 +72,6 @@ type CompleteFormValues = {
   laborCost?: number;
   otherCost?: number;
   remark?: string;
-};
 
 const statusOptions = [
   { label: '全部状态', value: 'all' },
@@ -100,13 +97,11 @@ const statusColorMap: Record<string, string> = {
   COMPLETED: 'success',
   REJECTED: 'error',
   DRAFT: 'default',
-};
 
 const urgencyColorMap: Record<string, string> = {
   HIGH: 'error',
   MEDIUM: 'warning',
   LOW: 'default',
-};
 
 const defaultSummary: VehicleRepairSummaryRecord = {
   totalOrders: 0,
@@ -116,7 +111,6 @@ const defaultSummary: VehicleRepairSummaryRecord = {
   completedOrders: 0,
   totalBudgetAmount: 0,
   totalActualAmount: 0,
-};
 
 const VehicleRepairs: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -795,6 +789,5 @@ const VehicleRepairs: React.FC = () => {
         </Form>
       </Modal>
   );
-};
 
 export default VehicleRepairs;

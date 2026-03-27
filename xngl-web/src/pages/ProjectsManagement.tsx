@@ -30,7 +30,6 @@ const statusColorMap: Record<string, string> = {
   在建: 'processing',
   预警: 'error',
   完工: 'success',
-};
 
 const formatAmount = (value?: number | null) =>
   '¥ ' + Number(value || 0).toLocaleString();
@@ -288,6 +287,5 @@ const ProjectsManagement: React.FC = () => {
       </Card>
     </motion.div>
   );
-};
 
 export default ProjectsManagement;

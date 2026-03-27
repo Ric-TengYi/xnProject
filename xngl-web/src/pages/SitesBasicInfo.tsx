@@ -16,7 +16,6 @@ const resolveType = (site: SiteRecord) => {
     if (suffix === 2) return '集体场地';
     if (suffix === 3) return '工程场地';
     return '短驳场地';
-};
 
 const resolveRegion = (site: SiteRecord) => {
     const address = site.address || '';
@@ -25,13 +24,11 @@ const resolveRegion = (site: SiteRecord) => {
     if (address.includes('北')) return '北区';
     if (address.includes('西')) return '西郊区';
     return '平台统筹';
-};
 
 const resolveStatus = (status?: number | string | null) => {
     if (status === 1 || status === '1' || status === 'ACTIVE' || status === 'ENABLED') return '正常';
     if (status === 2 || status === '2' || status === 'WARNING') return '预警';
     return '停用';
-};
 
 const SitesBasicInfo: React.FC = () => {
     const navigate = useNavigate();
@@ -162,6 +159,5 @@ const SitesBasicInfo: React.FC = () => {
             </Card>
         </div>
     );
-};
 
 export default SitesBasicInfo;

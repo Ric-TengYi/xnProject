@@ -81,7 +81,6 @@ const statusColorMap: Record<string, string> = {
   PROCESSING: 'orange',
   CLOSED: 'default',
   CONFIRMED: 'green',
-};
 
 const emptySummary: AlertSummaryRecord = {
   total: 0,
@@ -100,7 +99,6 @@ const emptySummary: AlertSummaryRecord = {
   enabledRuleCount: 0,
   enabledFenceCount: 0,
   enabledPushCount: 0,
-};
 
 const emptyAnalytics: AlertAnalyticsRecord = {
   levelBuckets: [],
@@ -116,7 +114,6 @@ const emptyAnalytics: AlertAnalyticsRecord = {
     connectedPushRules: 0,
     sceneCoverage: {},
   },
-};
 
 const downloadBlob = (blob: Blob, fileName: string) => {
   const url = window.URL.createObjectURL(blob);
@@ -125,7 +122,6 @@ const downloadBlob = (blob: Blob, fileName: string) => {
   link.download = fileName;
   link.click();
   window.URL.revokeObjectURL(url);
-};
 
 const formatRangeParams = (
   params: Record<string, string>,
@@ -138,7 +134,6 @@ const formatRangeParams = (
   }
   params[keyFrom] = range[0].format('YYYY-MM-DDTHH:mm:ss');
   params[keyTo] = range[1].format('YYYY-MM-DDTHH:mm:ss');
-};
 
 const formatJsonText = (value?: string | null) => {
   if (!value) {
@@ -149,7 +144,6 @@ const formatJsonText = (value?: string | null) => {
   } catch {
     return value;
   }
-};
 
 const AlertsMonitor: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -680,6 +674,5 @@ const AlertsMonitor: React.FC = () => {
         </Form>
       </Modal>
   );
-};
 
 export default AlertsMonitor;

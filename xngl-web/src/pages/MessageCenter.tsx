@@ -409,6 +409,5 @@ const MessageCenter: React.FC = () => {
         </div>
       </Modal>
   );
-};
 
 export default MessageCenter;

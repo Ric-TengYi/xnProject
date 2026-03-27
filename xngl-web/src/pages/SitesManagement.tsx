@@ -32,14 +32,12 @@ const resolveSiteType = (site: SiteRecord) => {
   if (code.startsWith('JT') || suffix === 2) return '集体场地';
   if (code.startsWith('GC') || suffix === 3) return '工程场地';
   return '短驳场地';
-};
 
 const resolveStatus = (status?: number | string | null) => {
   if (status === 1 || status === '1' || status === 'ENABLED' || status === 'ACTIVE') return '正常';
   if (status === 2 || status === '2' || status === 'WARNING') return '预警';
   if (status === 0 || status === '0' || status === 'DISABLED' || status === 'INACTIVE') return '停用';
   return '正常';
-};
 
 const buildCapacity = (site: SiteRecord) => {
   if (Number(site.capacity || 0) > 0) {
@@ -47,7 +45,6 @@ const buildCapacity = (site: SiteRecord) => {
   }
   const base = (Number(site.id || 1) % 7) + 3;
   return base * 100000;
-};
 
 const toViewModel = (site: SiteRecord): SiteViewModel => {
   const capacity = buildCapacity(site);
@@ -67,7 +64,6 @@ const toViewModel = (site: SiteRecord): SiteViewModel => {
     parentSiteName: site.parentSiteName || undefined,
     weighbridgeSiteName: site.weighbridgeSiteName || undefined,
   };
-};
 
 const SitesManagement: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -380,6 +376,5 @@ const SitesManagement: React.FC = () => {
         </div>
     </div>
   );
-};
 
 export default SitesManagement;

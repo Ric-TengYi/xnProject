@@ -138,6 +138,5 @@ const SitesDisposals: React.FC = () => {
             </Card>
         </div>
     );
-};
 
 export default SitesDisposals;

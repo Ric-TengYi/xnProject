@@ -44,7 +44,6 @@ const emptySummary: ProjectReportSummary = {
   projectTotal: 0,
   accumulatedVolume: 0,
   progressPercent: 0,
-};
 
 const emptyViolationAnalysis: ProjectViolationAnalysis = {
   summary: {
@@ -59,7 +58,6 @@ const emptyViolationAnalysis: ProjectViolationAnalysis = {
   byFleet: [],
   byPlate: [],
   byTeam: [],
-};
 
 const ProjectsReports: React.FC = () => {
   const [periodType, setPeriodType] = useState<PeriodType>('MONTH');
@@ -343,6 +341,5 @@ const ProjectsReports: React.FC = () => {
         </div>
     </div>
   );
-};
 
 export default ProjectsReports;

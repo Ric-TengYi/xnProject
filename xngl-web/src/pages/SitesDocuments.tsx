@@ -12,7 +12,6 @@ const resolveStageLabel = (stageCode?: string | null) => {
     if (stageCode === 'OPERATION') return '运营资料';
     if (stageCode === 'TRANSFER') return '移交资料';
     return stageCode || '-';
-};
 
 const resolveApprovalLabel = (approvalType?: string | null) => {
     switch (approvalType) {
@@ -33,7 +32,6 @@ const resolveApprovalLabel = (approvalType?: string | null) => {
         default:
             return approvalType || '未分类';
     }
-};
 
 const resolveDocumentLabel = (documentType?: string | null) => {
     switch (documentType) {
@@ -64,7 +62,6 @@ const resolveDocumentLabel = (documentType?: string | null) => {
         default:
             return documentType || '-';
     }
-};
 
 const SitesDocuments: React.FC = () => {
     const navigate = useNavigate();
@@ -258,6 +255,5 @@ const SitesDocuments: React.FC = () => {
             </div>
         </div>
     );
-};
 
 export default SitesDocuments;

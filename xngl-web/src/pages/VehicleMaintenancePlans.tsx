@@ -58,7 +58,6 @@ type PlanFormValues = {
   responsibleName?: string;
   status?: string;
   remark?: string;
-};
 
 type ExecuteFormValues = {
   serviceDate: Dayjs;
@@ -80,7 +79,6 @@ type ExecuteFormValues = {
   remark?: string;
   nextMaintainDate?: Dayjs;
   nextOdometer?: number;
-};
 
 const statusOptions = [
   { label: '全部状态', value: 'all' },
@@ -93,13 +91,11 @@ const planStatusColorMap: Record<string, string> = {
   ACTIVE: 'processing',
   PAUSED: 'warning',
   COMPLETED: 'success',
-};
 
 const recordStatusColorMap: Record<string, string> = {
   DONE: 'success',
   PENDING: 'warning',
   CANCELLED: 'default',
-};
 
 const cycleTypeOptions = [
   { label: '按天', value: 'DAY' },
@@ -119,7 +115,6 @@ const planDefaultSummary: VehicleMaintenanceSummaryRecord = {
   pausedPlans: 0,
   recordCount: 0,
   totalCostAmount: 0,
-};
 
 const VehicleMaintenancePlans: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -939,6 +934,5 @@ const VehicleMaintenancePlans: React.FC = () => {
         </Form>
       </Modal>
   );
-};
 
 export default VehicleMaintenancePlans;

@@ -36,7 +36,6 @@ const statusMeta: Record<string, { color: string; label: string }> = {
   APPROVING: { color: 'processing', label: '审批中' },
   APPROVED: { color: 'green', label: '已通过' },
   REJECTED: { color: 'red', label: '已驳回' },
-};
 
 const formatMoney = (value?: number | null) => '¥ ' + Number(value || 0).toLocaleString();
 
@@ -422,6 +421,5 @@ const ContractTransfers: React.FC = () => {
         </Form>
       </Modal>
   );
-};
 
 export default ContractTransfers;

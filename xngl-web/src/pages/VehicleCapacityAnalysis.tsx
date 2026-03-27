@@ -40,7 +40,6 @@ const emptyAnalysis: VehicleCapacityAnalysisData = {
   },
   trend: [],
   records: [],
-};
 
 const VehicleCapacityAnalysis: React.FC = () => {
   const [periodType, setPeriodType] = useState<PeriodType>('MONTH');
@@ -210,6 +209,5 @@ const VehicleCapacityAnalysis: React.FC = () => {
     </div>
     </div>
   );
-};
 
 export default VehicleCapacityAnalysis;

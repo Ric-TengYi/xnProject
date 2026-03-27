@@ -62,7 +62,6 @@ const resolvePermitType = (value?: string | null) => {
   if (value === 'DISPOSAL') return '排放证';
   if (value === 'TRANSPORT') return '准运证';
   return value || '-';
-};
 
 const resolveStatus = (value?: string | null) => {
   if (value === 'ACTIVE') return '有效';
@@ -70,7 +69,6 @@ const resolveStatus = (value?: string | null) => {
   if (value === 'EXPIRED') return '已过期';
   if (value === 'VOID') return '作废';
   return value || '-';
-};
 
 const resolveBindStatus = (value?: string | null) => (value === 'BOUND' ? '已绑定' : '未绑定');
 
@@ -79,7 +77,6 @@ const statusColorMap: Record<string, string> = {
   EXPIRING: 'warning',
   EXPIRED: 'error',
   VOID: 'default',
-};
 
 const ProjectsPermits: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -502,6 +499,5 @@ const ProjectsPermits: React.FC = () => {
         </Form>
       </Modal>
   );
-};
 
 export default ProjectsPermits;
