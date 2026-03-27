@@ -912,6 +912,7 @@ const PlatformIntegrations: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
   );
 };
 
