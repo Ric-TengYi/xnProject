@@ -59,6 +59,27 @@ public class RoleServiceImpl implements RoleService {
     return roleMapper.selectPage(new Page<>(pageNo, pageSize), q);
   }
 
+  public IPage<Role> pageWithPermissionFilter(
+      String keyword, Long tenantId, String roleScope, String status, int pageNo, int pageSize, Role currentUserRole) {
+    LambdaQueryWrapper<Role> q = new LambdaQueryWrapper<>();
+    if (tenantId != null) q.eq(Role::getTenantId, tenantId);
+    if (StringUtils.hasText(keyword)) {
+      q.and(
+          w ->
+              w.like(Role::getRoleCode, keyword)
+                  .or()
+                  .like(Role::getRoleName, keyword));
+    }
+    if (StringUtils.hasText(roleScope)) q.eq(Role::getRoleScope, roleScope);
+    if (StringUtils.hasText(status)) q.eq(Role::getStatus, status);
+
+    if ("TENANT".equals(currentUserRole.getRoleScope())) {
+      q.eq(Role::getRoleScope, "TENANT");
+    }
+
+    return roleMapper.selectPage(new Page<>(pageNo, pageSize), q);
+  }
+
   @Override
   @Transactional(rollbackFor = Exception.class)
   public long create(Role role) {

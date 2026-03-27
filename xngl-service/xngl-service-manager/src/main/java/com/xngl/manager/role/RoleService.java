@@ -11,6 +11,8 @@ public interface RoleService {
 
   IPage<Role> page(String keyword, Long tenantId, String roleScope, String status, int pageNo, int pageSize);
 
+  IPage<Role> pageWithPermissionFilter(String keyword, Long tenantId, String roleScope, String status, int pageNo, int pageSize, Role currentUserRole);
+
   long create(Role role);
 
   void update(Role role);

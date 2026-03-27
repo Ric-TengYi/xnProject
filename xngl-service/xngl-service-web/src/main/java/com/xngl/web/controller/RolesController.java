@@ -40,9 +40,13 @@ public class RolesController {
       @RequestParam(required = false) String roleScope,
       @RequestParam(required = false) String status,
       @RequestParam(defaultValue = "1") int pageNo,
-      @RequestParam(defaultValue = "20") int pageSize) {
-    IPage<Role> page =
-        roleService.page(keyword, tenantId, roleScope, status, pageNo, pageSize);
+      @RequestParam(defaultValue = "20") int pageSize,
+      HttpServletRequest request) {
+    User currentUser = userContext.requireCurrentUser(request);
+    Role currentUserRole = roleService.getById(currentUser.getRoleId());
+    IPage<Role> page = currentUserRole != null
+        ? roleService.pageWithPermissionFilter(keyword, tenantId, roleScope, status, pageNo, pageSize, currentUserRole)
+        : roleService.page(keyword, tenantId, roleScope, status, pageNo, pageSize);
     List<RoleListItemDto> records =
         page.getRecords().stream().map(this::toListItem).collect(Collectors.toList());
     return ApiResult.ok(
