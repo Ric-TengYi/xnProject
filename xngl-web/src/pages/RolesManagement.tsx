@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Tree, List, Button, Tag, Select, Divider, message, Modal, Form, Input, Descriptions, Popconfirm, Space } from 'antd';
+import { Card, Tree, List, Button, Tag, Select, Divider, message, Modal, Form, Input, Descriptions, Popconfirm, Space, Pagination } from 'antd';
 import { PlusOutlined, SaveOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import request from '../utils/request';
@@ -8,6 +8,10 @@ const { Option } = Select;
 
 const RolesManagement: React.FC = () => {
     const [rolesList, setRolesList] = useState<any[]>([]);
+    const [rolesTotal, setRolesTotal] = useState(0);
+    const [rolesPageNo, setRolesPageNo] = useState(1);
+    const [rolesPageSize] = useState(10);
+    const [rolesKeyword, setRolesKeyword] = useState('');
     const [menuTreeData, setMenuTreeData] = useState<any[]>([]);
     const [selectedRole, setSelectedRole] = useState<any>(null);
     const [checkedKeys, setCheckedKeys] = useState<React.Key[]>([]);
@@ -21,7 +25,7 @@ const RolesManagement: React.FC = () => {
     useEffect(() => {
         void fetchRoles();
         fetchMenus();
-    }, []);
+    }, [rolesPageNo, rolesKeyword]);
 
     useEffect(() => {
         if (selectedRole) {
@@ -34,16 +38,13 @@ const RolesManagement: React.FC = () => {
         try {
             const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
             const tenantId = userInfo.tenantId || '1';
-            const res = await request.get('/roles', { params: { pageSize: 100, tenantId } });
+            const res = await request.get('/roles', { params: { pageNo: rolesPageNo, pageSize: rolesPageSize, tenantId, keyword: rolesKeyword || undefined } });
             if (res.code === 200) {
                 const roles = res.data.records || [];
                 setRolesList(roles);
-                if (roles.length > 0) {
-                    const currentRoleId = selectedRole?.id;
-                    const matched = currentRoleId ? roles.find((item: any) => item.id === currentRoleId) : null;
-                    await handleSelectRole((matched || roles[0]).id);
-                } else {
-                    setSelectedRole(null);
+                setRolesTotal(res.data.total || 0);
+                if (roles.length > 0 && !selectedRole) {
+                    await handleSelectRole(roles[0].id);
                 }
             }
         } catch (error) {
@@ -238,24 +239,31 @@ const RolesManagement: React.FC = () => {
                         <span className="g-text-primary font-bold">角色列表</span>
                         <Button type="primary" size="small" icon={<PlusOutlined />} className="g-btn-primary border-none" onClick={openCreateModal}>新增</Button>
                     </div>
-                    <div className="flex-1 overflow-auto p-2">
+                    <div className="p-2 border-b g-border-panel">
+                        <Input.Search placeholder="搜索角色名称" value={rolesKeyword} onChange={(e) => { setRolesKeyword(e.target.value); setRolesPageNo(1); }} />
+                    </div>
+                    <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
                         <List
                             dataSource={rolesList}
                             renderItem={item => (
-                                <List.Item 
-                                    className={`px-4 py-3 cursor-pointer rounded mb-1 transition-colors border-none ${selectedRole?.id === item.id ? 'bg-blue-600/20 border border-blue-500/50' : 'hover:bg-white'}`}
+                                <List.Item
+                                    className={`px-3 py-1.5 cursor-pointer rounded mx-1 my-0.5 transition-colors border-none ${selectedRole?.id === item.id ? 'bg-blue-600/20 border border-blue-500/50' : 'hover:bg-white/10'}`}
+                                    style={{ borderBottom: 'none' }}
                                     onClick={() => void handleSelectRole(item.id)}
                                 >
                                     <div className="w-full">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className={`font-bold ${selectedRole?.id === item.id ? 'g-text-primary-link' : 'g-text-primary'}`}>{item.roleName}</span>
-                                            <Tag color={item.roleScope === 'SYSTEM' ? 'default' : 'blue'} className="border-none m-0">{item.roleScope === 'SYSTEM' ? '系统内置' : '业务角色'}</Tag>
+                                        <div className="flex justify-between items-center">
+                                            <span className={`text-sm font-medium truncate flex-1 mr-1 ${selectedRole?.id === item.id ? 'g-text-primary-link' : 'g-text-primary'}`}>{item.roleName}</span>
+                                            <Tag color={item.roleScope === 'SYSTEM' ? 'default' : 'blue'} className="border-none m-0 text-xs flex-shrink-0">{item.roleScope === 'SYSTEM' ? '系统' : '业务'}</Tag>
                                         </div>
-                                        <div className="text-xs g-text-secondary truncate">{item.roleCode || '暂无编码'}</div>
+                                        <div className="text-xs g-text-secondary truncate leading-tight">{item.roleCode || '暂无编码'}</div>
                                     </div>
                                 </List.Item>
                             )}
                         />
+                    </div>
+                    <div className="px-2 py-1.5 border-t g-border-panel flex justify-center">
+                        <Pagination current={rolesPageNo} pageSize={rolesPageSize} total={rolesTotal} onChange={setRolesPageNo} size="small" showTotal={(total) => `共${total}条`} />
                     </div>
                 </Card>
 
@@ -303,17 +311,44 @@ const RolesManagement: React.FC = () => {
 
                         <div>
                             <div className="g-text-secondary font-bold mb-4 border-l-4 border-blue-500 pl-2">菜单与按钮权限</div>
-                            <div className="g-bg-toolbar p-4 rounded-lg border g-border-panel border">
-                                {menuTreeData.length > 0 && (
-                                    <Tree
-                                        checkable
-                                        defaultExpandAll
-                                        checkedKeys={checkedKeys}
-                                        onCheck={(keys) => setCheckedKeys(keys as React.Key[])}
-                                        treeData={menuTreeData}
-                                        className="bg-transparent g-text-secondary custom-tree"
-                                    />
-                                )}
+                            <div className="flex gap-4 h-96">
+                                {/* 左侧菜单树 */}
+                                <div className="w-48 border g-border-panel rounded-lg p-2 overflow-y-auto">
+                                    {menuTreeData.length > 0 && (
+                                        <Tree
+                                            checkable={false}
+                                            defaultExpandAll
+                                            treeData={menuTreeData}
+                                            className="bg-transparent g-text-secondary custom-tree"
+                                        />
+                                    )}
+                                </div>
+                                {/* 右侧按钮权限 */}
+                                <div className="flex-1 overflow-y-auto space-y-3">
+                                    {menuTreeData.map((menu: any) => (
+                                        <div key={menu.key} className="g-bg-toolbar p-4 rounded-lg border g-border-panel">
+                                            <div className="font-bold mb-3 g-text-primary">{menu.title}</div>
+                                            <div className="space-y-2">
+                                                {menu.children && menu.children.map((btn: any) => (
+                                                    <div key={btn.key} className="flex items-center gap-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={checkedKeys.includes(btn.key)}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setCheckedKeys([...checkedKeys, btn.key]);
+                                                                } else {
+                                                                    setCheckedKeys(checkedKeys.filter(k => k !== btn.key));
+                                                                }
+                                                            }}
+                                                        />
+                                                        <span className="text-sm">{btn.title}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>

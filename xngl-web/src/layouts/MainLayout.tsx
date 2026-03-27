@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Input, Badge, Avatar, Dropdown } from 'antd';
+import { Layout, Menu, Button, Input, Badge, Avatar, Dropdown, Modal, Form, Descriptions, message } from 'antd';
 import {
   PieChartOutlined,
   DesktopOutlined,
@@ -17,6 +17,7 @@ import {
   FullscreenOutlined,
   FullscreenExitOutlined,
   LogoutOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -120,6 +121,10 @@ const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [siderWidth, setSiderWidth] = useState(SIDER_DEFAULT_WIDTH);
   const [fullscreen, setFullscreen] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [passwordForm] = Form.useForm();
+  const [passwordLoading, setPasswordLoading] = useState(false);
   const [resizing, setResizing] = useState(false);
   const [resizeStartX, setResizeStartX] = useState(0);
   const [resizeStartWidth, setResizeStartWidth] = useState(SIDER_DEFAULT_WIDTH);
@@ -148,6 +153,19 @@ const MainLayout: React.FC = () => {
   };
 
   const userMenuItems = [
+    {
+      key: 'profile',
+      icon: <UserOutlined />,
+      label: '个人信息',
+      onClick: () => setProfileModalOpen(true),
+    },
+    {
+      key: 'password',
+      icon: <LockOutlined />,
+      label: '修改密码',
+      onClick: () => setPasswordModalOpen(true),
+    },
+    { type: 'divider' },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
@@ -201,6 +219,31 @@ const MainLayout: React.FC = () => {
       document.documentElement.requestFullscreen?.();
     } else {
       document.exitFullscreen?.();
+    }
+  };
+
+  const handleChangePassword = async (values: any) => {
+    if (values.newPassword !== values.confirmPassword) {
+      message.error('两次输入的密码不一致');
+      return;
+    }
+    setPasswordLoading(true);
+    try {
+      const res = await request.put('/me/password', {
+        oldPassword: values.oldPassword,
+        newPassword: values.newPassword,
+      });
+      if (res.code === 200) {
+        message.success('密码修改成功');
+        setPasswordModalOpen(false);
+        passwordForm.resetFields();
+      } else {
+        message.error(res.message || '密码修改失败');
+      }
+    } catch (error) {
+      message.error('密码修改失败');
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -366,6 +409,58 @@ const MainLayout: React.FC = () => {
           </motion.div>
         </Content>
       </Layout>
+
+      <Modal
+        title="个人信息"
+        open={profileModalOpen}
+        onCancel={() => setProfileModalOpen(false)}
+        footer={null}
+        width={500}
+      >
+        <Descriptions column={1} bordered size="small">
+          <Descriptions.Item label="用户名">{userInfo?.username}</Descriptions.Item>
+          <Descriptions.Item label="姓名">{userInfo?.name}</Descriptions.Item>
+          <Descriptions.Item label="用户类型">
+            <Badge status={userInfo?.userType === 'TENANT_ADMIN' ? 'success' : 'default'} text={userInfo?.userType === 'TENANT_ADMIN' ? '租户管理员' : userInfo?.userType} />
+          </Descriptions.Item>
+        </Descriptions>
+      </Modal>
+
+      <Modal
+        title="修改密码"
+        open={passwordModalOpen}
+        onOk={() => passwordForm.submit()}
+        onCancel={() => {
+          setPasswordModalOpen(false);
+          passwordForm.resetFields();
+        }}
+        confirmLoading={passwordLoading}
+        width={400}
+      >
+        <Form form={passwordForm} layout="vertical" onFinish={handleChangePassword}>
+          <Form.Item
+            name="oldPassword"
+            label="原密码"
+            rules={[{ required: true, message: '请输入原密码' }]}
+          >
+            <Input.Password placeholder="请输入原密码" />
+          </Form.Item>
+          <Form.Item
+            name="newPassword"
+            label="新密码"
+            rules={[{ required: true, message: '请输入新密码' }]}
+          >
+            <Input.Password placeholder="请输入新密码" />
+          </Form.Item>
+          <Form.Item
+            name="confirmPassword"
+            label="确认密码"
+            rules={[{ required: true, message: '请确认新密码' }]}
+          >
+            <Input.Password placeholder="请确认新密码" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Layout>
   );
 };

@@ -1,0 +1,50 @@
+{
+  "timestamp": "2026-03-26T07:28:40.554Z",
+  "totalTests": 8,
+  "passed": 7,
+  "failed": 0,
+  "skipped": 1,
+  "results": [
+    {
+      "test": "租户隔离",
+      "status": "PASS",
+      "details": "显示 0 个组织节点"
+    },
+    {
+      "test": "组织层级",
+      "status": "PASS",
+      "details": "0 个节点"
+    },
+    {
+      "test": "角色-组织关系",
+      "status": "PASS",
+      "details": "6 个角色"
+    },
+    {
+      "test": "菜单平台隔离",
+      "status": "PASS",
+      "details": "16 个 PC 菜单"
+    },
+    {
+      "test": "组织创建",
+      "status": "PASS",
+      "details": "创建对话框打开成功"
+    },
+    {
+      "test": "用户权限",
+      "status": "PASS",
+      "details": "6 个可访问菜单"
+    },
+    {
+      "test": "数据字典编辑",
+      "status": "SKIP",
+      "details": "页面不可用"
+    },
+    {
+      "test": "登录重定向循环修复",
+      "status": "PASS",
+      "details": "正确重定向到登录页"
+    }
+  ],
+  "screenshotDir": "/Users/tengyi/work/openclaw/workspace/xnProject/test-screenshots"
+}
