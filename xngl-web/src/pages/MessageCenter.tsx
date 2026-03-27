@@ -408,6 +408,7 @@ const MessageCenter: React.FC = () => {
           </div>
         </div>
       </Modal>
+    </div>
   );
 };
 export default MessageCenter;

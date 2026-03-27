@@ -734,6 +734,10 @@ const ApprovalConfig: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold m-0">审批配置</h1>
+        </div>
         {activeTab === 'rules' ? (
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
             新增规则
@@ -747,6 +751,7 @@ const ApprovalConfig: React.FC = () => {
             新增流程
           </Button>
         )}
+      </div>
 
       <Tabs
         activeKey={activeTab}
@@ -900,232 +905,89 @@ const ApprovalConfig: React.FC = () => {
                     </div>
                   </div>
                 </Card>
-                <Card className="glass-panel g-border-panel border">
-                  <div className="mb-4 flex flex-wrap gap-3">
-                    <Input
-                      allowClear
-                      value={flowsKeyword}
-                      onChange={(event) => setFlowsKeyword(event.target.value)}
-                      prefix={<SearchOutlined />}
-                      placeholder="搜索流程名称 / 节点 / 审批人"
-                      className="w-72"
-                    />
-                    <Select
-                      allowClear
-                      value={flowsProcessKey}
-                      options={processOptions}
-                      placeholder="选择流程"
-                      className="w-48"
-                      onChange={setFlowsProcessKey}
-                    />
-                    <Select
-                      value={flowsStatus}
-                      className="w-36"
-                      onChange={setFlowsStatus}
-                      options={[
-                        { label: '全部状态', value: 'all' },
-                        { label: '启用', value: 'ENABLED' },
-                        { label: '停用', value: 'DISABLED' },
-                      ]}
-                    />
-                    <div className="flex-1 flex justify-end">
-                      <Button
-                        icon={<ExportOutlined />}
-                        onClick={() => void handleExport('flows')}
-                        loading={exportingTab === 'flows'}
-                      >
-                        导出
-                      </Button>
-                    </div>
-                  </div>
-                  <Table
-                    rowKey="id"
-                    loading={flowLoading}
-                    columns={flowColumns}
-                    dataSource={flowRecords}
-                    pagination={false}
-                  />
-                </Card>
               </Space>
             ),
           },
         ]}
       />
-
-      <Modal
-        title={editingRecord ? '编辑审批规则' : '新增审批规则'}
-        open={modalOpen}
-        onCancel={() => setModalOpen(false)}
-        onOk={() => void handleSubmit()}
-        confirmLoading={submitLoading}
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item name="tenantId" hidden>
-            <Input />
+    <Modal
+      title={editingFlow ? '编辑流程配置' : '新增流程配置'}
+      open={flowModalOpen}
+      onCancel={() => setFlowModalOpen(false)}
+      onOk={() => void handleFlowSubmit()}
+      confirmLoading={flowSubmitLoading}
+    >
+      <Form form={flowForm} layout="vertical">
+        <Form.Item
+          name="processKey"
+          label="业务流程"
+          rules={[{ required: true, message: '请选择业务流程' }]}
+        >
+          <Select options={processOptions} />
+        </Form.Item>
+        <Form.Item
+          name="configName"
+          label="流程名称"
+          rules={[{ required: true, message: '请输入流程名称' }]}
+        >
+          <Input placeholder="如 合同审批标准流" />
+        </Form.Item>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Form.Item
+            name="approvalType"
+            label="审批方式"
+            rules={[{ required: true, message: '请选择审批方式' }]}
+          >
+            <Select options={approvalTypeOptions} />
+          </Form.Item>
+          <Form.Item name="formTemplateCode" label="文书模板编码">
+            <Input placeholder="如 CONTRACT_APPLY_DOC" />
+          </Form.Item>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Form.Item
+            name="nodeCode"
+            label="节点编码"
+            rules={[{ required: true, message: '请输入节点编码' }]}
+          >
+            <Input placeholder="如 APPLY_AUDIT" />
           </Form.Item>
           <Form.Item
-            name="processKey"
-            label="业务流程"
-            rules={[{ required: true, message: '请选择业务流程' }]}
+            name="nodeName"
+            label="节点名称"
+            rules={[{ required: true, message: '请输入节点名称' }]}
           >
-            <Select options={processOptions} />
+            <Input placeholder="如 申请审核" />
           </Form.Item>
-          <Form.Item
-            name="ruleName"
-            label="规则名称"
-            rules={[{ required: true, message: '请输入规则名称' }]}
-          >
-            <Input placeholder="如 项目经理审核" />
-          </Form.Item>
-          <Form.Item
-            name="ruleType"
-            label="规则类型"
-            rules={[{ required: true, message: '请选择规则类型' }]}
-          >
-            <Select options={ruleTypeOptions} />
-          </Form.Item>
-          <Form.Item
-            name="ruleExpression"
-            label="审批表达式"
-            rules={[{ required: true, message: '请输入审批表达式' }]}
-          >
-            <Input.TextArea rows={3} placeholder="如 role:project_manager 或 user:1001" />
-          </Form.Item>
-          <Form.Item name="priority" label="优先级">
+        </div>
+        <Form.Item name="approvers" label="审批人表达式">
+          <Input.TextArea rows={2} placeholder="如 role:project_manager,user:1001" />
+        </Form.Item>
+        <Form.Item name="conditions" label="流转条件">
+          <Input.TextArea rows={2} placeholder="如 amount>500000" />
+        </Form.Item>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Form.Item name="timeoutHours" label="超时小时数">
             <InputNumber min={0} className="w-full" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal
-        title={editingMaterial ? '编辑材料配置' : '新增材料配置'}
-        open={materialModalOpen}
-        onCancel={() => setMaterialModalOpen(false)}
-        onOk={() => void handleMaterialSubmit()}
-        confirmLoading={materialSubmitLoading}
-      >
-        <Form form={materialForm} layout="vertical">
-          <Form.Item
-            name="processKey"
-            label="业务流程"
-            rules={[{ required: true, message: '请选择业务流程' }]}
-          >
-            <Select options={processOptions} />
-          </Form.Item>
-          <Form.Item
-            name="materialCode"
-            label="材料编码"
-            rules={[{ required: true, message: '请输入材料编码' }]}
-          >
-            <Input placeholder="如 APPLY_FORM" />
-          </Form.Item>
-          <Form.Item
-            name="materialName"
-            label="材料名称"
-            rules={[{ required: true, message: '请输入材料名称' }]}
-          >
-            <Input placeholder="如 合同申请表" />
-          </Form.Item>
-          <Form.Item name="materialType" label="材料类型">
-            <Select allowClear options={materialTypeOptions} />
-          </Form.Item>
-          <Form.Item name="required" label="是否必填" valuePropName="checked">
-            <Switch />
           </Form.Item>
           <Form.Item name="sortOrder" label="排序">
             <InputNumber min={0} className="w-full" />
           </Form.Item>
-          <Form.Item name="status" label="状态">
-            <Select
-              options={[
-                { label: '启用', value: 'ENABLED' },
-                { label: '停用', value: 'DISABLED' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="remark" label="备注">
-            <Input.TextArea rows={3} />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal
-        title={editingFlow ? '编辑流程配置' : '新增流程配置'}
-        open={flowModalOpen}
-        onCancel={() => setFlowModalOpen(false)}
-        onOk={() => void handleFlowSubmit()}
-        confirmLoading={flowSubmitLoading}
-      >
-        <Form form={flowForm} layout="vertical">
-          <Form.Item
-            name="processKey"
-            label="业务流程"
-            rules={[{ required: true, message: '请选择业务流程' }]}
-          >
-            <Select options={processOptions} />
-          </Form.Item>
-          <Form.Item
-            name="configName"
-            label="流程名称"
-            rules={[{ required: true, message: '请输入流程名称' }]}
-          >
-            <Input placeholder="如 合同审批标准流" />
-          </Form.Item>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Form.Item
-              name="approvalType"
-              label="审批方式"
-              rules={[{ required: true, message: '请选择审批方式' }]}
-            >
-              <Select options={approvalTypeOptions} />
-            </Form.Item>
-            <Form.Item name="formTemplateCode" label="文书模板编码">
-              <Input placeholder="如 CONTRACT_APPLY_DOC" />
-            </Form.Item>
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Form.Item
-              name="nodeCode"
-              label="节点编码"
-              rules={[{ required: true, message: '请输入节点编码' }]}
-            >
-              <Input placeholder="如 APPLY_AUDIT" />
-            </Form.Item>
-            <Form.Item
-              name="nodeName"
-              label="节点名称"
-              rules={[{ required: true, message: '请输入节点名称' }]}
-            >
-              <Input placeholder="如 申请审核" />
-            </Form.Item>
-          </div>
-          <Form.Item name="approvers" label="审批人表达式">
-            <Input.TextArea rows={2} placeholder="如 role:project_manager,user:1001" />
-          </Form.Item>
-          <Form.Item name="conditions" label="流转条件">
-            <Input.TextArea rows={2} placeholder="如 amount>500000" />
-          </Form.Item>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Form.Item name="timeoutHours" label="超时小时数">
-              <InputNumber min={0} className="w-full" />
-            </Form.Item>
-            <Form.Item name="sortOrder" label="排序">
-              <InputNumber min={0} className="w-full" />
-            </Form.Item>
-          </div>
-          <Form.Item name="status" label="状态">
-            <Select
-              options={[
-                { label: '启用', value: 'ENABLED' },
-                { label: '停用', value: 'DISABLED' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="remark" label="备注">
-            <Input.TextArea rows={3} />
-          </Form.Item>
-        </Form>
-      </Modal>
-  );
+        </div>
+        <Form.Item name="status" label="状态">
+          <Select
+            options={[
+              { label: '启用', value: 'ENABLED' },
+              { label: '停用', value: 'DISABLED' },
+            ]}
+          />
+        </Form.Item>
+        <Form.Item name="remark" label="备注">
+          <Input.TextArea rows={3} />
+        </Form.Item>
+      </Form>
+    </Modal>
+  </div>
+);
 };
 export default ApprovalConfig;

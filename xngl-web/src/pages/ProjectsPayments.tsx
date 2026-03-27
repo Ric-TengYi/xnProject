@@ -313,6 +313,7 @@ const ProjectsPayments: React.FC = () => {
         </Card>
 
       <Card className="glass-panel g-border-panel border" title="所选项目结算概览">
+        {summary ? (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Statistic title="项目名称" value={summary.projectName || '-'} valueStyle={{ fontSize: 18 }} />
             <Statistic title="应收总额" value={Number(summary.totalAmount || 0)} precision={2} />
@@ -324,11 +325,14 @@ const ProjectsPayments: React.FC = () => {
               valueStyle={{ color: Number(summary.debtAmount || 0) > 0 ? 'var(--error)' : 'var(--success)' }}
             />
           </div>
+        ) : null}
+        {summary ? (
           <div className="mt-3 text-sm g-text-secondary">
             最近交款日期: {summary.lastPaymentDate || '-'} / 状态: {summary.status || '-'}
           </div>
-        </Card>
-      ) : null}
+        ) : null}
+      </Card>
+      </div>
 
       <Card className="glass-panel g-border-panel border">
         <div className="flex justify-between mb-4 flex-wrap gap-4">
@@ -497,6 +501,7 @@ const ProjectsPayments: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
   );
 };
 export default ProjectsPayments;

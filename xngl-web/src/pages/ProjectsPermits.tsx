@@ -62,6 +62,7 @@ const resolvePermitType = (value?: string | null) => {
   if (value === 'DISPOSAL') return '排放证';
   if (value === 'TRANSPORT') return '准运证';
   return value || '-';
+};
 
 const resolveStatus = (value?: string | null) => {
   if (value === 'ACTIVE') return '有效';
@@ -69,6 +70,7 @@ const resolveStatus = (value?: string | null) => {
   if (value === 'EXPIRED') return '已过期';
   if (value === 'VOID') return '作废';
   return value || '-';
+};
 
 const resolveBindStatus = (value?: string | null) => (value === 'BOUND' ? '已绑定' : '未绑定');
 
@@ -77,6 +79,7 @@ const statusColorMap: Record<string, string> = {
   EXPIRING: 'warning',
   EXPIRED: 'error',
   VOID: 'default',
+};
 
 const ProjectsPermits: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -346,6 +349,10 @@ const ProjectsPermits: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold m-0">处置证管理</h1>
+        </div>
         <Space>
           <Button icon={<SyncOutlined />} loading={syncing} onClick={() => void handleGovSync()}>
             政务网同步
@@ -354,6 +361,7 @@ const ProjectsPermits: React.FC = () => {
             新增处置证
           </Button>
         </Space>
+      </div>
 
       <Card className="glass-panel g-border-panel border">
         <div className="flex flex-wrap gap-3 mb-4">
@@ -498,6 +506,7 @@ const ProjectsPermits: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
   );
 };
 export default ProjectsPermits;

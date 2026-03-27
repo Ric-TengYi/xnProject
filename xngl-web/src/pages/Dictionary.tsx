@@ -228,6 +228,7 @@ const Dictionary: React.FC = () => {
       <div>
         <h1 className="text-2xl font-bold g-text-primary m-0">数据字典</h1>
         <p className="g-text-secondary mt-1">统一维护系统通用枚举、业务类型和展示标签</p>
+      </div>
 
       <div className="flex gap-6 flex-1 min-h-0">
         {/* 左侧：字典类型列表 */}
@@ -276,6 +277,7 @@ const Dictionary: React.FC = () => {
             <Table rowKey="id" loading={loading} columns={columns} dataSource={currentRecords} pagination={false} />
           </div>
         </Card>
+      </div>
 
       {/* 新增/编辑字典项 Modal */}
       <Modal
@@ -313,6 +315,7 @@ const Dictionary: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
   );
 };
 export default Dictionary;

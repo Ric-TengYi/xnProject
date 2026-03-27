@@ -53,6 +53,7 @@ const menuTypeMap: Record<string, { color: string; label: string }> = {
   DIR: { color: 'blue', label: '目录' },
   MENU: { color: 'green', label: '菜单' },
   BUTTON: { color: 'orange', label: '按钮' },
+};
 
 const platformTabs = [
   { key: 'PC', label: 'PC端', icon: <AppstoreOutlined /> },
@@ -669,6 +670,7 @@ const MenuManagement: React.FC = () => {
             </Card>
           )}
         </div>
+      </div>
 
       {/* Create Menu Modal */}
       <Modal
@@ -809,7 +811,6 @@ const MenuManagement: React.FC = () => {
         </Form>
       </Modal>
     </motion.div>
-  );    </div>
   );
 };
 export default MenuManagement;

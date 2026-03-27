@@ -28,10 +28,12 @@ const statusColorMap: Record<string, string> = {
   在建: 'processing',
   预警: 'error',
   完工: 'success',
+};
 
 const paymentStatusColorMap: Record<string, string> = {
   已结清: 'success',
   欠款中: 'error',
+};
 
 const formatMoney = (value?: number | null) =>
   '¥ ' + Number(value || 0).toLocaleString();
@@ -85,11 +87,11 @@ const ProjectDetail: React.FC = () => {
       })),
     [contracts]
   );
-};  const routePath = useMemo<MapPoint[]>(
+  const routePath = useMemo<MapPoint[]>(
     () => parseGeoJsonLine(projectConfig?.routeGeoJson),
     [projectConfig?.routeGeoJson]
   );
-};  const violationFencePath = useMemo<MapPolygon[]>(
+  const violationFencePath = useMemo<MapPolygon[]>(
     () => {
       const path = parseGeoJsonPolygon(projectConfig?.violationFenceGeoJson);
       if (path.length < 3) {
@@ -107,11 +109,11 @@ const ProjectDetail: React.FC = () => {
     },
     [projectConfig?.violationFenceGeoJson]
   );
-};  const routeLines = useMemo<MapPolyline[]>(
+  const routeLines = useMemo<MapPolyline[]>(
     () => (routePath.length >= 2 ? [{ id: 'project-route', path: routePath, color: '#1677ff', weight: 5, opacity: 0.9 }] : []),
     [routePath]
   );
-};  const configMapCenter = useMemo<MapPoint>(() => {
+  const configMapCenter = useMemo<MapPoint>(() => {
     if (routePath.length > 0) {
       return routePath[0];
     }

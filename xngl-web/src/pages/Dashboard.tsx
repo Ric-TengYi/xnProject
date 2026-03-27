@@ -34,6 +34,7 @@ const emptyOverview: DashboardOverview = {
   dailyVolume: 0,
   monthlyVolume: 0,
   warningCount: 0,
+};
 
 const Dashboard: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());

@@ -281,6 +281,7 @@ const VehicleModelsManagement: React.FC = () => {
         <Card className="glass-panel g-border-panel border">
           <Statistic title="总载重(吨)" value={summary.totalLoadWeight.toFixed(2)} />
         </Card>
+      </div>
 
       <Card className="glass-panel g-border-panel border">
         <div className="flex justify-between items-center gap-4 mb-4">
@@ -366,6 +367,8 @@ const VehicleModelsManagement: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
   );
 };
+
 export default VehicleModelsManagement;

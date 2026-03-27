@@ -46,12 +46,14 @@ const resolveSiteType = (site?: SiteRecord | null) => {
     if (code.startsWith('JT') || suffix === 2) return '集体场地';
     if (code.startsWith('GC') || suffix === 3) return '工程场地';
     return '短驳场地';
+};
 
 const resolveStatus = (status?: number | string | null) => {
     if (status === 1 || status === '1' || status === 'ACTIVE' || status === 'ENABLED') return '正常';
     if (status === 2 || status === '2' || status === 'WARNING') return '预警';
     if (status === 0 || status === '0' || status === 'INACTIVE' || status === 'DISABLED') return '停用';
     return '正常';
+};
 
 const buildCapacity = (site?: SiteRecord | null) => {
     if (!site) return 0;
@@ -59,6 +61,7 @@ const buildCapacity = (site?: SiteRecord | null) => {
         return Number(site.capacity);
     }
     return ((Number(site.id || 1) % 7) + 3) * 100000;
+};
 
 const resolveSettlementMode = (site?: SiteRecord | null) => {
     switch (site?.settlementMode) {
@@ -73,6 +76,7 @@ const resolveSettlementMode = (site?: SiteRecord | null) => {
         default:
             return '按配置规则结算';
     }
+};
 
 const DEFAULT_MAP_CENTER: MapPoint = [120.1551, 30.2741];
 
@@ -93,6 +97,7 @@ const resolvePersonnelRole = (roleType?: string | null) => {
         default:
             return roleType || '未分类';
     }
+};
 
 const resolveDocumentType = (documentType?: string | null) => {
     switch (documentType) {
@@ -123,6 +128,7 @@ const resolveDocumentType = (documentType?: string | null) => {
         default:
             return documentType || '-';
     }
+};
 
 const resolveSiteLevel = (level?: string | null) => level === 'SECONDARY' ? '二级场地' : '一级场地';
 
@@ -135,6 +141,7 @@ const resolveSurveyStatus = (status?: string | null) => {
         default:
             return '草稿';
     }
+};
 
 const SiteDetail: React.FC = () => {
     const { id } = useParams();
@@ -1123,5 +1130,6 @@ const SiteDetail: React.FC = () => {
             </Modal>
         </motion.div>
     );
+};
 
 export default SiteDetail;

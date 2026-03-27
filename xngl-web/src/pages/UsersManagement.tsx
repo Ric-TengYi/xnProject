@@ -28,6 +28,7 @@ type UserRecord = {
   roleNames?: string[];
   status?: string;
   lastLoginTime?: string;
+};
 
 type UserDetailRecord = {
   id: string;
@@ -44,6 +45,7 @@ type UserDetailRecord = {
   needResetPassword?: number;
   lockStatus?: number;
   lastLoginTime?: string;
+};
 
 type RoleSelectOption = { label: string; value: string };
 
@@ -57,6 +59,7 @@ type UserFormValues = {
   mainOrgId: string;
   orgIds?: string[];
   roleIds?: string[];
+};
 
 type TreeSelectNode = { title: string; value: string; children?: TreeSelectNode[] };
 

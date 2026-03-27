@@ -81,6 +81,7 @@ const statusColorMap: Record<string, string> = {
   PROCESSING: 'orange',
   CLOSED: 'default',
   CONFIRMED: 'green',
+};
 
 const emptySummary: AlertSummaryRecord = {
   total: 0,
@@ -99,6 +100,7 @@ const emptySummary: AlertSummaryRecord = {
   enabledRuleCount: 0,
   enabledFenceCount: 0,
   enabledPushCount: 0,
+};
 
 const emptyAnalytics: AlertAnalyticsRecord = {
   levelBuckets: [],
@@ -114,6 +116,7 @@ const emptyAnalytics: AlertAnalyticsRecord = {
     connectedPushRules: 0,
     sceneCoverage: {},
   },
+};
 
 const downloadBlob = (blob: Blob, fileName: string) => {
   const url = window.URL.createObjectURL(blob);
@@ -122,6 +125,7 @@ const downloadBlob = (blob: Blob, fileName: string) => {
   link.download = fileName;
   link.click();
   window.URL.revokeObjectURL(url);
+};
 
 const formatRangeParams = (
   params: Record<string, string>,
@@ -134,6 +138,7 @@ const formatRangeParams = (
   }
   params[keyFrom] = range[0].format('YYYY-MM-DDTHH:mm:ss');
   params[keyTo] = range[1].format('YYYY-MM-DDTHH:mm:ss');
+};
 
 const formatJsonText = (value?: string | null) => {
   if (!value) {
@@ -144,6 +149,7 @@ const formatJsonText = (value?: string | null) => {
   } catch {
     return value;
   }
+};
 
 const AlertsMonitor: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -488,6 +494,7 @@ const AlertsMonitor: React.FC = () => {
         <Card className="glass-panel g-border-panel border"><Statistic title="平均处置(分)" value={summary.avgHandleMinutes} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="启用规则" value={summary.enabledRuleCount} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="启用推送" value={summary.enabledPushCount} /></Card>
+      </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[2fr_1fr]">
         <Card className="glass-panel g-border-panel border" title="预警实例列表">
@@ -600,6 +607,7 @@ const AlertsMonitor: React.FC = () => {
             </div>
           </Card>
         </div>
+      </div>
 
       <Drawer title="预警详情" open={detailOpen} onClose={() => setDetailOpen(false)} width={640} loading={detailLoading}>
         <Descriptions column={1} bordered size="small">
@@ -673,6 +681,7 @@ const AlertsMonitor: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
   );
 };
 export default AlertsMonitor;

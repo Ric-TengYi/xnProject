@@ -21,6 +21,7 @@ const emptySummary: ProjectReportSummary = {
     projectTotal: 0,
     accumulatedVolume: 0,
     progressPercent: 0,
+};
 
 const DashboardProjects: React.FC = () => {
     const navigate = useNavigate();
@@ -175,5 +176,6 @@ const DashboardProjects: React.FC = () => {
             </Spin>
         </div>
     );
+};
 
 export default DashboardProjects;

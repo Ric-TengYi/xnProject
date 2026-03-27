@@ -64,6 +64,7 @@ const integrationDescriptions: Record<string, string> = {
   SSO: '统一身份认证与跨平台单点登录配置，支持免密票据生成和换取平台 JWT。',
   VIDEO: '项目监控与场地监控平台接入配置，当前自动聚合场地设备视频通道。',
   DAM_MONITOR: '坝体监测设备接入预留，支持本地 mock 同步与在线状态校验。',
+};
 
 const statusColorMap: Record<string, string> = {
   ONLINE: 'green',
@@ -74,6 +75,7 @@ const statusColorMap: Record<string, string> = {
   WARNING: 'orange',
   ALERT: 'red',
   NORMAL: 'green',
+};
 
 const PlatformIntegrations: React.FC = () => {
   const [loading, setLoading] = useState(false);

@@ -30,6 +30,7 @@ const statusColorMap: Record<string, string> = {
   在建: 'processing',
   预警: 'error',
   完工: 'success',
+};
 
 const formatAmount = (value?: number | null) =>
   '¥ ' + Number(value || 0).toLocaleString();
@@ -78,7 +79,7 @@ const ProjectsManagement: React.FC = () => {
     }),
     [projects, total]
   );
-};
+
   const columns: ColumnsType<ProjectRecord> = [
     {
       title: '项目编号',
@@ -223,6 +224,7 @@ const ProjectsManagement: React.FC = () => {
           <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>当前页合同额</div>
           <div className="text-2xl font-bold">{formatAmount(summary.amount)}</div>
         </Card>
+      </div>
 
       <Card
         className="glass-panel"

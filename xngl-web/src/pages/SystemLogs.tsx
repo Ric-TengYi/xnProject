@@ -19,6 +19,7 @@ const downloadBlob = (blob: Blob, fileName: string) => {
   link.download = fileName;
   link.click();
   window.URL.revokeObjectURL(url);
+};
 
 const SystemLogs: React.FC = () => {
   const [loginLogs, setLoginLogs] = useState<any[]>([]);

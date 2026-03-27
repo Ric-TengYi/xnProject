@@ -62,30 +62,35 @@ interface GenerateFormValues {
 const settlementTypeLabelMap: Record<string, string> = {
   PROJECT: '按项目结算',
   SITE: '按场地结算',
+};
 
 const settlementStatusLabelMap: Record<string, string> = {
   DRAFT: '草稿',
   APPROVING: '审批中',
   SETTLED: '已结算',
   REJECTED: '已驳回',
+};
 
 const approvalStatusLabelMap: Record<string, string> = {
   NOT_SUBMITTED: '未提交',
   APPROVING: '审批中',
   APPROVED: '已审批',
   REJECTED: '已驳回',
+};
 
 const settlementStatusColorMap: Record<string, string> = {
   DRAFT: 'default',
   APPROVING: 'processing',
   SETTLED: 'success',
   REJECTED: 'error',
+};
 
 const approvalStatusColorMap: Record<string, string> = {
   NOT_SUBMITTED: 'default',
   APPROVING: 'warning',
   APPROVED: 'success',
   REJECTED: 'error',
+};
 
 const settlementTypeOptions = [
   { label: '全部结算类型', value: 'all' },
@@ -108,6 +113,7 @@ const emptyStats: SettlementStats = {
   draftOrders: 0,
   pendingOrders: 0,
   settledOrders: 0,
+};
 
 const formatNumber = (value?: number | null) => Number(value || 0).toLocaleString();
 const formatCurrency = (value?: number | null) => `¥ ${formatNumber(value)}`;
@@ -917,7 +923,6 @@ const Settlements: React.FC = () => {
         </Form>
       </Modal>
     </motion.div>
-  );    </div>
   );
 };
 export default Settlements;

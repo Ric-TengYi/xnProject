@@ -32,11 +32,13 @@ type TrackingVehicle = {
   gpsTime?: string | null;
   position: MapPoint;
   hasPosition: boolean;
+};
 
 type TrackPoint = {
   position: MapPoint;
   locateTime?: string | null;
   speed?: string;
+};
 
 const defaultCenter: MapPoint = [120.1551, 30.2741];
 
@@ -51,6 +53,7 @@ const interpolatePosition = (path: MapPoint[], progress: number): MapPoint => {
   const start = path[index];
   const end = path[index + 1];
   return [start[0] + (end[0] - start[0]) * ratio, start[1] + (end[1] - start[1]) * ratio];
+};
 
 const fallbackPoint = (index: number): MapPoint => [120.12 + index * 0.022, 30.21 + index * 0.018];
 
@@ -58,6 +61,7 @@ const buildRangeFromGpsTime = (gpsTime?: string | null): [Dayjs, Dayjs] => {
   const base = gpsTime ? dayjs(gpsTime) : dayjs();
   const safeBase = base.isValid() ? base : dayjs();
   return [safeBase.startOf('day'), safeBase.endOf('day')];
+};
 
 const mapTrackPoints = (points: VehicleTrackPointRecord[], fallbackPosition: MapPoint, fallbackTime?: string | null): TrackPoint[] => {
   if (!points.length) {
@@ -68,6 +72,7 @@ const mapTrackPoints = (points: VehicleTrackPointRecord[], fallbackPosition: Map
     locateTime: point.locateTime || null,
     speed: point.speed != null ? `${point.speed} km/h` : undefined,
   }));
+};
 
 const resolveTrackingVehicle = (record: VehicleDetailRecord, index: number): TrackingVehicle => {
   const hasPosition = record.lng != null && record.lat != null;
@@ -89,6 +94,7 @@ const resolveTrackingVehicle = (record: VehicleDetailRecord, index: number): Tra
     position,
     hasPosition,
   };
+};
 
 const VehicleTracking: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -445,4 +451,5 @@ const VehicleTracking: React.FC = () => {
     </div>
   );
 };
+
 export default VehicleTracking;

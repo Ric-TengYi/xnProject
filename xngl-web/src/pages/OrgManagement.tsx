@@ -58,15 +58,18 @@ type AntTreeNode = {
   key: string;
   icon?: React.ReactNode;
   children?: AntTreeNode[];
+};
 
 type TreeSelectNode = {
   title: string;
   value: string;
   children?: TreeSelectNode[];
+};
 
 const statusColorMap: Record<string, string> = {
   ENABLED: 'success',
   DISABLED: 'error',
+};
 
 const formatMoney = (value?: number | null) => '¥ ' + Number(value || 0).toLocaleString();
 
@@ -597,6 +600,7 @@ const OrgManagement: React.FC = () => {
             </>
           ) : null}
         </div>
+      </div>
 
       {/* ── Create / Edit Modal ── */}
       <Modal

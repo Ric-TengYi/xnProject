@@ -40,12 +40,14 @@ type SiteMapItem = {
     status?: string | null;
     position: MapPoint;
   }[];
+};
 
 type ProjectMapItem = {
   id: string;
   name: string;
   todayVolume: number;
   position: MapPoint;
+};
 
 type VehicleMapItem = {
   id: string;
@@ -53,10 +55,12 @@ type VehicleMapItem = {
   statusLabel: string;
   position: MapPoint;
   gpsTime?: string | null;
+};
 
 type TrackPoint = {
   position: MapPoint;
   locateTime?: string | null;
+};
 
 const MAP_CENTER: MapPoint = [120.1551, 30.2741];
 
@@ -332,7 +336,7 @@ const DashboardMap: React.FC = () => {
 
   return (
     <div className="h-[calc(100vh-120px)] flex flex-col space-y-4">
-        </div>
+      <div>
         <Space wrap>
           <Select value={filterType} onChange={(value) => setFilterType(value)} style={{ width: 150 }} className="bg-white">
             <Option value="all">全部显示</Option>
@@ -371,6 +375,7 @@ const DashboardMap: React.FC = () => {
             {playing ? '暂停回放' : '开始回放'}
           </Button>
         </Space>
+      </div>
 
       <div className="flex-1 flex gap-4 min-h-0">
         <div className="w-80 flex flex-col gap-4 min-h-0">
@@ -493,7 +498,7 @@ const DashboardMap: React.FC = () => {
             </div>
           </div>
         </Card>
-    </div>
+      </div>
     </div>
   );
 };

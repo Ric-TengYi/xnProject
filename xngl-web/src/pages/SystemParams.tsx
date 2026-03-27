@@ -240,6 +240,7 @@ const SystemParams: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
   );
 };
 export default SystemParams;

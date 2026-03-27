@@ -44,6 +44,7 @@ const emptySummary: ProjectReportSummary = {
   projectTotal: 0,
   accumulatedVolume: 0,
   progressPercent: 0,
+};
 
 const emptyViolationAnalysis: ProjectViolationAnalysis = {
   summary: {
@@ -58,6 +59,7 @@ const emptyViolationAnalysis: ProjectViolationAnalysis = {
   byFleet: [],
   byPlate: [],
   byTeam: [],
+};
 
 const ProjectsReports: React.FC = () => {
   const [periodType, setPeriodType] = useState<PeriodType>('MONTH');
@@ -214,6 +216,7 @@ const ProjectsReports: React.FC = () => {
         <Button icon={<DownloadOutlined />} loading={exporting} onClick={() => void handleExport()}>
           导出报表
         </Button>
+      </div>
 
       <Card className="glass-panel g-border-panel border">
         <div className="flex flex-wrap gap-3 justify-between">
@@ -250,6 +253,7 @@ const ProjectsReports: React.FC = () => {
         <Card className="glass-panel g-border-panel border"><Statistic title="活跃项目" value={summary.activeProjectCount} suffix="个" valueStyle={{ color: 'var(--success)' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="本期消纳量" value={summary.periodVolume} suffix="方" valueStyle={{ color: 'var(--primary)' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="累计完成率" value={summary.progressPercent} suffix="%" valueStyle={{ color: summary.progressPercent >= 80 ? 'var(--success)' : 'var(--text-primary)' }} /></Card>
+      </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         <Card className="glass-panel g-border-panel border xl:col-span-3" title={<span className="g-text-primary"><BarChartOutlined className="mr-2" />近六期项目趋势</span>}>
@@ -280,6 +284,7 @@ const ProjectsReports: React.FC = () => {
             <div className="flex justify-between"><span className="g-text-secondary">项目总工程量</span><span className="g-text-primary">{summary.projectTotal.toLocaleString()} 方</span></div>
           </div>
         </Card>
+      </div>
 
       <Card className="glass-panel g-border-panel border">
         <Table
@@ -339,6 +344,7 @@ const ProjectsReports: React.FC = () => {
             />
           </Card>
         </div>
+      </div>
     </div>
   );
 };

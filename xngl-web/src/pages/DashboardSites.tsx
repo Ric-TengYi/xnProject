@@ -21,6 +21,7 @@ const emptySummary: SiteReportSummary = {
   totalCapacity: 0,
   accumulatedVolume: 0,
   utilizationRate: 0,
+};
 
 const DashboardSites: React.FC = () => {
     const navigate = useNavigate();
@@ -173,5 +174,6 @@ const DashboardSites: React.FC = () => {
             </Spin>
         </div>
     );
+};
 
 export default DashboardSites;

@@ -85,6 +85,7 @@ const statusColorMap: Record<string, string> = {
   PROCESSING: 'processing',
   REJECTED: 'error',
   CLOSED: 'success',
+};
 
 const emptySummary: ManualEventSummaryRecord = {
   total: 0,
@@ -98,6 +99,7 @@ const emptySummary: ManualEventSummaryRecord = {
   todayCount: 0,
   typeBuckets: [],
   sourceBuckets: [],
+};
 
 const downloadBlob = (blob: Blob, fileName: string) => {
   const url = window.URL.createObjectURL(blob);
@@ -106,6 +108,7 @@ const downloadBlob = (blob: Blob, fileName: string) => {
   link.download = fileName;
   link.click();
   window.URL.revokeObjectURL(url);
+};
 
 const formatRangeParams = (
   params: Record<string, string>,
@@ -118,6 +121,7 @@ const formatRangeParams = (
   }
   params[keyFrom] = range[0].format('YYYY-MM-DDTHH:mm:ss');
   params[keyTo] = range[1].format('YYYY-MM-DDTHH:mm:ss');
+};
 
 const parseAttachmentUrls = (value?: string | null) =>
   (value || '')
@@ -510,6 +514,7 @@ const EventsManagement: React.FC = () => {
         <Card className="glass-panel g-border-panel border"><Statistic title="已关闭" value={summary.closedCount} valueStyle={{ color: '#52c41a' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="高优先级" value={summary.highPriorityCount} valueStyle={{ color: '#cf1322' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="超期待办" value={summary.overdueCount} valueStyle={{ color: '#d4380d' }} /></Card>
+      </div>
 
       <Card
         className="glass-panel g-border-panel border"
@@ -705,6 +710,7 @@ const EventsManagement: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
   );
 };
 export default EventsManagement;

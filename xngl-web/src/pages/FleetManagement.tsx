@@ -84,6 +84,7 @@ type ProfileFormValues = {
   status?: string;
   attendanceMode?: string;
   remark?: string;
+};
 
 type PlanFormValues = {
   fleetId: string;
@@ -96,6 +97,7 @@ type PlanFormValues = {
   plannedVolume?: number;
   status?: string;
   remark?: string;
+};
 
 type DispatchFormValues = {
   fleetId: string;
@@ -107,6 +109,7 @@ type DispatchFormValues = {
   status?: string;
   applicantName?: string;
   remark?: string;
+};
 
 type FinanceFormValues = {
   fleetId: string;
@@ -118,13 +121,16 @@ type FinanceFormValues = {
   settledAmount?: number;
   status?: string;
   remark?: string;
+};
 
 type AuditFormValues = {
   comment?: string;
+};
 
 type SelectOption = {
   label: string;
   value: string;
+};
 
 type RangeValue = [Dayjs | null, Dayjs | null] | null;
 
@@ -132,6 +138,7 @@ type TrackingPoint = {
   position: MapPoint;
   locateTime?: string | null;
   speed?: string;
+};
 
 const { RangePicker } = DatePicker;
 
@@ -150,6 +157,7 @@ const interpolatePosition = (path: MapPoint[], progress: number): MapPoint => {
   const start = path[index];
   const end = path[index + 1];
   return [start[0] + (end[0] - start[0]) * ratio, start[1] + (end[1] - start[1]) * ratio];
+};
 
 const defaultSummary: FleetSummaryRecord = {
   totalFleets: 0,
@@ -158,6 +166,7 @@ const defaultSummary: FleetSummaryRecord = {
   pendingDispatchOrders: 0,
   totalRevenueAmount: 0,
   totalProfitAmount: 0,
+};
 
 const defaultTrackingSummary: FleetTrackingSummaryRecord = {
   totalVehicles: 0,
@@ -166,6 +175,7 @@ const defaultTrackingSummary: FleetTrackingSummaryRecord = {
   offlineVehicles: 0,
   deliveringVehicles: 0,
   warningVehicles: 0,
+};
 
 const defaultFinanceSummary: FleetFinanceSummaryRecord = {
   totalRecords: 0,
@@ -174,6 +184,7 @@ const defaultFinanceSummary: FleetFinanceSummaryRecord = {
   totalCostAmount: 0,
   totalProfitAmount: 0,
   totalOutstandingAmount: 0,
+};
 
 const profileStatusOptions = [
   { label: '全部状态', value: 'all' },
@@ -228,11 +239,13 @@ const urgencyOptions = [
 const profileTagColor: Record<string, string> = {
   ENABLED: 'success',
   DISABLED: 'default',
+};
 
 const planTagColor: Record<string, string> = {
   ACTIVE: 'processing',
   DRAFT: 'default',
   COMPLETED: 'success',
+};
 
 const dispatchTagColor: Record<string, string> = {
   PENDING_APPROVAL: 'warning',
@@ -240,16 +253,19 @@ const dispatchTagColor: Record<string, string> = {
   REJECTED: 'error',
   IN_PROGRESS: 'processing',
   COMPLETED: 'default',
+};
 
 const financeTagColor: Record<string, string> = {
   CONFIRMED: 'processing',
   DRAFT: 'default',
   SETTLED: 'success',
+};
 
 const trackingTagColor: Record<string, string> = {
   MOVING: 'success',
   STOPPED: 'warning',
   OFFLINE: 'default',
+};
 
 const formatMoney = (value: number) =>
   value.toLocaleString('zh-CN', {
@@ -2386,6 +2402,7 @@ const FleetManagement: React.FC = () => {
             进入调度审批
           </Button>
         </Space>
+      </div>
 
       <Tabs
         activeKey={activeTab}
@@ -2652,6 +2669,7 @@ const FleetManagement: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
   );
 };
 export default FleetManagement;

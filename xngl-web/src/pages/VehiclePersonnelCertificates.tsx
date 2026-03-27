@@ -48,6 +48,7 @@ type PersonnelFormValues = {
   feeDueDate?: Dayjs;
   status?: string;
   remark?: string;
+};
 
 const roleOptions = [
   { label: '全部角色', value: 'all' },
@@ -71,6 +72,7 @@ const statusColorMap: Record<string, string> = {
   EXPIRING: 'warning',
   EXPIRED: 'error',
   DISABLED: 'default',
+};
 
 const defaultSummary: VehiclePersonnelCertificateSummaryRecord = {
   totalPersons: 0,
@@ -80,6 +82,7 @@ const defaultSummary: VehiclePersonnelCertificateSummaryRecord = {
   totalFeeAmount: 0,
   paidAmount: 0,
   unpaidAmount: 0,
+};
 
 const { RangePicker } = DatePicker;
 
@@ -393,6 +396,7 @@ const VehiclePersonnelCertificates: React.FC = () => {
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
           新增人证
         </Button>
+      </div>
 
       <Row gutter={[24, 24]}>
         <Col xs={24} md={6}>
@@ -617,6 +621,8 @@ const VehiclePersonnelCertificates: React.FC = () => {
           </Row>
         </Form>
       </Modal>
+    </div>
   );
 };
+
 export default VehiclePersonnelCertificates;

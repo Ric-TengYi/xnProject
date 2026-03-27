@@ -36,6 +36,7 @@ const statusMeta: Record<string, { color: string; label: string }> = {
   APPROVING: { color: 'processing', label: '审批中' },
   APPROVED: { color: 'green', label: '已通过' },
   REJECTED: { color: 'red', label: '已驳回' },
+};
 
 const formatMoney = (value?: number | null) => '¥ ' + Number(value || 0).toLocaleString();
 
@@ -277,6 +278,7 @@ const ContractTransfers: React.FC = () => {
         <Card className="glass-panel g-border-panel border"><Statistic title="草稿" value={summary.draft} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="审批中" value={summary.approving} valueStyle={{ color: '#1677ff' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="已通过" value={summary.approved} valueStyle={{ color: '#52c41a' }} /></Card>
+      </div>
 
       <Card className="glass-panel g-border-panel border">
         <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -420,6 +422,7 @@ const ContractTransfers: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
   );
 };
 export default ContractTransfers;

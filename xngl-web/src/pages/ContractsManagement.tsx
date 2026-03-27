@@ -77,6 +77,7 @@ type UnitRecord = {
   id: string;
   orgName: string;
   orgType?: string | null;
+};
 
 const { RangePicker } = DatePicker;
 
@@ -88,12 +89,14 @@ const statusLabelMap: Record<string, { color: string; text: string }> = {
   TERMINATED: { color: 'default', text: '终止' },
   CANCELLED: { color: 'error', text: '作废' },
   VOID: { color: 'error', text: '作废' },
+};
 
 const approvalStatusMap: Record<string, { color: string; text: string }> = {
   DRAFT: { color: 'default', text: '草稿' },
   APPROVING: { color: 'processing', text: '审批中' },
   APPROVED: { color: 'success', text: '已通过' },
   REJECTED: { color: 'error', text: '已驳回' },
+};
 
 const changeTypeOptions = [
   { label: '场地 + 方量变更', value: 'SITE_VOLUME_CHANGE' },
@@ -168,6 +171,7 @@ const importHeaderAliases: Record<string, string> = {
   '合同状态': 'contractStatus',
   sourcetype: 'sourceType',
   '来源类型': 'sourceType',
+};
 
 function normalizeImportHeader(header: string) {
   const raw = header.trim();
@@ -956,9 +960,6 @@ const ContractsManagement: React.FC = () => {
             icon={<PlusOutlined />}
             className="g-btn-primary border-none mr-3 text-white"
             onClick={() => void openOnlineModal()}
-          </Button>
-        </div>
-      </div>
           >
             在线合同发起
           </Button>
@@ -989,6 +990,7 @@ const ContractsManagement: React.FC = () => {
             线下合同录入
           </Button>
         </div>
+      </div>
 
       <Row gutter={[24, 24]}>
         <Col span={6}>
@@ -1554,7 +1556,6 @@ const ContractsManagement: React.FC = () => {
         </div>
       </Modal>
     </motion.div>
-  );    </div>
   );
 };
 export default ContractsManagement;

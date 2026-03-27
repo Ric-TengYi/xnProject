@@ -311,11 +311,13 @@ const CheckinRecords: React.FC = () => {
       >
         <p className="g-text-secondary">记录编号：{activeRecord?.ticketNo || activeRecord?.id || '-'}</p>
         <Form form={voidForm} layout="vertical">
-          <Form.Item name="reason" label="作废原因" rules={[{ required: true, message: '请输入作废原因' }]}> 
+          <Form.Item name="reason" label="作废原因" rules={[{ required: true, message: '请输入作废原因' }]}>
             <Input.TextArea rows={4} placeholder="请输入异常打卡作废原因" />
           </Form.Item>
         </Form>
       </Modal>
+    </div>
+    </div>
   );
 };
 export default CheckinRecords;

@@ -375,6 +375,7 @@ const AlertConfig: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
   );
 };
 export default AlertConfig;

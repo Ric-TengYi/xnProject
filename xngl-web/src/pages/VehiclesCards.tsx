@@ -58,13 +58,16 @@ type CardFormValues = {
   totalConsume?: number;
   status?: string;
   remark?: string;
+};
 
 type AmountFormValues = {
   amount: number;
   remark?: string;
+};
 
 type BindFormValues = {
   vehicleId: string;
+};
 
 const { RangePicker } = DatePicker;
 
@@ -93,10 +96,12 @@ const statusColorMap: Record<string, string> = {
   LOW_BALANCE: 'error',
   UNBOUND: 'default',
   DISABLED: 'warning',
+};
 
 const transactionColorMap: Record<string, string> = {
   RECHARGE: 'success',
   CONSUME: 'processing',
+};
 
 const defaultSummary: VehicleCardSummaryRecord = {
   totalCards: 0,
@@ -107,6 +112,7 @@ const defaultSummary: VehicleCardSummaryRecord = {
   totalBalance: 0,
   fuelBalance: 0,
   electricBalance: 0,
+};
 
 const defaultTransactionSummary: VehicleCardTransactionSummaryRecord = {
   totalTransactions: 0,
@@ -114,6 +120,7 @@ const defaultTransactionSummary: VehicleCardTransactionSummaryRecord = {
   consumeTransactions: 0,
   totalRechargeAmount: 0,
   totalConsumeAmount: 0,
+};
 
 const VehiclesCards: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -706,6 +713,7 @@ const VehiclesCards: React.FC = () => {
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
           新增卡片
         </Button>
+      </div>
 
       <Row gutter={[24, 24]}>
         <Col xs={24} md={6}>
@@ -1082,6 +1090,8 @@ const VehiclesCards: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
   );
 };
+
 export default VehiclesCards;

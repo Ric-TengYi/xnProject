@@ -306,6 +306,7 @@ const ContractsPayments: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
   );
 };
 export default ContractsPayments;

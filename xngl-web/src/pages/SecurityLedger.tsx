@@ -86,6 +86,7 @@ const emptySummary: SecuritySummaryRecord = {
   objectTypeBuckets: {},
   dangerLevelBuckets: [],
   hazardCategoryBuckets: [],
+};
 
 const downloadBlob = (blob: Blob, fileName: string) => {
   const url = window.URL.createObjectURL(blob);
@@ -94,6 +95,7 @@ const downloadBlob = (blob: Blob, fileName: string) => {
   link.download = fileName;
   link.click();
   window.URL.revokeObjectURL(url);
+};
 
 const formatRangeParams = (
   params: Record<string, string>,
@@ -106,6 +108,7 @@ const formatRangeParams = (
   }
   params[keyFrom] = range[0].format('YYYY-MM-DDTHH:mm:ss');
   params[keyTo] = range[1].format('YYYY-MM-DDTHH:mm:ss');
+};
 
 const parseAttachmentUrls = (value?: string | null) =>
   (value || '')
@@ -121,6 +124,7 @@ const formatDateTimeValue = (value?: Dayjs | string | null) => {
     return value;
   }
   return value.format('YYYY-MM-DDTHH:mm:ss');
+};
 
 const toDayjs = (value?: string | null) => (value ? dayjs(value) : undefined);
 
@@ -132,6 +136,7 @@ const buildObjectOptionLabel = (type: string, item: { name?: string | null; plat
     return item.plateNo || '-';
   }
   return [item.name || item.username || '-', item.mobile || ''].filter(Boolean).join(' / ');
+};
 
 const renderRelatedProfilePanel = (detail?: SecurityInspectionRecord | null) => {
   const profile = detail?.relatedProfile;
@@ -220,6 +225,7 @@ const renderRelatedProfilePanel = (detail?: SecurityInspectionRecord | null) => 
     );
   }
   return null;
+};
 
 const SecurityLedger: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -594,6 +600,7 @@ const SecurityLedger: React.FC = () => {
             新增检查记录
           </Button>
         </Space>
+      </div>
 
       <Card className="glass-panel g-border-panel border">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4 xl:grid-cols-12">
@@ -644,6 +651,7 @@ const SecurityLedger: React.FC = () => {
         <Card className="glass-panel g-border-panel border"><Statistic title="合格" value={summary.passCount} valueStyle={{ color: '#16a34a' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="整改中" value={summary.rectifyingCount} valueStyle={{ color: '#f59e0b' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="超期整改" value={summary.overdueRectifyCount} valueStyle={{ color: '#ef4444' }} /></Card>
+      </div>
 
       <Card
         className="glass-panel g-border-panel border"
@@ -848,6 +856,7 @@ const SecurityLedger: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
   );
 };
 export default SecurityLedger;

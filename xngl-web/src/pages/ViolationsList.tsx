@@ -364,5 +364,6 @@ const ViolationsList: React.FC = () => {
             </Drawer>
         </motion.div>
     );
+};
 
 export default ViolationsList;
