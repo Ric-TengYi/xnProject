@@ -396,7 +396,6 @@ const VehiclePersonnelCertificates: React.FC = () => {
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
           新增人证
         </Button>
-      </div>
 
       <Row gutter={[24, 24]}>
         <Col xs={24} md={6}>
@@ -621,6 +620,7 @@ const VehiclePersonnelCertificates: React.FC = () => {
           </Row>
         </Form>
       </Modal>
+    </div>
     </div>
   );
 };

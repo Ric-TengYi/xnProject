@@ -136,7 +136,6 @@ const VehicleCapacityAnalysis: React.FC = () => {
           <h1 className="text-2xl font-bold g-text-primary m-0">运力分析</h1>
           <p className="g-text-secondary mt-1">按日 / 月 / 年分析车辆运载量、里程与运营能耗</p>
         </div>
-      </div>
 
       <Card className="glass-panel g-border-panel border">
         <div className="flex flex-wrap gap-3 justify-between">
@@ -166,7 +165,6 @@ const VehicleCapacityAnalysis: React.FC = () => {
         <Card className="glass-panel g-border-panel border"><Statistic title="活跃车辆" value={analysis.summary.activeVehicles} valueStyle={{ color: 'var(--success)' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title={summaryLabel} value={analysis.summary.averageVolume} suffix="方" valueStyle={{ color: 'var(--primary)' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="运营能耗" value={analysis.summary.energyConsumption} prefix={<ThunderboltOutlined />} /></Card>
-      </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         <Card className="glass-panel g-border-panel border xl:col-span-3" title="运力变化趋势" loading={loading}>
@@ -196,7 +194,6 @@ const VehicleCapacityAnalysis: React.FC = () => {
             <div className="flex justify-between"><span className="g-text-secondary">单车平均运量</span><span className="g-text-primary">{analysis.summary.averageVolume.toLocaleString()} 方</span></div>
           </div>
         </Card>
-      </div>
 
       <Card className="glass-panel g-border-panel border">
         <Table
@@ -210,6 +207,7 @@ const VehicleCapacityAnalysis: React.FC = () => {
           rowClassName="hover:bg-white transition-colors"
         />
       </Card>
+    </div>
     </div>
   );
 };

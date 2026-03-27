@@ -528,7 +528,6 @@ const VehicleRepairs: React.FC = () => {
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
           新增维修单
         </Button>
-      </div>
 
       <Row gutter={[24, 24]}>
         <Col xs={24} md={6}>
@@ -815,6 +814,7 @@ const VehicleRepairs: React.FC = () => {
           </Row>
         </Form>
       </Modal>
+    </div>
     </div>
   );
 };

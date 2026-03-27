@@ -225,12 +225,6 @@ const RolesManagement: React.FC = () => {
 
     return (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="space-y-6 h-[calc(100vh-110px)] flex flex-col">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-bold g-text-primary m-0">角色与权限管理</h1>
-                    <p className="g-text-secondary mt-1">创建角色并分配菜单权限、按钮权限及数据可见范围</p>
-                </div>
-            </div>
 
             <div className="flex gap-6 flex-1 min-h-0">
                 {/* 左侧角色列表 */}
@@ -252,10 +246,6 @@ const RolesManagement: React.FC = () => {
                                     onClick={() => void handleSelectRole(item.id)}
                                 >
                                     <div className="w-full">
-                                        <div className="flex justify-between items-center">
-                                            <span className={`text-sm font-medium truncate flex-1 mr-1 ${selectedRole?.id === item.id ? 'g-text-primary-link' : 'g-text-primary'}`}>{item.roleName}</span>
-                                            <Tag color={item.roleScope === 'SYSTEM' ? 'default' : 'blue'} className="border-none m-0 text-xs flex-shrink-0">{item.roleScope === 'SYSTEM' ? '系统' : '业务'}</Tag>
-                                        </div>
                                         <div className="text-xs g-text-secondary truncate leading-tight">{item.roleCode || '暂无编码'}</div>
                                     </div>
                                 </List.Item>

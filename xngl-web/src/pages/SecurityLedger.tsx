@@ -609,7 +609,6 @@ const SecurityLedger: React.FC = () => {
             新增检查记录
           </Button>
         </Space>
-      </div>
 
       <Card className="glass-panel g-border-panel border">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4 xl:grid-cols-12">
@@ -660,7 +659,6 @@ const SecurityLedger: React.FC = () => {
         <Card className="glass-panel g-border-panel border"><Statistic title="合格" value={summary.passCount} valueStyle={{ color: '#16a34a' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="整改中" value={summary.rectifyingCount} valueStyle={{ color: '#f59e0b' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="超期整改" value={summary.overdueRectifyCount} valueStyle={{ color: '#ef4444' }} /></Card>
-      </div>
 
       <Card
         className="glass-panel g-border-panel border"
@@ -865,6 +863,8 @@ const SecurityLedger: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
+    </div>
     </div>
   );
 };

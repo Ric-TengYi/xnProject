@@ -119,7 +119,8 @@ const Login: React.FC = () => {
             </div>
           </Form>
         </div>
-      </div>
+    </div>
+    </div>
     </div>
   );
 };

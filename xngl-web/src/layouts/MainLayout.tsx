@@ -129,6 +129,7 @@ const MainLayout: React.FC = () => {
   const [resizeStartX, setResizeStartX] = useState(0);
   const [resizeStartWidth, setResizeStartWidth] = useState(SIDER_DEFAULT_WIDTH);
   const [userInfo, setUserInfo] = useState<any>(null);
+  const [openedTabs, setOpenedTabs] = useState<Array<{ path: string; label: string }>>([]);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -145,6 +146,33 @@ const MainLayout: React.FC = () => {
     };
     fetchUserInfo();
   }, []);
+
+  useEffect(() => {
+    const getTabLabel = () => {
+      const pathSegments = location.pathname.split('/').filter(Boolean);
+      if (pathSegments.length === 0) return '总体分析';
+      const lastSegment = pathSegments[pathSegments.length - 1];
+      const menuMap: Record<string, string> = {
+        'dashboard': '总体分析',
+        'projects': '项目清单',
+        'queries': '信息查询',
+        'sites': '消纳场地',
+        'vehicles': '车辆与运力',
+        'contracts': '合同与结算',
+        'alerts': '预警与安全',
+        'messages': '消息中心',
+        'settings': '系统设置',
+      };
+      return menuMap[lastSegment] || lastSegment;
+    };
+
+    const label = getTabLabel();
+    setOpenedTabs(prev => {
+      const exists = prev.find(tab => tab.path === location.pathname);
+      if (exists) return prev;
+      return [...prev, { path: location.pathname, label }];
+    });
+  }, [location.pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -371,12 +399,23 @@ const MainLayout: React.FC = () => {
             boxShadow: '0 3px 6px -4px rgba(0, 0, 0, 0.08)',
           }}
         >
-          <div className="w-1/3" />
+          <div className="flex items-center gap-2 flex-1">
+            {openedTabs.map((tab, idx) => (
+              <Button
+                key={tab.path}
+                type={location.pathname === tab.path ? 'primary' : 'default'}
+                size="small"
+                onClick={() => navigate(tab.path)}
+                className="text-xs"
+              >
+                {tab.label}
+              </Button>
+            ))}
+          </div>
           <div className="flex items-center gap-6">
             <Badge dot color="var(--error)" size="default">
               <Button type="text" icon={<BellOutlined style={{ fontSize: '18px', color: 'var(--text-primary)' }} />} aria-label="报警" />
             </Badge>
-            {/* 后续大屏入口可放此处 */}
             <Button
               type="text"
               icon={

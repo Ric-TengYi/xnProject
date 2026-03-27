@@ -182,7 +182,6 @@ const ContractsPayments: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold g-text-primary m-0">合同入账管理</h1>
-      </div>
 
       <Card className="glass-panel g-border-panel border">
         <div className="flex justify-between mb-4 flex-wrap gap-4">
@@ -307,6 +306,7 @@ const ContractsPayments: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
     </div>
   );
 };

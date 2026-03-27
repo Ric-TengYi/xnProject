@@ -427,7 +427,6 @@ const ProjectDetail: React.FC = () => {
             项目编号: {project?.code || (project?.id ? 'PRJ-' + project.id : '-')}
           </p>
         </div>
-      </div>
 
       <Spin spinning={loading}>
         {project ? (
@@ -439,6 +438,7 @@ const ProjectDetail: React.FC = () => {
         )}
       </Spin>
     </motion.div>
+    </div>
   );
 };
 

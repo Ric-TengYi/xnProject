@@ -448,7 +448,6 @@ const AlertsMonitor: React.FC = () => {
             刷新自动预警
           </Button>
         </Space>
-      </div>
 
       <Card className="glass-panel g-border-panel border">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4 xl:grid-cols-8">
@@ -495,7 +494,6 @@ const AlertsMonitor: React.FC = () => {
         <Card className="glass-panel g-border-panel border"><Statistic title="平均处置(分)" value={summary.avgHandleMinutes} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="启用规则" value={summary.enabledRuleCount} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="启用推送" value={summary.enabledPushCount} /></Card>
-      </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[2fr_1fr]">
         <Card className="glass-panel g-border-panel border" title="预警实例列表">
@@ -608,7 +606,6 @@ const AlertsMonitor: React.FC = () => {
             </div>
           </Card>
         </div>
-      </div>
 
       <Drawer title="预警详情" open={detailOpen} onClose={() => setDetailOpen(false)} width={640} loading={detailLoading}>
         <Descriptions column={1} bordered size="small">
@@ -682,6 +679,7 @@ const AlertsMonitor: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
     </div>
   );
 };

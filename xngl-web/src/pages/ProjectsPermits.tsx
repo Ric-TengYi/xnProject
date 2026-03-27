@@ -349,11 +349,6 @@ const ProjectsPermits: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold g-text-primary m-0">处置证清单</h1>
-          <p className="g-text-secondary mt-1">支持手工新增、关联项目/场地/车辆并维护有效期</p>
-        </div>
         <Space>
           <Button icon={<SyncOutlined />} loading={syncing} onClick={() => void handleGovSync()}>
             政务网同步
@@ -362,7 +357,6 @@ const ProjectsPermits: React.FC = () => {
             新增处置证
           </Button>
         </Space>
-      </div>
 
       <Card className="glass-panel g-border-panel border">
         <div className="flex flex-wrap gap-3 mb-4">

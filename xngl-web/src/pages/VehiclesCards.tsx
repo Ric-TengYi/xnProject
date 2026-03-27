@@ -713,7 +713,6 @@ const VehiclesCards: React.FC = () => {
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
           新增卡片
         </Button>
-      </div>
 
       <Row gutter={[24, 24]}>
         <Col xs={24} md={6}>
@@ -1090,6 +1089,7 @@ const VehiclesCards: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
     </div>
   );
 };

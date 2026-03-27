@@ -379,7 +379,8 @@ const SitesManagement: React.FC = () => {
                 </Form>
             </Modal>
         </div>
-    );
+    </div>
+  );
 };
 
 export default SitesManagement;

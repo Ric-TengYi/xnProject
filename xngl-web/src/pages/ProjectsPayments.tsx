@@ -297,7 +297,6 @@ const ProjectsPayments: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold g-text-primary m-0">项目交款管理</h1>
-      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="glass-panel g-border-panel border">
@@ -312,7 +311,6 @@ const ProjectsPayments: React.FC = () => {
         <Card className="glass-panel g-border-panel border">
           <Statistic title="已撤销记录" value={stats.cancelledCount} />
         </Card>
-      </div>
 
       {summary ? (
         <Card className="glass-panel g-border-panel border" title="所选项目结算概览">
@@ -500,6 +498,8 @@ const ProjectsPayments: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
+    </div>
     </div>
   );
 };

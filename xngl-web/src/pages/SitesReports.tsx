@@ -255,7 +255,6 @@ const SitesReports: React.FC = () => {
         <Button icon={<DownloadOutlined />} loading={exporting} onClick={() => void handleExport()}>
           导出报表
         </Button>
-      </div>
 
       <Card className="glass-panel g-border-panel border">
         <div className="flex flex-wrap gap-3 justify-between">
@@ -293,7 +292,6 @@ const SitesReports: React.FC = () => {
         <Card className="glass-panel g-border-panel border"><Statistic title="活跃场地" value={summary.activeSiteCount} suffix="个" valueStyle={{ color: 'var(--success)' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="本期消纳量" value={summary.periodVolume} suffix="方" valueStyle={{ color: 'var(--primary)' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="容量使用率" value={summary.utilizationRate} suffix="%" valueStyle={{ color: summary.utilizationRate >= 80 ? 'var(--warning)' : 'var(--text-primary)' }} /></Card>
-      </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         <Card className="glass-panel g-border-panel border xl:col-span-3" title={<span className="g-text-primary"><BarChartOutlined className="mr-2" />近六期消纳趋势</span>}>
@@ -325,7 +323,6 @@ const SitesReports: React.FC = () => {
             <div className="flex justify-between"><span className="g-text-secondary">总容量</span><span className="g-text-primary">{summary.totalCapacity.toLocaleString()} 方</span></div>
           </div>
         </Card>
-      </div>
 
       <Card className="glass-panel g-border-panel border">
         <Table
@@ -339,6 +336,7 @@ const SitesReports: React.FC = () => {
           rowClassName="hover:bg-white transition-colors"
         />
       </Card>
+    </div>
     </div>
   );
 };

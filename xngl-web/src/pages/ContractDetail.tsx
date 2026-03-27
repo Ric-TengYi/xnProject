@@ -487,7 +487,6 @@ const ContractDetail: React.FC = () => {
             {(detail?.projectName || '-') + ' - ' + (detail?.siteName || '-')}
           </p>
         </div>
-      </div>
 
       <Spin spinning={loading}>
         {detail ? (
@@ -523,6 +522,7 @@ const ContractDetail: React.FC = () => {
         </Form>
       </Modal>
     </motion.div>
+    </div>
   );
 };
 

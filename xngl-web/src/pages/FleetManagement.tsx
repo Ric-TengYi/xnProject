@@ -2402,7 +2402,6 @@ const FleetManagement: React.FC = () => {
             进入调度审批
           </Button>
         </Space>
-      </div>
 
       <Tabs
         activeKey={activeTab}
@@ -2669,6 +2668,7 @@ const FleetManagement: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
     </div>
   );
 };

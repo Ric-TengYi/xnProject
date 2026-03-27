@@ -423,10 +423,6 @@ const MenuManagement: React.FC = () => {
       className="space-y-6 h-[calc(100vh-110px)] flex flex-col"
     >
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold g-text-primary m-0">菜单管理</h1>
-        </div>
         <Button
           type="primary"
           icon={<PlusOutlined />}
@@ -435,7 +431,6 @@ const MenuManagement: React.FC = () => {
         >
           新增菜单
         </Button>
-      </div>
 
       {/* Platform Tabs */}
       <Tabs
@@ -675,7 +670,6 @@ const MenuManagement: React.FC = () => {
             </Card>
           )}
         </div>
-      </div>
 
       {/* Create Menu Modal */}
       <Modal
@@ -816,6 +810,7 @@ const MenuManagement: React.FC = () => {
         </Form>
       </Modal>
     </motion.div>
+    </div>
   );
 };
 

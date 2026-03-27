@@ -273,11 +273,6 @@ const MessageCenter: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold g-text-primary m-0">消息管理</h1>
-        <p className="g-text-secondary mt-1">按当前登录人员的数据权限查看消息清单，并支持按状态和时间筛选处理。</p>
-      </div>
-
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Card className="glass-panel g-border-panel border"><Statistic title="消息总数" value={summary.total} prefix={<BellOutlined />} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="未读消息" value={summary.unread} /></Card>

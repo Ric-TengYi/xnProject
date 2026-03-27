@@ -493,20 +493,12 @@ const PlatformIntegrations: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold g-text-primary m-0">平台对接中心</h1>
-          <p className="g-text-secondary mt-1">
-            统一维护单点登录、监控平台和坝体监测对接配置，并在本地环境完成联调验证。
-          </p>
-        </div>
         <Button icon={<ReloadOutlined />} onClick={() => void loadAll(selectedSiteId)} loading={loading}>
           刷新数据
         </Button>
-      </div>
 
-      <Row gutter={[16, 16]}>
-        <Col xs={24} md={12} xl={6}>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} md={12} xl={6}>
           <Card className="glass-panel g-border-panel border">
             <Statistic title="已启用对接" value={overview?.enabledCount ?? 0} suffix={`/ ${overview?.totalCount ?? 0}`} />
           </Card>
@@ -564,13 +556,6 @@ const PlatformIntegrations: React.FC = () => {
                 <Paragraph type="secondary" style={{ marginBottom: 0 }}>
                   {integrationDescriptions[config.integrationCode] || '平台对接基础配置'}
                 </Paragraph>
-                <div className="flex justify-between items-center">
-                  <Text>启用状态</Text>
-                  <Switch
-                    checked={Boolean(draft.enabled)}
-                    onChange={(checked) => updateDraft(config.integrationCode, 'enabled', checked)}
-                  />
-                </div>
                 <Input
                   value={draft.vendorName}
                   placeholder="厂商/平台名称"

@@ -336,12 +336,6 @@ const DashboardMap: React.FC = () => {
 
   return (
     <div className="h-[calc(100vh-120px)] flex flex-col space-y-4">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold g-text-primary m-0">全局地图监控</h1>
-          <div className="text-sm g-text-secondary mt-1">
-            天地图展示真实场地 / 项目 / 车辆分布，并支持车辆轨迹回放
-          </div>
         </div>
         <Space wrap>
           <Select value={filterType} onChange={(value) => setFilterType(value)} style={{ width: 150 }} className="bg-white">
@@ -381,7 +375,6 @@ const DashboardMap: React.FC = () => {
             {playing ? '暂停回放' : '开始回放'}
           </Button>
         </Space>
-      </div>
 
       <div className="flex-1 flex gap-4 min-h-0">
         <div className="w-80 flex flex-col gap-4 min-h-0">
@@ -504,7 +497,7 @@ const DashboardMap: React.FC = () => {
             </div>
           </div>
         </Card>
-      </div>
+    </div>
     </div>
   );
 };

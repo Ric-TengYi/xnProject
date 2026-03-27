@@ -990,7 +990,6 @@ const ContractsManagement: React.FC = () => {
             线下合同录入
           </Button>
         </div>
-      </div>
 
       <Row gutter={[24, 24]}>
         <Col span={6}>
@@ -1556,6 +1555,8 @@ const ContractsManagement: React.FC = () => {
         </div>
       </Modal>
     </motion.div>
+    </div>
+    </div>
   );
 };
 

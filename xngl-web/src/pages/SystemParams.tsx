@@ -195,11 +195,6 @@ const SystemParams: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold g-text-primary m-0">系统参数</h1>
-          <p className="g-text-secondary mt-1">统一维护阈值、预警天数、周期等可配置参数</p>
-        </div>
         <Space>
           <Button icon={<ExportOutlined />} onClick={() => void handleExport()} loading={exporting}>
             导出
@@ -208,9 +203,8 @@ const SystemParams: React.FC = () => {
             新增参数
           </Button>
         </Space>
-      </div>
 
-      <Card className="glass-panel g-border-panel border">
+        <Card className="glass-panel g-border-panel border">
         <div className="flex flex-wrap gap-3 mb-4">
           <Input allowClear value={keyword} onChange={(event) => setKeyword(event.target.value)} prefix={<SearchOutlined />} placeholder="搜索参数键 / 参数名称" className="w-72" />
           <Select value={paramType} options={paramTypeOptions} onChange={setParamType} className="w-40" />

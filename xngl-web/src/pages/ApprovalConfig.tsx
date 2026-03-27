@@ -734,13 +734,6 @@ const ApprovalConfig: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold g-text-primary m-0">审核审批配置</h1>
-          <p className="g-text-secondary mt-1">
-            维护审批人规则、流程材料模板与启停状态。
-          </p>
-        </div>
         {activeTab === 'rules' ? (
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
             新增规则
@@ -754,7 +747,6 @@ const ApprovalConfig: React.FC = () => {
             新增流程
           </Button>
         )}
-      </div>
 
       <Tabs
         activeKey={activeTab}

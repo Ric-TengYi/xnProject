@@ -471,7 +471,6 @@ const EventsManagement: React.FC = () => {
             新建事件
           </Button>
         </Space>
-      </div>
 
       <Card className="glass-panel g-border-panel border">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4 xl:grid-cols-8">
@@ -515,7 +514,6 @@ const EventsManagement: React.FC = () => {
         <Card className="glass-panel g-border-panel border"><Statistic title="已关闭" value={summary.closedCount} valueStyle={{ color: '#52c41a' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="高优先级" value={summary.highPriorityCount} valueStyle={{ color: '#cf1322' }} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="超期待办" value={summary.overdueCount} valueStyle={{ color: '#d4380d' }} /></Card>
-      </div>
 
       <Card
         className="glass-panel g-border-panel border"
@@ -711,6 +709,8 @@ const EventsManagement: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
+    </div>
     </div>
   );
 };

@@ -201,7 +201,6 @@ const AlertConfig: React.FC = () => {
       <div>
         <h1 className="text-2xl font-bold g-text-primary m-0">预警配置</h1>
         <p className="g-text-secondary mt-1">统一维护阈值规则、电子围栏与推送对象</p>
-      </div>
 
       <Tabs
         items={[
@@ -376,6 +375,7 @@ const AlertConfig: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
     </div>
   );
 };

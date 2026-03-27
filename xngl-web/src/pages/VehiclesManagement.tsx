@@ -642,7 +642,6 @@ const VehiclesManagement: React.FC = () => {
           <h1 className="text-2xl font-bold g-text-primary m-0">车辆与运力资源</h1>
           <p className="g-text-secondary mt-1">接入真实车辆主数据，统一查看车辆档案、证照预警与运输单位运力能力</p>
         </div>
-      </div>
 
       <Row gutter={[24, 24]}>
         {summaryCards.map((item) => (
@@ -984,6 +983,7 @@ const VehiclesManagement: React.FC = () => {
         </Form>
       </Modal>
     </motion.div>
+    </div>
   );
 };
 

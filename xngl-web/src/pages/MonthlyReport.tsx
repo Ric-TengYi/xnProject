@@ -198,7 +198,6 @@ const MonthlyReport: React.FC = () => {
             导出月报
           </Button>
         </div>
-      </div>
 
       <Spin spinning={loading}>
         <Row gutter={[24, 24]}>
@@ -371,6 +370,7 @@ const MonthlyReport: React.FC = () => {
         </Card>
       </Spin>
     </motion.div>
+    </div>
   );
 };
 

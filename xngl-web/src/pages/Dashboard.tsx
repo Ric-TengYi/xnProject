@@ -148,7 +148,6 @@ const Dashboard: React.FC = () => {
         <Space>
           <DatePicker value={selectedDate} onChange={(value) => setSelectedDate(value || dayjs())} className="bg-white g-border-panel border" />
         </Space>
-      </div>
 
       <Row gutter={[24, 24]}>
         <Col xs={24} md={12} xl={6}>
@@ -244,6 +243,7 @@ const Dashboard: React.FC = () => {
           </Card>
         </Col>
       </Row>
+    </div>
     </div>
   );
 };

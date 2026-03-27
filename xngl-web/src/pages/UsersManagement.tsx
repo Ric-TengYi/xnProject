@@ -325,15 +325,9 @@ const UsersManagement: React.FC = () => {
       transition={{ duration: 0.3 }}
       className="space-y-6"
     >
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold g-text-primary m-0">用户管理</h1>
-          <p className="g-text-secondary mt-1">管理系统用户账号、角色分配及组织归属</p>
-        </div>
         <Button type="primary" icon={<PlusOutlined />} className="g-btn-primary border-none" onClick={openCreateUser}>
           新增用户
         </Button>
-      </div>
 
       <Card className="glass-panel g-border-panel border" bodyStyle={{ padding: 0 }}>
         <div className="p-4 border-b g-border-panel border flex flex-wrap gap-4 justify-between g-bg-toolbar">

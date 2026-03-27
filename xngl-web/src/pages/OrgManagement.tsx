@@ -434,12 +434,6 @@ const OrgManagement: React.FC = () => {
       className="space-y-6"
     >
       <style>{treeStyle}</style>
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold g-text-primary m-0">组织管理</h1>
-          <p className="g-text-secondary mt-1">统一管理组织架构、下属用户及关联业务数据</p>
-        </div>
-      </div>
 
       <div className="flex gap-6" style={{ minHeight: 700 }}>
         {/* ── Left: Org Tree ── */}
@@ -606,7 +600,6 @@ const OrgManagement: React.FC = () => {
             </>
           ) : null}
         </div>
-      </div>
 
       {/* ── Create / Edit Modal ── */}
       <Modal
@@ -718,6 +711,7 @@ const OrgManagement: React.FC = () => {
         )}
       </Modal>
     </motion.div>
+    </div>
   );
 };
 

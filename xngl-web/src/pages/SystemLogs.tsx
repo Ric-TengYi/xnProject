@@ -378,7 +378,6 @@ const SystemLogs: React.FC = () => {
           <h1 className="text-2xl font-bold g-text-primary m-0">系统日志</h1>
           <p className="g-text-secondary mt-1">查询系统登录日志、操作行为审计及系统错误日志</p>
         </div>
-      </div>
 
       <Card className="glass-panel g-border-panel border" bodyStyle={{ padding: 0 }}>
         <Tabs
@@ -602,6 +601,7 @@ const SystemLogs: React.FC = () => {
         />
       </Card>
     </motion.div>
+    </div>
   );
 };
 

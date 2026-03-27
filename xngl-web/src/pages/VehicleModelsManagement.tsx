@@ -263,15 +263,9 @@ const VehicleModelsManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold g-text-primary m-0">车型管理</h1>
-          <p className="g-text-secondary mt-1">维护车辆品牌、型号、载重、轴数等车型字典库。</p>
-        </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
           新增车型
         </Button>
-      </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Card className="glass-panel g-border-panel border">
@@ -286,7 +280,6 @@ const VehicleModelsManagement: React.FC = () => {
         <Card className="glass-panel g-border-panel border">
           <Statistic title="总载重(吨)" value={summary.totalLoadWeight.toFixed(2)} />
         </Card>
-      </div>
 
       <Card className="glass-panel g-border-panel border">
         <div className="flex justify-between items-center gap-4 mb-4">
@@ -372,6 +365,7 @@ const VehicleModelsManagement: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </div>
     </div>
   );
 };
