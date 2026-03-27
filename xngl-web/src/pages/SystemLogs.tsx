@@ -601,5 +601,5 @@ const SystemLogs: React.FC = () => {
       </Card>
     </motion.div>
   );
-
+};
 export default SystemLogs;

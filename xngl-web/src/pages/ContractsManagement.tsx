@@ -1556,5 +1556,5 @@ const ContractsManagement: React.FC = () => {
     </motion.div>
   );    </div>
   );
-
+};
 export default ContractsManagement;

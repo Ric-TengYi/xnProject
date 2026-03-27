@@ -811,5 +811,5 @@ const MenuManagement: React.FC = () => {
     </motion.div>
   );    </div>
   );
-
+};
 export default MenuManagement;

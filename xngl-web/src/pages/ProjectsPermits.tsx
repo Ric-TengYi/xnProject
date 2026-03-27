@@ -499,5 +499,5 @@ const ProjectsPermits: React.FC = () => {
         </Form>
       </Modal>
   );
-
+};
 export default ProjectsPermits;

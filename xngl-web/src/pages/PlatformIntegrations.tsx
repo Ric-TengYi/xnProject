@@ -912,5 +912,5 @@ const PlatformIntegrations: React.FC = () => {
       </Modal>
     </div>
   );
-
+};
 export default PlatformIntegrations;

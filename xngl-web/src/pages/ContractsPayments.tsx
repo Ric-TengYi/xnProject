@@ -307,5 +307,5 @@ const ContractsPayments: React.FC = () => {
         </Form>
       </Modal>
   );
-
+};
 export default ContractsPayments;

@@ -338,5 +338,5 @@ const SitesReports: React.FC = () => {
     </div>
     </div>
   );
-
+};
 export default SitesReports;

@@ -367,5 +367,5 @@ const VehicleModelsManagement: React.FC = () => {
         </Form>
       </Modal>
   );
-
+};
 export default VehicleModelsManagement;

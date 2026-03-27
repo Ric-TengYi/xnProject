@@ -789,5 +789,5 @@ const VehicleRepairs: React.FC = () => {
         </Form>
       </Modal>
   );
-
+};
 export default VehicleRepairs;

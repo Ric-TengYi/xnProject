@@ -78,7 +78,7 @@ const ProjectsManagement: React.FC = () => {
     }),
     [projects, total]
   );
-
+};
   const columns: ColumnsType<ProjectRecord> = [
     {
       title: '项目编号',
@@ -287,5 +287,5 @@ const ProjectsManagement: React.FC = () => {
       </Card>
     </motion.div>
   );
-
+};
 export default ProjectsManagement;

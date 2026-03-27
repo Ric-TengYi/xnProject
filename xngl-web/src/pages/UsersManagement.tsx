@@ -495,5 +495,5 @@ const UsersManagement: React.FC = () => {
       </Drawer>
     </motion.div>
   );
-
+};
 export default UsersManagement;

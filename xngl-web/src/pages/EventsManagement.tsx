@@ -706,5 +706,5 @@ const EventsManagement: React.FC = () => {
         </Form>
       </Modal>
   );
-
+};
 export default EventsManagement;

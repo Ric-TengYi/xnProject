@@ -546,5 +546,5 @@ const VehicleInsurances: React.FC = () => {
         </Form>
       </Modal>
   );
-
+};
 export default VehicleInsurances;

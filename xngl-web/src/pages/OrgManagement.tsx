@@ -709,5 +709,5 @@ const OrgManagement: React.FC = () => {
       </Modal>
     </motion.div>
   );
-
+};
 export default OrgManagement;

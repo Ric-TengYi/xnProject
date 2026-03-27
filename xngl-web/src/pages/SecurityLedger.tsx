@@ -849,5 +849,5 @@ const SecurityLedger: React.FC = () => {
         </Form>
       </Modal>
   );
-
+};
 export default SecurityLedger;

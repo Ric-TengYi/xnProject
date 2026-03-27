@@ -241,5 +241,5 @@ const SystemParams: React.FC = () => {
         </Form>
       </Modal>
   );
-
+};
 export default SystemParams;

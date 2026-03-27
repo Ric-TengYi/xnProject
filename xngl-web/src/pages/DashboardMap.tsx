@@ -496,5 +496,5 @@ const DashboardMap: React.FC = () => {
     </div>
     </div>
   );
-
+};
 export default DashboardMap;

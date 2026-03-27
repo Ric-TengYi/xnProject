@@ -314,5 +314,5 @@ const Dictionary: React.FC = () => {
         </Form>
       </Modal>
   );
-
+};
 export default Dictionary;

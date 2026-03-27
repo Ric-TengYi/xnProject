@@ -1083,5 +1083,5 @@ const VehiclesCards: React.FC = () => {
         </Form>
       </Modal>
   );
-
+};
 export default VehiclesCards;

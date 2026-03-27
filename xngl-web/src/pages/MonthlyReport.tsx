@@ -371,5 +371,5 @@ const MonthlyReport: React.FC = () => {
     </motion.div>
   );    </div>
   );
-
+};
 export default MonthlyReport;

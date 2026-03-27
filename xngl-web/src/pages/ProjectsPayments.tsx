@@ -498,5 +498,5 @@ const ProjectsPayments: React.FC = () => {
         </Form>
       </Modal>
   );
-
+};
 export default ProjectsPayments;

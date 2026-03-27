@@ -317,5 +317,5 @@ const CheckinRecords: React.FC = () => {
         </Form>
       </Modal>
   );
-
+};
 export default CheckinRecords;

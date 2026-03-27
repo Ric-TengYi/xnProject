@@ -1127,5 +1127,5 @@ const ApprovalConfig: React.FC = () => {
         </Form>
       </Modal>
   );
-
+};
 export default ApprovalConfig;

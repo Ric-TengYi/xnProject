@@ -209,5 +209,5 @@ const VehicleCapacityAnalysis: React.FC = () => {
     </div>
     </div>
   );
-
+};
 export default VehicleCapacityAnalysis;

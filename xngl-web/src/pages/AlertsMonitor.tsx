@@ -674,5 +674,5 @@ const AlertsMonitor: React.FC = () => {
         </Form>
       </Modal>
   );
-
+};
 export default AlertsMonitor;

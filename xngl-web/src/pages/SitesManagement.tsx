@@ -376,5 +376,5 @@ const SitesManagement: React.FC = () => {
         </div>
     </div>
   );
-
+};
 export default SitesManagement;

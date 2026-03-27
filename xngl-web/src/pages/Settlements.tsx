@@ -919,5 +919,5 @@ const Settlements: React.FC = () => {
     </motion.div>
   );    </div>
   );
-
+};
 export default Settlements;

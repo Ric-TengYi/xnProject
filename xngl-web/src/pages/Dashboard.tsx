@@ -244,5 +244,5 @@ const Dashboard: React.FC = () => {
       </Row>
     </div>
   );
-
+};
 export default Dashboard;

@@ -523,5 +523,5 @@ const ContractDetail: React.FC = () => {
     </motion.div>
   );    </div>
   );
-
+};
 export default ContractDetail;

@@ -2653,5 +2653,5 @@ const FleetManagement: React.FC = () => {
         </Form>
       </Modal>
   );
-
+};
 export default FleetManagement;

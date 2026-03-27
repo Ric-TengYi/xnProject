@@ -421,5 +421,5 @@ const ContractTransfers: React.FC = () => {
         </Form>
       </Modal>
   );
-
+};
 export default ContractTransfers;

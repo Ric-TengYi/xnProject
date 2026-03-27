@@ -618,5 +618,5 @@ const VehiclePersonnelCertificates: React.FC = () => {
         </Form>
       </Modal>
   );
-
+};
 export default VehiclePersonnelCertificates;
