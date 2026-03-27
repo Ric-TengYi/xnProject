@@ -17,6 +17,7 @@ import com.xngl.infrastructure.persistence.mapper.ContractReceiptMapper;
 import com.xngl.infrastructure.persistence.mapper.ContractTicketMapper;
 import com.xngl.manager.message.ApprovalMessageCommand;
 import com.xngl.manager.message.MessageRecordService;
+import com.xngl.manager.role.RoleService;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -58,6 +59,7 @@ public class ContractServiceImpl implements ContractService {
   private final ContractInvoiceMapper invoiceMapper;
   private final ContractTicketMapper ticketMapper;
   private final MessageRecordService messageRecordService;
+  private final RoleService roleService;
 
   public ContractServiceImpl(
       ContractMapper contractMapper,
@@ -67,6 +69,7 @@ public class ContractServiceImpl implements ContractService {
       ContractInvoiceMapper invoiceMapper,
       ContractTicketMapper ticketMapper,
       MessageRecordService messageRecordService,
+      RoleService roleService,
       @Value("${app.contract.doc-dir:/data/xngl/contract-docs}") String contractDocDirPath) {
     this.contractMapper = contractMapper;
     this.contractReceiptMapper = contractReceiptMapper;
@@ -75,6 +78,7 @@ public class ContractServiceImpl implements ContractService {
     this.invoiceMapper = invoiceMapper;
     this.ticketMapper = ticketMapper;
     this.messageRecordService = messageRecordService;
+    this.roleService = roleService;
     this.contractDocDir = Path.of(contractDocDirPath);
   }
 
@@ -353,6 +357,20 @@ public class ContractServiceImpl implements ContractService {
     }
     query.orderByDesc(Contract::getCreateTime);
     return contractMapper.selectPage(new Page<>(pageNo, pageSize), query);
+  }
+
+  public IPage<Contract> pageContractsWithPermissionFilter(Long userId, Long tenantId, String contractType,
+      String contractStatus, String keyword, Long projectId, Long siteId, LocalDate startDate, LocalDate endDate,
+      int pageNo, int pageSize) {
+    IPage<Contract> page = pageContracts(tenantId, contractType, contractStatus, keyword, projectId, siteId,
+        startDate, endDate, pageNo, pageSize);
+
+    List<Contract> filtered = page.getRecords().stream()
+        .filter(contract -> roleService.canAccessOrganization(userId, contract.getSiteId(), "ORG_AND_CHILDREN"))
+        .toList();
+
+    page.setRecords(filtered);
+    return page;
   }
 
   @Override
