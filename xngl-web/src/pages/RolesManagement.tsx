@@ -15,6 +15,7 @@ const RolesManagement: React.FC = () => {
     const [menuTreeData, setMenuTreeData] = useState<any[]>([]);
     const [selectedRole, setSelectedRole] = useState<any>(null);
     const [checkedKeys, setCheckedKeys] = useState<React.Key[]>([]);
+    const [selectedMenuKey, setSelectedMenuKey] = useState<string | null>(null);
     const [dataScopeType, setDataScopeType] = useState('ORG_AND_CHILDREN');
     const [loading, setLoading] = useState(false);
     const [createOpen, setCreateOpen] = useState(false);
@@ -228,7 +229,7 @@ const RolesManagement: React.FC = () => {
 
             <div className="flex gap-6 flex-1 min-h-0">
                 {/* 左侧角色列表 */}
-                <Card className="glass-panel g-border-panel border w-80 flex flex-col" bodyStyle={{ padding: 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <Card className="glass-panel g-border-panel border w-80 flex flex-col overflow-hidden" bodyStyle={{ padding: 0, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                     <div className="p-4 border-b g-border-panel border flex justify-between items-center g-bg-toolbar">
                         <span className="g-text-primary font-bold">角色列表</span>
                         <Button type="primary" size="small" icon={<PlusOutlined />} className="g-btn-primary border-none" onClick={openCreateModal}>新增</Button>
@@ -239,20 +240,28 @@ const RolesManagement: React.FC = () => {
                     <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
                         <List
                             dataSource={rolesList}
+                            loading={loading}
                             renderItem={item => (
                                 <List.Item
-                                    className={`px-3 py-1.5 cursor-pointer rounded mx-1 my-0.5 transition-colors border-none ${selectedRole?.id === item.id ? 'bg-blue-600/20 border border-blue-500/50' : 'hover:bg-white/10'}`}
+                                    className={`px-3 py-1 cursor-pointer rounded mx-1 my-0.5 transition-all border ${selectedRole?.id === item.id ? 'bg-blue-500/20 border-blue-500/50' : 'border-transparent hover:bg-white/5'}`}
                                     style={{ borderBottom: 'none' }}
                                     onClick={() => void handleSelectRole(item.id)}
                                 >
-                                    <div className="w-full">
-                                        <div className="text-xs g-text-secondary truncate leading-tight">{item.roleCode || '暂无编码'}</div>
+                                    <div className="w-full flex justify-between items-start gap-2 min-w-0">
+                                        <div className="min-w-0 flex-1 space-y-1">
+                                            <div className="font-semibold text-xs g-text-primary truncate">{item.roleName || '未命名'}</div>
+                                            <div className="text-xs g-text-secondary truncate">{item.roleCode || '暂无编码'}</div>
+                                        </div>
+                                        <div className="flex flex-col gap-0.5 items-end flex-shrink-0 pr-1">
+                                            <Tag size="small" color={item.status === 'ENABLED' ? 'success' : 'default'}>{item.status === 'ENABLED' ? '启用' : '停用'}</Tag>
+                                            <Tag size="small" color={item.roleScope === 'SYSTEM' ? 'blue' : 'cyan'}>{item.roleScope === 'SYSTEM' ? '系统' : '租户'}</Tag>
+                                        </div>
                                     </div>
                                 </List.Item>
                             )}
                         />
                     </div>
-                    <div className="px-2 py-1.5 border-t g-border-panel flex justify-center">
+                    <div className="px-2 py-2 border-t g-border-panel flex justify-center bg-white/5">
                         <Pagination current={rolesPageNo} pageSize={rolesPageSize} total={rolesTotal} onChange={setRolesPageNo} size="small" showTotal={(total) => `共${total}条`} />
                     </div>
                 </Card>
@@ -272,23 +281,17 @@ const RolesManagement: React.FC = () => {
                         </Space>
                     )}
                 >
-                    <div className="space-y-8">
-                        <Descriptions column={1} bordered size="small">
+                    <div className="space-y-4">
+                        <Descriptions column={2} bordered size="small">
                             <Descriptions.Item label="角色编码">{selectedRole?.roleCode || '-'}</Descriptions.Item>
-                            <Descriptions.Item label="角色范围">{selectedRole?.roleScope || '-'}</Descriptions.Item>
-                            <Descriptions.Item label="默认数据范围">{selectedRole?.dataScopeTypeDefault || dataScopeType}</Descriptions.Item>
                             <Descriptions.Item label="角色分类">{selectedRole?.roleCategory || '-'}</Descriptions.Item>
-                            <Descriptions.Item label="状态">
-                                <Tag color={selectedRole?.status === 'ENABLED' ? 'success' : 'default'} className="border-none">
-                                    {selectedRole?.status === 'ENABLED' ? '启用' : '停用'}
-                                </Tag>
-                            </Descriptions.Item>
-                            <Descriptions.Item label="角色描述" span={2}>{selectedRole?.description || '-'}</Descriptions.Item>
+                            <Descriptions.Item label="默认数据范围" span={2}>{selectedRole?.dataScopeTypeDefault || dataScopeType}</Descriptions.Item>
+                            {selectedRole?.description && <Descriptions.Item label="角色描述" span={2}>{selectedRole.description}</Descriptions.Item>}
                         </Descriptions>
 
                         <div>
-                            <div className="g-text-secondary font-bold mb-4 border-l-4 border-blue-500 pl-2">数据权限范围</div>
-                            <Select value={dataScopeType} className="w-64" popupClassName="bg-white" onChange={setDataScopeType}>
+                            <div className="g-text-secondary font-bold mb-2 border-l-4 border-blue-500 pl-2 text-sm">数据权限范围</div>
+                            <Select value={dataScopeType} className="w-64" popupClassName="bg-white" onChange={setDataScopeType} size="small">
                                 <Option value="ALL">全部数据可见</Option>
                                 <Option value="ORG_AND_CHILDREN">本组织及下属组织可见</Option>
                                 <Option value="SELF">仅本人数据可见</Option>
@@ -296,30 +299,39 @@ const RolesManagement: React.FC = () => {
                             </Select>
                         </div>
 
-                        <Divider className="g-border-panel border" />
+                        <Divider className="g-border-panel border my-2" />
 
                         <div>
-                            <div className="g-text-secondary font-bold mb-4 border-l-4 border-blue-500 pl-2">菜单与按钮权限</div>
-                            <div className="flex gap-4 h-96">
+                            <div className="g-text-secondary font-bold mb-2 border-l-4 border-blue-500 pl-2 text-sm">菜单与按钮权限</div>
+                            <div className="flex gap-4 h-80">
                                 {/* 左侧菜单树 */}
                                 <div className="w-48 border g-border-panel rounded-lg p-2 overflow-y-auto">
                                     {menuTreeData.length > 0 && (
-                                        <Tree
-                                            checkable={false}
-                                            defaultExpandAll
-                                            treeData={menuTreeData}
-                                            className="bg-transparent g-text-secondary custom-tree"
-                                        />
+                                        <>
+                                            <div className="flex gap-1 mb-2 pb-2 border-b g-border-panel">
+                                                <Button size="small" type="text" onClick={() => setCheckedKeys(menuTreeData.map(m => m.key))}>全选</Button>
+                                                <Button size="small" type="text" onClick={() => setCheckedKeys([])}>反选</Button>
+                                            </div>
+                                            <Tree
+                                                checkable
+                                                defaultExpandAll
+                                                treeData={menuTreeData}
+                                                checkedKeys={checkedKeys}
+                                                onCheck={(keys) => setCheckedKeys(keys as React.Key[])}
+                                                onSelect={(keys) => setSelectedMenuKey(keys[0] as string)}
+                                                className="bg-transparent g-text-secondary custom-tree"
+                                            />
+                                        </>
                                     )}
                                 </div>
                                 {/* 右侧按钮权限 */}
-                                <div className="flex-1 overflow-y-auto space-y-3">
-                                    {menuTreeData.map((menu: any) => (
-                                        <div key={menu.key} className="g-bg-toolbar p-4 rounded-lg border g-border-panel">
-                                            <div className="font-bold mb-3 g-text-primary">{menu.title}</div>
-                                            <div className="space-y-2">
-                                                {menu.children && menu.children.map((btn: any) => (
-                                                    <div key={btn.key} className="flex items-center gap-2">
+                                <div className="flex-1 overflow-y-auto space-y-2">
+                                    {selectedMenuKey ? (
+                                        menuTreeData
+                                            .find(m => m.key === selectedMenuKey)
+                                            ?.children?.map((btn: any) => (
+                                                <div key={btn.key} className="g-bg-toolbar p-3 rounded border g-border-panel">
+                                                    <div className="flex items-center gap-2">
                                                         <input
                                                             type="checkbox"
                                                             checked={checkedKeys.includes(btn.key)}
@@ -333,10 +345,11 @@ const RolesManagement: React.FC = () => {
                                                         />
                                                         <span className="text-sm">{btn.title}</span>
                                                     </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
+                                                </div>
+                                            ))
+                                    ) : (
+                                        <div className="text-center g-text-secondary py-8 text-sm">请选择左侧菜单查看按钮权限</div>
+                                    )}
                                 </div>
                             </div>
                         </div>
