@@ -312,8 +312,7 @@ const ProjectsPayments: React.FC = () => {
           <Statistic title="已撤销记录" value={stats.cancelledCount} />
         </Card>
 
-      {summary ? (
-        <Card className="glass-panel g-border-panel border" title="所选项目结算概览">
+      <Card className="glass-panel g-border-panel border" title="所选项目结算概览">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Statistic title="项目名称" value={summary.projectName || '-'} valueStyle={{ fontSize: 18 }} />
             <Statistic title="应收总额" value={Number(summary.totalAmount || 0)} precision={2} />

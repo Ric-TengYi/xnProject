@@ -244,7 +244,6 @@ const Dashboard: React.FC = () => {
         </Col>
       </Row>
     </div>
-    </div>
   );
 };
 
