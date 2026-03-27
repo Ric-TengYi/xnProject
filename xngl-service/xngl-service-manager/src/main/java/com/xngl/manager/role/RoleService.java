@@ -32,4 +32,8 @@ public interface RoleService {
   void updateMenus(Long roleId, List<Long> menuIds);
 
   List<Role> listByRoleCode(Long tenantId, String roleCode);
+
+  void validateRoleCreation(Role currentUserRole, Role newRole);
+
+  boolean canAssignDataScope(String userScope, String newScope);
 }

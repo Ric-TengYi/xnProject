@@ -12,6 +12,7 @@ import com.xngl.infrastructure.persistence.mapper.RoleMapper;
 import com.xngl.infrastructure.persistence.mapper.RoleMenuRelMapper;
 import com.xngl.infrastructure.persistence.mapper.RolePermissionRelMapper;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -211,5 +212,30 @@ public class RoleServiceImpl implements RoleService {
         new LambdaQueryWrapper<Role>()
             .eq(Role::getTenantId, tenantId)
             .eq(Role::getRoleCode, roleCode));
+  }
+
+  @Override
+  public void validateRoleCreation(Role currentUserRole, Role newRole) {
+    if ("TENANT".equals(currentUserRole.getRoleScope())) {
+      if ("SYSTEM".equals(newRole.getRoleScope())) {
+        throw new RuntimeException("租户用户不能创建系统角色");
+      }
+      newRole.setRoleScope("TENANT");
+    }
+    if (!canAssignDataScope(currentUserRole.getDataScopeTypeDefault(),
+        newRole.getDataScopeTypeDefault())) {
+      throw new RuntimeException("数据范围不能超过自己的权限");
+    }
+  }
+
+  @Override
+  public boolean canAssignDataScope(String userScope, String newScope) {
+    Map<String, Integer> scopeLevel = Map.of(
+        "ALL", 4,
+        "ORG_AND_CHILDREN", 3,
+        "CUSTOM_ORG_SET", 2,
+        "SELF", 1
+    );
+    return scopeLevel.getOrDefault(userScope, 0) >= scopeLevel.getOrDefault(newScope, 0);
   }
 }

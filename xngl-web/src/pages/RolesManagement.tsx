@@ -22,11 +22,27 @@ const RolesManagement: React.FC = () => {
     const [createLoading, setCreateLoading] = useState(false);
     const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
     const [createForm] = Form.useForm();
+    const [currentUserRole, setCurrentUserRole] = useState<any>(null);
 
     useEffect(() => {
         void fetchRoles();
         fetchMenus();
+        fetchCurrentUserRole();
     }, [rolesPageNo, rolesKeyword]);
+
+    const fetchCurrentUserRole = async () => {
+        try {
+            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+            if (userInfo.roleId) {
+                const res = await request.get(`/roles/${userInfo.roleId}`);
+                if (res.code === 200) {
+                    setCurrentUserRole(res.data);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch current user role', error);
+        }
+    };
 
     useEffect(() => {
         if (selectedRole) {
@@ -376,17 +392,17 @@ const RolesManagement: React.FC = () => {
                         <Input placeholder="请输入唯一角色编码" />
                     </Form.Item>
                     <Form.Item name="roleScope" label="角色范围" rules={[{ required: true, message: '请选择角色范围' }]}>
-                        <Select options={[
+                        <Select disabled={currentUserRole?.roleScope === 'TENANT'} options={[
                             { label: '租户角色', value: 'TENANT' },
-                            { label: '系统角色', value: 'SYSTEM' },
+                            { label: '系统角色', value: 'SYSTEM', disabled: currentUserRole?.roleScope === 'TENANT' },
                         ]} />
                     </Form.Item>
                     <Form.Item name="dataScopeTypeDefault" label="默认数据范围" rules={[{ required: true, message: '请选择默认数据范围' }]}>
                         <Select options={[
-                            { label: '全部数据可见', value: 'ALL' },
-                            { label: '本组织及下属组织可见', value: 'ORG_AND_CHILDREN' },
+                            { label: '全部数据可见', value: 'ALL', disabled: currentUserRole?.dataScopeTypeDefault !== 'ALL' },
+                            { label: '本组织及下属组织可见', value: 'ORG_AND_CHILDREN', disabled: !['ALL', 'ORG_AND_CHILDREN'].includes(currentUserRole?.dataScopeTypeDefault) },
                             { label: '仅本人数据可见', value: 'SELF' },
-                            { label: '自定义组织范围', value: 'CUSTOM_ORG_SET' },
+                            { label: '自定义组织范围', value: 'CUSTOM_ORG_SET', disabled: currentUserRole?.dataScopeTypeDefault === 'SELF' },
                         ]} />
                     </Form.Item>
                     <Form.Item name="description" label="角色描述">

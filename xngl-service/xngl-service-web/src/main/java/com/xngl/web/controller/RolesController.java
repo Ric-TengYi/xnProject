@@ -9,6 +9,8 @@ import com.xngl.manager.role.RoleService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
 import com.xngl.web.dto.user.*;
+import com.xngl.web.support.UserContext;
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
@@ -23,10 +25,12 @@ public class RolesController {
 
   private final RoleService roleService;
   private final PermissionService permissionService;
+  private final UserContext userContext;
 
-  public RolesController(RoleService roleService, PermissionService permissionService) {
+  public RolesController(RoleService roleService, PermissionService permissionService, UserContext userContext) {
     this.roleService = roleService;
     this.permissionService = permissionService;
+    this.userContext = userContext;
   }
 
   @GetMapping
@@ -135,18 +139,29 @@ public class RolesController {
   }
 
   @PostMapping
-  public ApiResult<String> create(@RequestBody RoleCreateUpdateDto dto) {
+  public ApiResult<String> create(@RequestBody RoleCreateUpdateDto dto, HttpServletRequest request) {
+    User currentUser = userContext.requireCurrentUser(request);
+    Role currentUserRole = roleService.getById(currentUser.getRoleId());
+    if (currentUserRole == null) return ApiResult.fail(403, "无法获取当前用户角色");
+
     Role r = new Role();
     mapToEntity(dto, r);
+    roleService.validateRoleCreation(currentUserRole, r);
     long id = roleService.create(r);
     return ApiResult.ok(String.valueOf(id));
   }
 
   @PutMapping("/{id}")
-  public ApiResult<Void> update(@PathVariable Long id, @RequestBody RoleCreateUpdateDto dto) {
+  public ApiResult<Void> update(@PathVariable Long id, @RequestBody RoleCreateUpdateDto dto, HttpServletRequest request) {
     Role r = roleService.getById(id);
     if (r == null) return ApiResult.fail(404, "角色不存在");
+
+    User currentUser = userContext.requireCurrentUser(request);
+    Role currentUserRole = roleService.getById(currentUser.getRoleId());
+    if (currentUserRole == null) return ApiResult.fail(403, "无法获取当前用户角色");
+
     mapToEntity(dto, r);
+    roleService.validateRoleCreation(currentUserRole, r);
     r.setId(id);
     roleService.update(r);
     return ApiResult.ok();
