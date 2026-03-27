@@ -2668,8 +2668,6 @@ const FleetManagement: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
-    </div>
   );
 };
 

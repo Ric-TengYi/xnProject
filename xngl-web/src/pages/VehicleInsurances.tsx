@@ -548,8 +548,6 @@ const VehicleInsurances: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
-    </div>
   );
 };
 

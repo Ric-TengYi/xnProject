@@ -938,8 +938,6 @@ const VehicleMaintenancePlans: React.FC = () => {
           </Row>
         </Form>
       </Modal>
-    </div>
-    </div>
   );
 };
 

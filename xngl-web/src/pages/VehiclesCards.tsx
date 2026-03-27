@@ -1089,8 +1089,6 @@ const VehiclesCards: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
-    </div>
   );
 };
 

@@ -366,8 +366,6 @@ const VehicleModelsManagement: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
-    </div>
   );
 };
 

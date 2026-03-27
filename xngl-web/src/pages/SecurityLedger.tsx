@@ -854,9 +854,6 @@ const SecurityLedger: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
-    </div>
-    </div>
   );
 };
 

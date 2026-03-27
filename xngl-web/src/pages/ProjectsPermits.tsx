@@ -501,7 +501,6 @@ const ProjectsPermits: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
   );
 };
 

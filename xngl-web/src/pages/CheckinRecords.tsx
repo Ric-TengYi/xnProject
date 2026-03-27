@@ -316,9 +316,6 @@ const CheckinRecords: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
-    </div>
-    </div>
   );
 };
 

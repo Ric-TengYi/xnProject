@@ -620,8 +620,6 @@ const VehiclePersonnelCertificates: React.FC = () => {
           </Row>
         </Form>
       </Modal>
-    </div>
-    </div>
   );
 };
 
