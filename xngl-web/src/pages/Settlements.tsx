@@ -634,7 +634,7 @@ const Settlements: React.FC = () => {
             发起新结算
           </Button>
         </Space>
-
+      </div>
       <Row gutter={[24, 24]}>
         <Col xs={24} md={12} xl={6}>
           <Card className="glass-panel g-border-panel border">

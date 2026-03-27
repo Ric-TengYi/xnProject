@@ -960,6 +960,9 @@ const ContractsManagement: React.FC = () => {
             icon={<PlusOutlined />}
             className="g-btn-primary border-none mr-3 text-white"
             onClick={() => void openOnlineModal()}
+          </Button>
+        </div>
+      </div>
           >
             在线合同发起
           </Button>

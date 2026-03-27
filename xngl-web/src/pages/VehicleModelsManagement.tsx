@@ -263,10 +263,11 @@ const VehicleModelsManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <div>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
           新增车型
         </Button>
-
+      </div>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Card className="glass-panel g-border-panel border">
           <Statistic title="车型总数" value={summary.total} />

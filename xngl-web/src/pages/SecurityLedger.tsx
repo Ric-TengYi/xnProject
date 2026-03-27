@@ -266,15 +266,6 @@ const SecurityLedger: React.FC = () => {
   const createObjectType = Form.useWatch('objectType', createForm) || 'SITE';
 
   const loadMasters = async () => {
-    const [projectPage, siteList, vehiclePage, userList] = await Promise.all([
-      fetchProjects({ pageNo: 1, pageSize: 200 }),
-      fetchSites(),
-      fetchVehicles({ pageNo: 1, pageSize: 200 }),
-      fetchSecurityUsers({ pageNo: 1, pageSize: 200, status: 'ENABLED' }),
-    ]);
-    setProjects(projectPage.records || []);
-    setSites(siteList || []);
-    setVehicles(vehiclePage.records || []);
     setUsers(userList || []);
   };
 

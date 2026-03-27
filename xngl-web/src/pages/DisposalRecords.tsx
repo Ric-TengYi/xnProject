@@ -157,7 +157,7 @@ const DisposalRecords: React.FC = () => {
       <div>
         <h1 className="text-2xl font-bold g-text-primary m-0">消纳信息</h1>
         <p className="g-text-secondary mt-1">查询全平台消纳记录，支持按项目、场地、状态和时间范围组合检索。</p>
-
+      </div>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Card className="glass-panel g-border-panel border"><Statistic title="记录总数" value={summary.total} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="正常记录" value={summary.normal} /></Card>

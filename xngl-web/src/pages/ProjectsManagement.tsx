@@ -206,7 +206,7 @@ const ProjectsManagement: React.FC = () => {
             管理项目主档、交款进度、关联合同与场地投放情况
           </p>
         </div>
-
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="glass-panel" style={{ borderColor: 'var(--border-color)' }}>
           <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>项目总数</div>

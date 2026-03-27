@@ -487,7 +487,7 @@ const ContractDetail: React.FC = () => {
             {(detail?.projectName || '-') + ' - ' + (detail?.siteName || '-')}
           </p>
         </div>
-
+      </div>
       <Spin spinning={loading}>
         {detail ? (
           <Tabs

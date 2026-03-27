@@ -422,7 +422,7 @@ const MenuManagement: React.FC = () => {
       transition={{ duration: 0.3 }}
       className="space-y-6 h-[calc(100vh-110px)] flex flex-col"
     >
-      {/* Header */}
+      <div>
         <Button
           type="primary"
           icon={<PlusOutlined />}
@@ -431,7 +431,7 @@ const MenuManagement: React.FC = () => {
         >
           新增菜单
         </Button>
-
+      </div>
       {/* Platform Tabs */}
       <Tabs
         activeKey={platform}

@@ -129,7 +129,6 @@ const SitesBasicInfo: React.FC = () => {
             <div className="flex justify-between items-center mb-4">
                 <h1 className="text-2xl font-bold g-text-primary m-0">场地基础信息</h1>
             </div>
-
             <Card className="glass-panel g-border-panel border">
                 <div className="flex justify-between mb-4">
                     <Space>

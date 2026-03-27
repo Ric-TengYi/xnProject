@@ -273,7 +273,7 @@ const ContractTransfers: React.FC = () => {
         <Button type="primary" icon={<SwapOutlined />} onClick={() => void openCreate()}>
           发起内拨申请
         </Button>
-
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="glass-panel g-border-panel border"><Statistic title="草稿" value={summary.draft} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="审批中" value={summary.approving} valueStyle={{ color: '#1677ff' }} /></Card>

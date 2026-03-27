@@ -127,26 +127,6 @@ const VehicleRepairs: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [status, setStatus] = useState('all');
   const [urgencyLevel, setUrgencyLevel] = useState('all');
-  const [orgId, setOrgId] = useState<string | undefined>(undefined);
-  const [vehicleId, setVehicleId] = useState<string | undefined>(undefined);
-  const [applyDateRange, setApplyDateRange] = useState<[Dayjs, Dayjs] | null>(null);
-  const [completedDateRange, setCompletedDateRange] = useState<[Dayjs, Dayjs] | null>(null);
-  const [pageNo, setPageNo] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [total, setTotal] = useState(0);
-  const [companyOptions, setCompanyOptions] = useState<Array<{ label: string; value: string }>>([]);
-  const [vehicleOptions, setVehicleOptions] = useState<Array<{ label: string; value: string }>>([]);
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [auditOpen, setAuditOpen] = useState(false);
-  const [completeOpen, setCompleteOpen] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<VehicleRepairOrderRecord | null>(null);
-  const [currentRecord, setCurrentRecord] = useState<VehicleRepairOrderRecord | null>(null);
-  const [detailRecord, setDetailRecord] = useState<VehicleRepairOrderRecord | null>(null);
-  const [auditAction, setAuditAction] = useState<'approve' | 'reject'>('approve');
-  const [form] = Form.useForm<RepairFormValues>();
-  const [auditForm] = Form.useForm<AuditFormValues>();
-  const [completeForm] = Form.useForm<CompleteFormValues>();
 
   const queryParams = useMemo(
     () => ({

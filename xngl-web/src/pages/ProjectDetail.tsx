@@ -427,7 +427,7 @@ const ProjectDetail: React.FC = () => {
             项目编号: {project?.code || (project?.id ? 'PRJ-' + project.id : '-')}
           </p>
         </div>
-
+      </div>
       <Spin spinning={loading}>
         {project ? (
           <Tabs defaultActiveKey={defaultTab} items={items} className="custom-tabs" />

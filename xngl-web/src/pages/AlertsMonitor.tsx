@@ -448,7 +448,7 @@ const AlertsMonitor: React.FC = () => {
             刷新自动预警
           </Button>
         </Space>
-
+      </div>
       <Card className="glass-panel g-border-panel border">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4 xl:grid-cols-8">
           <Input
@@ -482,7 +482,7 @@ const AlertsMonitor: React.FC = () => {
           />
         </div>
       </Card>
-
+      </div>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-8">
         <Card className="glass-panel g-border-panel border"><Statistic title="预警总数" value={summary.total} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="待处置" value={summary.pending} valueStyle={{ color: '#dc2626' }} /></Card>

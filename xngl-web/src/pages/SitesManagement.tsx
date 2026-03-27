@@ -265,7 +265,6 @@ const SitesManagement: React.FC = () => {
                                             {site.parentSiteName ? (
                                                 <p className="g-text-secondary text-xs mb-4">上级场地: {site.parentSiteName}</p>
                                             ) : null}
-
                                             <div className="mb-2">
                                                 <div className="flex justify-between text-xs mb-1">
                                                     <span className="g-text-secondary">容量使用率</span>

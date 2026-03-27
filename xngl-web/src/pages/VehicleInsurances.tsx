@@ -370,7 +370,7 @@ const VehicleInsurances: React.FC = () => {
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
           新增保单
         </Button>
-
+      </div>
       <Row gutter={[24, 24]}>
         <Col xs={24} md={6}>
           <Card loading={summaryLoading} className="glass-panel g-border-panel border">

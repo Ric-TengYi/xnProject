@@ -220,7 +220,7 @@ const CheckinRecords: React.FC = () => {
       <div>
         <h1 className="text-2xl font-bold g-text-primary m-0">打卡数据</h1>
         <p className="g-text-secondary mt-1">查询项目打卡记录，支持多条件组合筛选和异常打卡在线作废。</p>
-
+      </div>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Card className="glass-panel g-border-panel border"><Statistic title="记录总数" value={summary.total} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="正常记录" value={summary.normal} /></Card>

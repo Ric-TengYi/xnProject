@@ -116,7 +116,6 @@ const SitesDisposals: React.FC = () => {
                     </Space>
                     <Button icon={<DownloadOutlined />} className="bg-white g-border-panel border g-text-primary hover:g-text-primary-link hover:border-blue-400">导出数据</Button>
                 </div>
-
                 <Table 
                     columns={columns} 
                     dataSource={tableData}

@@ -273,7 +273,6 @@ const ProjectsReports: React.FC = () => {
             )}
           </div>
         </Card>
-
         <Card className="glass-panel g-border-panel border xl:col-span-2" title="统计摘要" loading={loading}>
           <div className="space-y-4 text-sm">
             <div className="flex justify-between"><span className="g-text-secondary">统计周期</span><span className="g-text-primary">{summary.reportPeriod || '-'}</span></div>
