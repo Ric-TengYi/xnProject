@@ -711,7 +711,6 @@ const OrgManagement: React.FC = () => {
         )}
       </Modal>
     </motion.div>
-  );    </div>
   );
 };
 
