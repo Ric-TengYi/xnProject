@@ -2,10 +2,12 @@ package com.xngl.web.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.xngl.infrastructure.persistence.entity.organization.Role;
+import com.xngl.infrastructure.persistence.entity.organization.User;
 import com.xngl.infrastructure.persistence.entity.system.DataScopeRule;
 import com.xngl.infrastructure.persistence.entity.system.Permission;
 import com.xngl.manager.permission.PermissionService;
 import com.xngl.manager.role.RoleService;
+import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
 import com.xngl.web.dto.user.*;
@@ -26,11 +28,13 @@ public class RolesController {
   private final RoleService roleService;
   private final PermissionService permissionService;
   private final UserContext userContext;
+  private final UserService userService;
 
-  public RolesController(RoleService roleService, PermissionService permissionService, UserContext userContext) {
+  public RolesController(RoleService roleService, PermissionService permissionService, UserContext userContext, UserService userService) {
     this.roleService = roleService;
     this.permissionService = permissionService;
     this.userContext = userContext;
+    this.userService = userService;
   }
 
   @GetMapping
@@ -43,7 +47,8 @@ public class RolesController {
       @RequestParam(defaultValue = "20") int pageSize,
       HttpServletRequest request) {
     User currentUser = userContext.requireCurrentUser(request);
-    Role currentUserRole = roleService.getById(currentUser.getRoleId());
+    List<Long> roleIds = userService.listRoleIdsByUserId(currentUser.getId());
+    Role currentUserRole = roleIds.isEmpty() ? null : roleService.getById(roleIds.get(0));
     IPage<Role> page = currentUserRole != null
         ? roleService.pageWithPermissionFilter(keyword, tenantId, roleScope, status, pageNo, pageSize, currentUserRole)
         : roleService.page(keyword, tenantId, roleScope, status, pageNo, pageSize);
@@ -145,7 +150,8 @@ public class RolesController {
   @PostMapping
   public ApiResult<String> create(@RequestBody RoleCreateUpdateDto dto, HttpServletRequest request) {
     User currentUser = userContext.requireCurrentUser(request);
-    Role currentUserRole = roleService.getById(currentUser.getRoleId());
+    List<Long> roleIds = userService.listRoleIdsByUserId(currentUser.getId());
+    Role currentUserRole = roleIds.isEmpty() ? null : roleService.getById(roleIds.get(0));
     if (currentUserRole == null) return ApiResult.fail(403, "无法获取当前用户角色");
 
     Role r = new Role();
@@ -161,7 +167,8 @@ public class RolesController {
     if (r == null) return ApiResult.fail(404, "角色不存在");
 
     User currentUser = userContext.requireCurrentUser(request);
-    Role currentUserRole = roleService.getById(currentUser.getRoleId());
+    List<Long> roleIds = userService.listRoleIdsByUserId(currentUser.getId());
+    Role currentUserRole = roleIds.isEmpty() ? null : roleService.getById(roleIds.get(0));
     if (currentUserRole == null) return ApiResult.fail(403, "无法获取当前用户角色");
 
     mapToEntity(dto, r);

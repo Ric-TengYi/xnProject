@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xngl.infrastructure.persistence.entity.organization.Role;
+import com.xngl.infrastructure.persistence.entity.organization.UserRoleRel;
 import com.xngl.infrastructure.persistence.entity.system.DataScopeRule;
 import com.xngl.infrastructure.persistence.entity.system.RolePermissionRel;
 import com.xngl.infrastructure.persistence.entity.system.RoleMenuRel;
@@ -11,6 +12,7 @@ import com.xngl.infrastructure.persistence.mapper.DataScopeRuleMapper;
 import com.xngl.infrastructure.persistence.mapper.RoleMapper;
 import com.xngl.infrastructure.persistence.mapper.RoleMenuRelMapper;
 import com.xngl.infrastructure.persistence.mapper.RolePermissionRelMapper;
+import com.xngl.infrastructure.persistence.mapper.UserRoleRelMapper;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -25,16 +27,19 @@ public class RoleServiceImpl implements RoleService {
   private final RolePermissionRelMapper rolePermissionRelMapper;
   private final RoleMenuRelMapper roleMenuRelMapper;
   private final DataScopeRuleMapper dataScopeRuleMapper;
+  private final UserRoleRelMapper userRoleRelMapper;
 
   public RoleServiceImpl(
       RoleMapper roleMapper,
       RolePermissionRelMapper rolePermissionRelMapper,
       RoleMenuRelMapper roleMenuRelMapper,
-      DataScopeRuleMapper dataScopeRuleMapper) {
+      DataScopeRuleMapper dataScopeRuleMapper,
+      UserRoleRelMapper userRoleRelMapper) {
     this.roleMapper = roleMapper;
     this.rolePermissionRelMapper = rolePermissionRelMapper;
     this.roleMenuRelMapper = roleMenuRelMapper;
     this.dataScopeRuleMapper = dataScopeRuleMapper;
+    this.userRoleRelMapper = userRoleRelMapper;
   }
 
   @Override
@@ -282,3 +287,4 @@ public class RoleServiceImpl implements RoleService {
     );
     return scopeLevel.getOrDefault(roleScope, 0) >= scopeLevel.getOrDefault(requiredScope, 0);
   }
+}
