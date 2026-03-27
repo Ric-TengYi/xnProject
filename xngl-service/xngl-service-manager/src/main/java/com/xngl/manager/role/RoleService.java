@@ -38,4 +38,6 @@ public interface RoleService {
   void validateRoleCreation(Role currentUserRole, Role newRole);
 
   boolean canAssignDataScope(String userScope, String newScope);
+
+  boolean canAccessOrganization(Long userId, Long organizationId, String requiredScope);
 }

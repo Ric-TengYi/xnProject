@@ -13,4 +13,5 @@ public class UserRoleRel extends BaseRelEntity {
   private Long tenantId;
   private Long userId;
   private Long roleId;
+  private Long organizationId;
 }

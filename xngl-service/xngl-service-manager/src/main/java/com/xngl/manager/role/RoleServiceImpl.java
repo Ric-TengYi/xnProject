@@ -259,4 +259,26 @@ public class RoleServiceImpl implements RoleService {
     );
     return scopeLevel.getOrDefault(userScope, 0) >= scopeLevel.getOrDefault(newScope, 0);
   }
-}
+
+  public boolean canAccessOrganization(Long userId, Long organizationId, String requiredScope) {
+    List<UserRoleRel> relations = userRoleRelMapper.selectByUserId(userId);
+    for (UserRoleRel rel : relations) {
+      if (rel.getOrganizationId() != null && rel.getOrganizationId().equals(organizationId)) {
+        Role role = roleMapper.selectById(rel.getRoleId());
+        if (role != null && canAccessWithScope(role.getDataScopeTypeDefault(), requiredScope)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private boolean canAccessWithScope(String roleScope, String requiredScope) {
+    Map<String, Integer> scopeLevel = Map.of(
+        "ALL", 4,
+        "ORG_AND_CHILDREN", 3,
+        "CUSTOM_ORG_SET", 2,
+        "SELF", 1
+    );
+    return scopeLevel.getOrDefault(roleScope, 0) >= scopeLevel.getOrDefault(requiredScope, 0);
+  }
