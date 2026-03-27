@@ -273,6 +273,7 @@ const RolesManagement: React.FC = () => {
                     )}
                 >
                     <div className="space-y-8">
+                        <Descriptions column={1} bordered size="small">
                             <Descriptions.Item label="角色编码">{selectedRole?.roleCode || '-'}</Descriptions.Item>
                             <Descriptions.Item label="角色范围">{selectedRole?.roleScope || '-'}</Descriptions.Item>
                             <Descriptions.Item label="默认数据范围">{selectedRole?.dataScopeTypeDefault || dataScopeType}</Descriptions.Item>
