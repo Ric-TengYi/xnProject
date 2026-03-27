@@ -370,7 +370,7 @@ const MonthlyReport: React.FC = () => {
         </Card>
       </Spin>
     </motion.div>
-    </div>
+  );    </div>
   );
 };
 

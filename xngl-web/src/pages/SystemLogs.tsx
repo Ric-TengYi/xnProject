@@ -601,7 +601,6 @@ const SystemLogs: React.FC = () => {
         />
       </Card>
     </motion.div>
-    </div>
   );
 };
 

@@ -1558,8 +1558,7 @@ const ContractsManagement: React.FC = () => {
         </div>
       </Modal>
     </motion.div>
-    </div>
-    </div>
+  );    </div>
   );
 };
 

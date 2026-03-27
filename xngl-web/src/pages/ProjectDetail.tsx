@@ -438,7 +438,7 @@ const ProjectDetail: React.FC = () => {
         )}
       </Spin>
     </motion.div>
-    </div>
+  );    </div>
   );
 };
 

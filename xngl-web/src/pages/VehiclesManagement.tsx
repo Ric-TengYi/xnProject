@@ -983,7 +983,7 @@ const VehiclesManagement: React.FC = () => {
         </Form>
       </Modal>
     </motion.div>
-    </div>
+  );    </div>
   );
 };
 

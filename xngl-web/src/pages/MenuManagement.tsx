@@ -810,7 +810,7 @@ const MenuManagement: React.FC = () => {
         </Form>
       </Modal>
     </motion.div>
-    </div>
+  );    </div>
   );
 };
 

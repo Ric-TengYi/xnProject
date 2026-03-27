@@ -923,7 +923,7 @@ const Settlements: React.FC = () => {
         </Form>
       </Modal>
     </motion.div>
-    </div>
+  );    </div>
   );
 };
 

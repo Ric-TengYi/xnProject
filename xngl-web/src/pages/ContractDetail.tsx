@@ -522,7 +522,7 @@ const ContractDetail: React.FC = () => {
         </Form>
       </Modal>
     </motion.div>
-    </div>
+  );    </div>
   );
 };
 

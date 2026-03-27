@@ -287,8 +287,7 @@ const ProjectsManagement: React.FC = () => {
         />
       </Card>
     </motion.div>
-    </div>
-    </div>
+  );    </div>
   );
 };
 
