@@ -710,8 +710,6 @@ const EventsManagement: React.FC = () => {
         </Form>
       </Modal>
     </div>
-    </div>
-    </div>
   );
 };
 
