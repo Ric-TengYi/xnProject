@@ -23,18 +23,30 @@ export function parseGeoJsonPolygon(geoJson?: string | null): MapPoint[] {
     const parsed = JSON.parse(geoJson) as {
       type?: string;
       coordinates?: unknown;
+      geometry?: { type?: string; coordinates?: unknown };
+      features?: Array<{ geometry?: { type?: string; coordinates?: unknown } }>;
     };
-    if (parsed.type === 'Polygon' && Array.isArray(parsed.coordinates) && parsed.coordinates.length > 0) {
-      return (parsed.coordinates[0] as unknown[]).map(toMapPoint).filter((item): item is MapPoint => item != null);
+    
+    let geom = parsed;
+    if (parsed.type === 'FeatureCollection' && Array.isArray(parsed.features) && parsed.features.length > 0) {
+      geom = parsed.features[0].geometry as any;
+    } else if (parsed.type === 'Feature' && parsed.geometry) {
+      geom = parsed.geometry as any;
+    }
+
+    if (!geom) return [];
+
+    if (geom.type === 'Polygon' && Array.isArray(geom.coordinates) && geom.coordinates.length > 0) {
+      return (geom.coordinates[0] as unknown[]).map(toMapPoint).filter((item): item is MapPoint => item != null);
     }
     if (
-      parsed.type === 'MultiPolygon' &&
-      Array.isArray(parsed.coordinates) &&
-      parsed.coordinates.length > 0 &&
-      Array.isArray(parsed.coordinates[0]) &&
-      parsed.coordinates[0].length > 0
+      geom.type === 'MultiPolygon' &&
+      Array.isArray(geom.coordinates) &&
+      geom.coordinates.length > 0 &&
+      Array.isArray(geom.coordinates[0]) &&
+      geom.coordinates[0].length > 0
     ) {
-      return ((parsed.coordinates[0] as unknown[])[0] as unknown[])
+      return ((geom.coordinates[0] as unknown[])[0] as unknown[])
         .map(toMapPoint)
         .filter((item): item is MapPoint => item != null);
     }
@@ -52,12 +64,24 @@ export function parseGeoJsonLine(geoJson?: string | null): MapPoint[] {
     const parsed = JSON.parse(geoJson) as {
       type?: string;
       coordinates?: unknown;
+      geometry?: { type?: string; coordinates?: unknown };
+      features?: Array<{ geometry?: { type?: string; coordinates?: unknown } }>;
     };
-    if (parsed.type === 'LineString' && Array.isArray(parsed.coordinates)) {
-      return parsed.coordinates.map(toMapPoint).filter((item): item is MapPoint => item != null);
+
+    let geom = parsed;
+    if (parsed.type === 'FeatureCollection' && Array.isArray(parsed.features) && parsed.features.length > 0) {
+      geom = parsed.features[0].geometry as any;
+    } else if (parsed.type === 'Feature' && parsed.geometry) {
+      geom = parsed.geometry as any;
     }
-    if (parsed.type === 'MultiLineString' && Array.isArray(parsed.coordinates) && parsed.coordinates.length > 0) {
-      return (parsed.coordinates[0] as unknown[]).map(toMapPoint).filter((item): item is MapPoint => item != null);
+
+    if (!geom) return [];
+
+    if (geom.type === 'LineString' && Array.isArray(geom.coordinates)) {
+      return geom.coordinates.map(toMapPoint).filter((item): item is MapPoint => item != null);
+    }
+    if (geom.type === 'MultiLineString' && Array.isArray(geom.coordinates) && geom.coordinates.length > 0) {
+      return (geom.coordinates[0] as unknown[]).map(toMapPoint).filter((item): item is MapPoint => item != null);
     }
   } catch (error) {
     console.warn('Failed to parse route GeoJSON', error);

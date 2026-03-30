@@ -110,3 +110,8 @@ export async function fetchProjectPaymentSummary(id: string) {
   );
   return res.data;
 }
+
+export async function updateProjectConfig(id: string, data: ProjectConfigRecord) {
+  const res = await http.put<ProjectConfigRecord>('/projects/' + id + '/config', data);
+  return res.data;
+}

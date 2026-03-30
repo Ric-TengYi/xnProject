@@ -16,6 +16,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import TiandituMap from '../components/TiandituMap';
+import ProjectConfigModal from '../components/ProjectConfigModal';
 import type { MapPoint, MapPolygon, MapPolyline } from '../components/TiandituMap';
 import { parseGeoJsonLine, parseGeoJsonPolygon } from '../utils/mapGeometry';
 import {
@@ -50,26 +51,24 @@ const ProjectDetail: React.FC = () => {
   const defaultTab = searchParams.get('tab') || 'info';
   const [loading, setLoading] = useState(false);
   const [project, setProject] = useState<ProjectRecord | null>(null);
+  const [configModalVisible, setConfigModalVisible] = useState(false);
+
+  const loadData = async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const projectDetail = await fetchProjectDetail(id);
+      setProject(projectDetail);
+    } catch (error) {
+      console.error(error);
+      message.error('获取项目详情失败');
+      setProject(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!id) {
-      return;
-    }
-
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const projectDetail = await fetchProjectDetail(id);
-        setProject(projectDetail);
-      } catch (error) {
-        console.error(error);
-        message.error('获取项目详情失败');
-        setProject(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     void loadData();
   }, [id]);
 
@@ -131,26 +130,28 @@ const ProjectDetail: React.FC = () => {
       children: (
         <div className="space-y-6">
           <Card
-            title="基础信息"
+            title={<span className="font-bold text-lg">基础信息</span>}
             className="glass-panel g-border-panel border"
-            extra={<Button type="link" icon={<EditOutlined />}>编辑</Button>}
+            extra={<Button type="primary" ghost icon={<EditOutlined />}>编辑信息</Button>}
           >
-            <Descriptions column={3} className="g-text-secondary">
+            <Descriptions column={{ xxl: 4, xl: 3, lg: 3, md: 2, sm: 1, xs: 1 }} className="g-text-secondary" layout="vertical" bordered size="small">
               <Descriptions.Item label="项目编号">
-                {project?.code || 'PRJ-' + String(project?.id || '')}
+                <span className="font-mono text-gray-600">{project?.code || 'PRJ-' + String(project?.id || '')}</span>
               </Descriptions.Item>
-              <Descriptions.Item label="项目名称">{project?.name || '-'}</Descriptions.Item>
+              <Descriptions.Item label="项目名称">
+                <span className="font-medium text-gray-800">{project?.name || '-'}</span>
+              </Descriptions.Item>
               <Descriptions.Item label="项目状态">
-                <Tag color={statusColorMap[project?.statusLabel || ''] || 'default'}>
+                <Tag color={statusColorMap[project?.statusLabel || ''] || 'default'} className="m-0">
                   {project?.statusLabel || '未知'}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="所属组织">{project?.orgName || '-'}</Descriptions.Item>
               <Descriptions.Item label="关联合同">
-                {(project?.contractCount || 0) + ' 份'}
+                <span className="font-medium text-blue-600">{(project?.contractCount || 0)} 份</span>
               </Descriptions.Item>
               <Descriptions.Item label="关联场地">
-                {(project?.siteCount || 0) + ' 个'}
+                <span className="font-medium text-blue-600">{(project?.siteCount || 0)} 个</span>
               </Descriptions.Item>
               <Descriptions.Item label="项目地址" span={2}>
                 {project?.address || '-'}
@@ -160,7 +161,7 @@ const ProjectDetail: React.FC = () => {
             </Descriptions>
           </Card>
 
-          <Card title="交款数据" className="glass-panel g-border-panel border">
+          <Card title={<span className="font-bold text-lg">交款数据概览</span>} className="glass-panel g-border-panel border">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card type="inner" className="bg-white g-border-panel border">
                 <div className="g-text-secondary mb-2">应收总额</div>
@@ -206,27 +207,27 @@ const ProjectDetail: React.FC = () => {
       label: '合同与场地清单',
       children: (
         <div className="space-y-6">
-          <Card title="项目合同清单" className="glass-panel g-border-panel border">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <Card type="inner" className="bg-white g-border-panel border">
-                <div className="g-text-secondary mb-2">合同总量</div>
-                <div className="text-2xl font-bold g-text-primary">{contracts.length}</div>
+          <Card title={<span className="font-bold text-lg">项目合同清单</span>} className="glass-panel g-border-panel border">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <Card type="inner" className="bg-blue-50/50 g-border-panel border hover:shadow-sm transition-shadow">
+                <div className="g-text-secondary mb-2 text-sm">合同总量</div>
+                <div className="text-3xl font-bold g-text-primary">{contracts.length}</div>
               </Card>
-              <Card type="inner" className="bg-white g-border-panel border">
-                <div className="g-text-secondary mb-2">合同方量</div>
-                <div className="text-2xl font-bold g-text-primary-link">
+              <Card type="inner" className="bg-blue-50/50 g-border-panel border hover:shadow-sm transition-shadow">
+                <div className="g-text-secondary mb-2 text-sm">合同方量</div>
+                <div className="text-3xl font-bold g-text-primary-link">
                   {formatVolume(contracts.reduce((sum, item) => sum + Number(item.agreedVolume || 0), 0))}
                 </div>
               </Card>
-              <Card type="inner" className="bg-white g-border-panel border">
-                <div className="g-text-secondary mb-2">剩余方量</div>
-                <div className="text-2xl font-bold g-text-warning">
+              <Card type="inner" className="bg-orange-50/50 g-border-panel border hover:shadow-sm transition-shadow">
+                <div className="g-text-secondary mb-2 text-sm">剩余方量</div>
+                <div className="text-3xl font-bold g-text-warning">
                   {formatVolume(contracts.reduce((sum, item) => sum + Number(item.remainingVolume || 0), 0))}
                 </div>
               </Card>
             </div>
             <List
-              locale={{ emptyText: <Empty description="暂无关联合同" /> }}
+              locale={{ emptyText: <Empty description="暂无关联合同" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
               dataSource={contracts}
               renderItem={(item) => (
                 <List.Item
@@ -336,7 +337,11 @@ const ProjectDetail: React.FC = () => {
       label: '项目配置',
       children: (
         <div className="space-y-6">
-          <Card className="glass-panel g-border-panel border">
+          <Card 
+            title={<span className="font-bold text-lg">项目配置</span>} 
+            className="glass-panel g-border-panel border"
+            extra={<Button type="primary" ghost icon={<EditOutlined />} onClick={() => setConfigModalVisible(true)}>编辑配置</Button>}
+          >
             <Descriptions column={2} className="g-text-secondary">
               <Descriptions.Item label="打卡配置">
                 <Tag color={projectConfig?.checkinEnabled ? 'success' : 'default'}>
@@ -437,6 +442,18 @@ const ProjectDetail: React.FC = () => {
           </Card>
         )}
       </Spin>
+      {id && (
+        <ProjectConfigModal
+          projectId={id}
+          visible={configModalVisible}
+          initialValues={project?.config || null}
+          onCancel={() => setConfigModalVisible(false)}
+          onSuccess={() => {
+            setConfigModalVisible(false);
+            void loadData();
+          }}
+        />
+      )}
     </motion.div>
   );
 };

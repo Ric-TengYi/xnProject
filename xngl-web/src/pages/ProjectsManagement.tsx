@@ -12,7 +12,7 @@ import {
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { FilterOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { FilterOutlined, PlusOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { fetchProjects, type ProjectRecord } from '../utils/projectApi';
@@ -232,17 +232,17 @@ const ProjectsManagement: React.FC = () => {
         bodyStyle={{ padding: 0 }}
       >
         <div
-          className="p-4 border-b flex flex-wrap justify-between gap-4 items-center"
+          className="p-4 border-b flex flex-col lg:flex-row justify-between gap-4 lg:items-center"
           style={{ borderColor: 'var(--border-color)', background: '#fafafa' }}
         >
-          <div className="flex gap-4 flex-wrap">
-            <Input
+          <div className="flex gap-4 flex-wrap flex-1">
+            <Input.Search
               placeholder="搜索项目名称/编号/地址"
-              prefix={<SearchOutlined style={{ color: 'var(--text-secondary)' }} />}
-              className="w-72 bg-white"
-              value={keyword}
-              onChange={(e) => {
-                setKeyword(e.target.value);
+              className="w-full sm:w-72 bg-white"
+              defaultValue={keyword}
+              allowClear
+              onSearch={(value) => {
+                setKeyword(value);
                 setPageNo(1);
               }}
             />
@@ -255,7 +255,7 @@ const ProjectsManagement: React.FC = () => {
               }}
               style={{ width: 140 }}
             />
-            <Button icon={<FilterOutlined />}>筛选条件</Button>
+            <Button icon={<FilterOutlined />}>更多筛选</Button>
           </div>
           <Button
             type="primary"
@@ -271,7 +271,8 @@ const ProjectsManagement: React.FC = () => {
           dataSource={projects}
           rowKey="id"
           loading={loading}
-          locale={{ emptyText: <Empty description="暂无项目数据" /> }}
+          scroll={{ x: 1200 }}
+          locale={{ emptyText: <Empty description="暂无项目数据" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
           pagination={{
             current: pageNo,
             pageSize,
