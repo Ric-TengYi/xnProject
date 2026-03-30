@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Card, Table, Button, Input, Select, DatePicker, Tag, Space, message } from 'antd';
+import { Card, Table, Button, Input, Select, DatePicker, Tag, Space, message, Statistic } from 'antd';
 import { SearchOutlined, DownloadOutlined } from '@ant-design/icons';
 import { fetchSiteDisposals, fetchSites, type DisposalRecord, type SiteRecord } from '../utils/siteApi';
 
@@ -16,6 +16,13 @@ const SitesDisposals: React.FC = () => {
     const [pageSize, setPageSize] = useState(10);
     const [total, setTotal] = useState(0);
     const [records, setRecords] = useState<DisposalRecord[]>([]);
+
+    const summary = useMemo(() => ({
+        total: total,
+        normal: records.filter(item => item.status === '正常').length,
+        abnormal: records.filter(item => item.status === '异常').length,
+        volume: records.reduce((sum, item) => sum + Number(item.volume || 0), 0)
+    }), [records, total]);
 
     useEffect(() => {
         const loadSites = async () => {
@@ -96,6 +103,13 @@ const SitesDisposals: React.FC = () => {
                 <h1 className="text-2xl font-bold g-text-primary m-0">全局消纳清单</h1>
             </div>
 
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <Card className="glass-panel g-border-panel border"><Statistic title="记录总数" value={summary.total} /></Card>
+                <Card className="glass-panel g-border-panel border"><Statistic title="正常记录" value={summary.normal} /></Card>
+                <Card className="glass-panel g-border-panel border"><Statistic title="异常记录" value={summary.abnormal} /></Card>
+                <Card className="glass-panel g-border-panel border"><Statistic title="当前页方量" value={summary.volume.toFixed(2)} /></Card>
+            </div>
+
             <Card className="glass-panel g-border-panel border">
                 <div className="flex justify-between mb-4 flex-wrap gap-4">
                     <Space className="flex-wrap">
@@ -121,6 +135,7 @@ const SitesDisposals: React.FC = () => {
                     dataSource={tableData}
                     rowKey="id"
                     loading={loading}
+                    scroll={{ x: 1000 }}
                     locale={{ emptyText: '当前暂无消纳记录，后续接入 biz_disposal 后会自动展示' }}
                     className="bg-transparent"
                     rowClassName="hover:bg-white transition-colors"

@@ -226,6 +226,7 @@ const CheckinRecords: React.FC = () => {
         <Card className="glass-panel g-border-panel border"><Statistic title="正常记录" value={summary.normal} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="已作废" value={summary.cancelled} /></Card>
         <Card className="glass-panel g-border-panel border"><Statistic title="当前页方量" value={summary.volume.toFixed(2)} /></Card>
+      </div>
 
       <Card className="glass-panel g-border-panel border" bodyStyle={{ padding: 0 }}>
         <div className="p-4 flex flex-wrap justify-between gap-4 g-bg-toolbar border-b g-border-panel">
@@ -274,6 +275,12 @@ const CheckinRecords: React.FC = () => {
                 setPageNo(1);
               }}
             />
+            <Button type="primary" icon={<SearchOutlined />} onClick={() => setPageNo(1)}>
+              查询
+            </Button>
+            <Button>
+              导出
+            </Button>
           </Space>
         </div>
 
@@ -282,6 +289,7 @@ const CheckinRecords: React.FC = () => {
           dataSource={records}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 1000 }}
           className="bg-transparent"
           rowClassName="hover:bg-white transition-colors"
           locale={{ emptyText: '暂无打卡数据' }}
@@ -316,7 +324,6 @@ const CheckinRecords: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
     </div>
   );
 };

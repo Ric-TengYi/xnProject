@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Card, DatePicker, Input, Select, Space, Statistic, Table, Tag, message } from 'antd';
+import { Card, DatePicker, Input, Select, Space, Statistic, Table, Tag, message, Button } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined } from '@ant-design/icons';
 import type { Dayjs } from 'dayjs';
@@ -212,6 +212,12 @@ const DisposalRecords: React.FC = () => {
                 setPageNo(1);
               }}
             />
+            <Button type="primary" icon={<SearchOutlined />} onClick={() => setPageNo(1)}>
+              查询
+            </Button>
+            <Button>
+              导出
+            </Button>
           </Space>
         </div>
 
@@ -220,6 +226,7 @@ const DisposalRecords: React.FC = () => {
           dataSource={records}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 1000 }}
           className="bg-transparent"
           rowClassName="hover:bg-white transition-colors"
           locale={{ emptyText: '暂无消纳记录' }}

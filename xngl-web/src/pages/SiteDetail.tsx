@@ -152,6 +152,9 @@ const SiteDetail: React.FC = () => {
     const [siteInfo, setSiteInfo] = useState<SiteRecord | null>(null);
     const [disposalsLoading, setDisposalsLoading] = useState(false);
     const [disposals, setDisposals] = useState<DisposalRecord[]>([]);
+    const [disposalsTotal, setDisposalsTotal] = useState(0);
+    const [disposalsPageNo, setDisposalsPageNo] = useState(1);
+    const [disposalsPageSize, setDisposalsPageSize] = useState(10);
     const [documents, setDocuments] = useState<SiteDocumentRecord[]>([]);
     const [surveys, setSurveys] = useState<SiteSurveyRecord[]>([]);
     const [documentModalOpen, setDocumentModalOpen] = useState(false);
@@ -179,20 +182,37 @@ const SiteDetail: React.FC = () => {
         if (!id) {
             return;
         }
-        const loadData = async () => {
-            setLoading(true);
+        const loadDisposals = async () => {
             setDisposalsLoading(true);
             try {
-                const [site, disposalPage, personnelRecords, candidateRecords, documentRecords, surveyRecords] = await Promise.all([
+                const disposalPage = await fetchSiteDisposals({ siteId: id, pageNo: disposalsPageNo, pageSize: disposalsPageSize });
+                setDisposals(disposalPage.records || []);
+                setDisposalsTotal(disposalPage.total || 0);
+            } catch (error) {
+                console.error(error);
+                message.error('获取消纳清单失败');
+            } finally {
+                setDisposalsLoading(false);
+            }
+        };
+        void loadDisposals();
+    }, [id, disposalsPageNo, disposalsPageSize]);
+
+    useEffect(() => {
+        if (!id) {
+            return;
+        }
+        const loadData = async () => {
+            setLoading(true);
+            try {
+                const [site, personnelRecords, candidateRecords, documentRecords, surveyRecords] = await Promise.all([
                     fetchSiteDetail(id),
-                    fetchSiteDisposals({ siteId: id, pageNo: 1, pageSize: 10 }),
                     fetchSitePersonnel(id),
                     fetchSitePersonnelCandidates(id),
                     fetchSiteDocuments(id),
                     fetchSiteSurveys(id),
                 ]);
                 setSiteInfo(site);
-                setDisposals(disposalPage.records || []);
                 setPersonnel(personnelRecords);
                 setPersonnelCandidates(candidateRecords);
                 setDocuments(documentRecords);
@@ -201,13 +221,11 @@ const SiteDetail: React.FC = () => {
                 console.error(error);
                 message.error('获取场地详情失败');
                 setSiteInfo(null);
-                setDisposals([]);
                 setPersonnel([]);
                 setPersonnelCandidates([]);
                 setDocuments([]);
                 setSurveys([]);
             } finally {
-                setDisposalsLoading(false);
                 setLoading(false);
             }
         };
@@ -232,7 +250,7 @@ const SiteDetail: React.FC = () => {
         }
         const [site, disposalPage, personnelRecords, candidateRecords, documentRecords, surveyRecords] = await Promise.all([
             fetchSiteDetail(id),
-            fetchSiteDisposals({ siteId: id, pageNo: 1, pageSize: 10 }),
+            fetchSiteDisposals({ siteId: id, pageNo: disposalsPageNo, pageSize: disposalsPageSize }),
             fetchSitePersonnel(id),
             fetchSitePersonnelCandidates(id),
             fetchSiteDocuments(id),
@@ -240,6 +258,7 @@ const SiteDetail: React.FC = () => {
         ]);
         setSiteInfo(site);
         setDisposals(disposalPage.records || []);
+        setDisposalsTotal(disposalPage.total || 0);
         setPersonnel(personnelRecords);
         setPersonnelCandidates(candidateRecords);
         setDocuments(documentRecords);
@@ -669,6 +688,7 @@ const SiteDetail: React.FC = () => {
                         }))}
                         loading={disposalsLoading}
                         rowKey="id"
+                        scroll={{ x: 800 }}
                         columns={[
                             { title: '记录编号', dataIndex: 'id', key: 'id' },
                             { title: '消纳时间', dataIndex: 'time', key: 'time' },
@@ -678,7 +698,16 @@ const SiteDetail: React.FC = () => {
                             { title: '状态', dataIndex: 'status', key: 'status', render: (s: string) => <Tag color={s === '正常' || s === '有效' ? 'success' : 'default'}>{s}</Tag> },
                             { title: '操作', key: 'action', render: () => <a className="g-text-error">作废</a> }
                         ]}
-                        pagination={false}
+                        pagination={{
+                            current: disposalsPageNo,
+                            pageSize: disposalsPageSize,
+                            total: disposalsTotal,
+                            showSizeChanger: true,
+                            onChange: (page, size) => {
+                                setDisposalsPageNo(page);
+                                setDisposalsPageSize(size);
+                            }
+                        }}
                         className="bg-transparent"
                         rowClassName="hover:bg-white transition-colors"
                     />
@@ -697,6 +726,7 @@ const SiteDetail: React.FC = () => {
                         rowKey="id"
                         dataSource={surveys}
                         pagination={false}
+                        scroll={{ x: 1000 }}
                         locale={{ emptyText: '当前暂无测绘结算记录' }}
                         columns={[
                             { title: '测绘编号', dataIndex: 'surveyNo', key: 'surveyNo' },

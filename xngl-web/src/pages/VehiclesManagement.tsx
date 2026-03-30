@@ -668,11 +668,12 @@ const VehiclesManagement: React.FC = () => {
               prefix={<SearchOutlined className="g-text-secondary" />}
               className="w-72 bg-white g-border-panel border g-text-primary"
               value={keyword}
-              onChange={(e) => {
-                setKeyword(e.target.value);
-                setPageNo(1);
-              }}
+              onChange={(e) => setKeyword(e.target.value)}
+              onPressEnter={() => setPageNo(1)}
             />
+            <Button type="primary" icon={<SearchOutlined />} onClick={() => setPageNo(1)}>
+              查询
+            </Button>
             <Button icon={<FilterOutlined />} className="bg-transparent g-text-secondary g-border-panel border hover:g-text-primary" onClick={() => setFilterVisible(true)}>
               高级筛选
             </Button>
@@ -718,6 +719,7 @@ const VehiclesManagement: React.FC = () => {
             dataSource={vehicles}
             rowKey="id"
             loading={listLoading}
+            scroll={{ x: 1200 }}
             rowSelection={{
               selectedRowKeys,
               onChange: (keys) => setSelectedRowKeys(keys),
@@ -750,6 +752,7 @@ const VehiclesManagement: React.FC = () => {
             dataSource={companyCapacity}
             rowKey={(record) => record.orgId || record.orgName}
             loading={capacityLoading}
+            scroll={{ x: 1000 }}
             pagination={false}
             locale={{ emptyText: <Empty description="暂无运力汇总数据" /> }}
             className="bg-transparent"

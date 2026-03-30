@@ -100,9 +100,11 @@ const ProjectsPermits: React.FC = () => {
   const [siteId, setSiteId] = useState<number>();
   const [detailOpen, setDetailOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [bindModalOpen, setBindModalOpen] = useState(false);
   const [currentRecord, setCurrentRecord] = useState<DisposalPermitRecord | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [form] = Form.useForm<DisposalPermitUpsertPayload>();
+  const [bindForm] = Form.useForm<{ vehicleNo: string }>();
   const selectedContractId = Form.useWatch('contractId', form);
   const selectedFormProjectId = Form.useWatch('projectId', form);
   const selectedFormSiteId = Form.useWatch('siteId', form);
@@ -237,6 +239,38 @@ const ProjectsPermits: React.FC = () => {
     setModalOpen(true);
   };
 
+  const openBind = (record: DisposalPermitRecord) => {
+    setCurrentRecord(record);
+    bindForm.setFieldsValue({
+      vehicleNo: record.vehicleNo || undefined,
+    });
+    setBindModalOpen(true);
+  };
+
+  const handleBind = async () => {
+    try {
+      const values = await bindForm.validateFields();
+      setSubmitLoading(true);
+      if (currentRecord) {
+        await updateDisposalPermit(currentRecord.id, { 
+          ...currentRecord, 
+          permitType: currentRecord.permitType || undefined,
+          vehicleNo: values.vehicleNo 
+        });
+        message.success('车辆绑定已更新');
+      }
+      setBindModalOpen(false);
+      bindForm.resetFields();
+      await loadData();
+    } catch (error) {
+      if ((error as { errorFields?: unknown[] })?.errorFields) return;
+      console.error(error);
+      message.error('绑定车辆失败');
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
@@ -303,6 +337,15 @@ const ProjectsPermits: React.FC = () => {
       ),
     },
     {
+      title: '绑定状态',
+      key: 'bindStatus',
+      render: (_, record) => (
+        <Tag color={record.bindStatus === 'BOUND' ? 'success' : 'default'}>
+          {resolveBindStatus(record.bindStatus)}
+        </Tag>
+      ),
+    },
+    {
       title: '绑定车牌',
       dataIndex: 'vehicleNo',
       key: 'vehicleNo',
@@ -341,6 +384,9 @@ const ProjectsPermits: React.FC = () => {
           </Button>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
             编辑
+          </Button>
+          <Button type="link" size="small" onClick={() => openBind(record)}>
+            绑定车辆
           </Button>
         </Space>
       ),
@@ -415,16 +461,17 @@ const ProjectsPermits: React.FC = () => {
           loading={loading}
           columns={columns}
           dataSource={records}
+          scroll={{ x: 1000 }}
           locale={{ emptyText: <Empty description="暂无处置证数据" /> }}
           pagination={{ pageSize: 10 }}
         />
       </Card>
 
-      <Drawer title="处置证详情" open={detailOpen} onClose={() => setDetailOpen(false)} width={520}>
+      <Drawer title="处置证详情" open={detailOpen} onClose={() => setDetailOpen(false)} width={720}>
         {detailLoading ? (
           <div className="py-12 text-center g-text-secondary">处置证详情加载中...</div>
         ) : (
-          <Descriptions column={1} bordered>
+          <Descriptions column={2} bordered>
             <Descriptions.Item label="处置证号">{currentRecord?.permitNo || '-'}</Descriptions.Item>
             <Descriptions.Item label="证件类型">{resolvePermitType(currentRecord?.permitType)}</Descriptions.Item>
             <Descriptions.Item label="关联项目">{projectNameMap[String(currentRecord?.projectId || '')] || '-'}</Descriptions.Item>
@@ -503,6 +550,20 @@ const ProjectsPermits: React.FC = () => {
           </div>
           <Form.Item name="remark" label="备注">
             <Input.TextArea rows={3} placeholder="补充说明证件来源、关联说明等" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="绑定车辆"
+        open={bindModalOpen}
+        onCancel={() => setBindModalOpen(false)}
+        onOk={() => void handleBind()}
+        confirmLoading={submitLoading}
+      >
+        <Form form={bindForm} layout="vertical">
+          <Form.Item name="vehicleNo" label="选择车辆" rules={[{ required: true, message: '请选择车辆' }]}>
+            <Select allowClear showSearch options={vehicles.map((item) => ({ label: item.plateNo, value: item.plateNo }))} />
           </Form.Item>
         </Form>
       </Modal>
