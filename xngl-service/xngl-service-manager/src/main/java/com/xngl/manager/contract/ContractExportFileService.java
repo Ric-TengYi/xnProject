@@ -54,10 +54,11 @@ public class ContractExportFileService {
     this.orgMapper = orgMapper;
   }
 
-  public void generateContractCsv(Long taskId, Long tenantId, ContractQueryParams baseParams) {
+  public void generateContractCsv(
+      Long taskId, Long tenantId, ContractQueryParams baseParams, ContractAccessScope accessScope) {
     exportTaskService.markProcessing(taskId, tenantId);
     try {
-      List<Contract> contracts = loadContracts(tenantId, baseParams);
+      List<Contract> contracts = loadContracts(tenantId, baseParams, accessScope);
       Path exportDir = Paths.get(System.getProperty("java.io.tmpdir"), EXPORT_DIR);
       Files.createDirectories(exportDir);
       String fileName = "contracts_" + LocalDateTime.now().format(FILE_TIME) + ".csv";
@@ -72,7 +73,8 @@ public class ContractExportFileService {
     }
   }
 
-  private List<Contract> loadContracts(Long tenantId, ContractQueryParams baseParams) {
+  private List<Contract> loadContracts(
+      Long tenantId, ContractQueryParams baseParams, ContractAccessScope accessScope) {
     List<Contract> contracts = new ArrayList<>();
     long total = Long.MAX_VALUE;
     int current = 1;
@@ -80,7 +82,7 @@ public class ContractExportFileService {
       ContractQueryParams params = copyParams(baseParams);
       params.setPageNo(current);
       params.setPageSize(EXPORT_PAGE_SIZE);
-      IPage<Contract> page = contractService.pageContractsAdvanced(tenantId, params);
+      IPage<Contract> page = contractService.pageContractsAdvanced(tenantId, params, accessScope);
       if (page.getRecords() == null || page.getRecords().isEmpty()) {
         break;
       }

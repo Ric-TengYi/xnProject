@@ -21,6 +21,8 @@ import com.xngl.web.dto.vehicle.VehicleStatsDto;
 import com.xngl.web.dto.vehicle.VehicleTrackPointDto;
 import com.xngl.web.dto.vehicle.VehicleUpsertDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.MasterDataAccessScope;
+import com.xngl.web.support.MasterDataAccessScopeResolver;
 import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
@@ -66,16 +68,19 @@ public class VehiclesController {
   private final VehicleTrackPointMapper vehicleTrackPointMapper;
   private final OrgMapper orgMapper;
   private final UserContext userContext;
+  private final MasterDataAccessScopeResolver accessScopeResolver;
 
   public VehiclesController(
       VehicleMapper vehicleMapper,
       VehicleTrackPointMapper vehicleTrackPointMapper,
       OrgMapper orgMapper,
-      UserContext userContext) {
+      UserContext userContext,
+      MasterDataAccessScopeResolver accessScopeResolver) {
     this.vehicleMapper = vehicleMapper;
     this.vehicleTrackPointMapper = vehicleTrackPointMapper;
     this.orgMapper = orgMapper;
     this.userContext = userContext;
+    this.accessScopeResolver = accessScopeResolver;
   }
 
   @GetMapping
@@ -89,8 +94,16 @@ public class VehiclesController {
       @RequestParam(defaultValue = "20") int pageSize,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_VEHICLE);
+    if (!scope.hasAnyAccess()) {
+      return ApiResult.ok(new PageResult<>((long) pageNo, (long) pageSize, 0L, Collections.emptyList()));
+    }
     LambdaQueryWrapper<Vehicle> query =
         new LambdaQueryWrapper<Vehicle>().eq(Vehicle::getTenantId, currentUser.getTenantId());
+    if (!scope.isTenantWideAccess()) {
+      query.in(Vehicle::getOrgId, scope.getOrgIds());
+    }
     if (status != null) {
       query.eq(Vehicle::getStatus, status);
     }
@@ -127,9 +140,11 @@ public class VehiclesController {
     }
     query.orderByDesc(Vehicle::getUpdateTime).orderByDesc(Vehicle::getId);
     IPage<Vehicle> page = vehicleMapper.selectPage(new Page<>(pageNo, pageSize), query);
-    Map<Long, Org> orgMap = loadOrgMap(page.getRecords());
+    List<Vehicle> visibleVehicles =
+        page.getRecords().stream().filter(vehicle -> canAccessVehicle(scope, vehicle)).toList();
+    Map<Long, Org> orgMap = loadOrgMap(visibleVehicles);
     List<VehicleListItemDto> records =
-        page.getRecords().stream()
+        visibleVehicles.stream()
             .map(vehicle -> toListItem(vehicle, orgMap.get(vehicle.getOrgId())))
             .toList();
     return ApiResult.ok(new PageResult<>(page.getCurrent(), page.getSize(), page.getTotal(), records));
@@ -144,8 +159,10 @@ public class VehiclesController {
       @RequestParam(required = false) String useStatus,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_VEHICLE);
     List<VehicleListItemDto> rows =
-        loadVehicleRows(currentUser.getTenantId(), keyword, status, orgId, vehicleType, useStatus);
+        loadVehicleRows(currentUser.getTenantId(), scope, keyword, status, orgId, vehicleType, useStatus);
     String csv = buildVehicleCsv(rows);
     return ResponseEntity.ok()
         .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=vehicles.csv")
@@ -156,8 +173,12 @@ public class VehiclesController {
   @GetMapping("/{id}")
   public ApiResult<VehicleDetailDto> get(@PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_VEHICLE);
     Vehicle vehicle = vehicleMapper.selectById(id);
-    if (vehicle == null || !Objects.equals(vehicle.getTenantId(), currentUser.getTenantId())) {
+    if (vehicle == null
+        || !Objects.equals(vehicle.getTenantId(), currentUser.getTenantId())
+        || !canAccessVehicle(scope, vehicle)) {
       return ApiResult.fail(404, "车辆不存在");
     }
     Org org = vehicle.getOrgId() != null ? orgMapper.selectById(vehicle.getOrgId()) : null;
@@ -171,8 +192,12 @@ public class VehiclesController {
       @RequestParam(required = false) String endTime,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_VEHICLE);
     Vehicle vehicle = vehicleMapper.selectById(id);
-    if (vehicle == null || !Objects.equals(vehicle.getTenantId(), currentUser.getTenantId())) {
+    if (vehicle == null
+        || !Objects.equals(vehicle.getTenantId(), currentUser.getTenantId())
+        || !canAccessVehicle(scope, vehicle)) {
       return ApiResult.fail(404, "车辆不存在");
     }
     LocalDateTime start = parseDateTime(startTime);
@@ -202,13 +227,17 @@ public class VehiclesController {
   @GetMapping("/stats")
   public ApiResult<VehicleStatsDto> stats(HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    return ApiResult.ok(toStats(listTenantVehicles(currentUser.getTenantId())));
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_VEHICLE);
+    return ApiResult.ok(toStats(listTenantVehicles(currentUser.getTenantId(), scope)));
   }
 
   @GetMapping("/company-capacity")
   public ApiResult<List<VehicleCompanyCapacityDto>> companyCapacity(HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    List<Vehicle> vehicles = listTenantVehicles(currentUser.getTenantId());
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_VEHICLE);
+    List<Vehicle> vehicles = listTenantVehicles(currentUser.getTenantId(), scope);
     Map<Long, Org> orgMap = loadOrgMap(vehicles);
     Map<Long, List<Vehicle>> grouped =
         vehicles.stream()
@@ -247,7 +276,9 @@ public class VehiclesController {
   @GetMapping("/fleets")
   public ApiResult<List<VehicleFleetSummaryDto>> fleets(HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    List<Vehicle> vehicles = listTenantVehicles(currentUser.getTenantId());
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_VEHICLE);
+    List<Vehicle> vehicles = listTenantVehicles(currentUser.getTenantId(), scope);
     Map<Long, Org> orgMap = loadOrgMap(vehicles);
     Map<String, List<Vehicle>> grouped =
         vehicles.stream()
@@ -369,18 +400,39 @@ public class VehiclesController {
     return ApiResult.ok(Map.of("deleted", vehicles.size()));
   }
 
-  private List<Vehicle> listTenantVehicles(Long tenantId) {
-    return vehicleMapper.selectList(
+  private List<Vehicle> listTenantVehicles(Long tenantId, MasterDataAccessScope scope) {
+    LambdaQueryWrapper<Vehicle> query =
         new LambdaQueryWrapper<Vehicle>()
             .eq(Vehicle::getTenantId, tenantId)
             .orderByDesc(Vehicle::getUpdateTime)
-            .orderByDesc(Vehicle::getId));
+            .orderByDesc(Vehicle::getId);
+    if (!scope.isTenantWideAccess()) {
+      if (scope.getOrgIds().isEmpty()) {
+        return Collections.emptyList();
+      }
+      query.in(Vehicle::getOrgId, scope.getOrgIds());
+    }
+    return vehicleMapper.selectList(query).stream()
+        .filter(vehicle -> canAccessVehicle(scope, vehicle))
+        .toList();
   }
 
   private List<VehicleListItemDto> loadVehicleRows(
-      Long tenantId, String keyword, Integer status, Long orgId, String vehicleType, String useStatus) {
+      Long tenantId,
+      MasterDataAccessScope scope,
+      String keyword,
+      Integer status,
+      Long orgId,
+      String vehicleType,
+      String useStatus) {
+    if (!scope.hasAnyAccess()) {
+      return Collections.emptyList();
+    }
     LambdaQueryWrapper<Vehicle> query =
         new LambdaQueryWrapper<Vehicle>().eq(Vehicle::getTenantId, tenantId);
+    if (!scope.isTenantWideAccess()) {
+      query.in(Vehicle::getOrgId, scope.getOrgIds());
+    }
     if (status != null) {
       query.eq(Vehicle::getStatus, status);
     }
@@ -416,7 +468,10 @@ public class VehiclesController {
           });
     }
     query.orderByDesc(Vehicle::getUpdateTime).orderByDesc(Vehicle::getId);
-    List<Vehicle> vehicles = vehicleMapper.selectList(query);
+    List<Vehicle> vehicles =
+        vehicleMapper.selectList(query).stream()
+            .filter(vehicle -> canAccessVehicle(scope, vehicle))
+            .toList();
     Map<Long, Org> orgMap = loadOrgMap(vehicles);
     return vehicles.stream()
         .map(vehicle -> toListItem(vehicle, orgMap.get(vehicle.getOrgId())))
@@ -816,6 +871,10 @@ public class VehiclesController {
 
   private User requireCurrentUser(HttpServletRequest request) {
     return userContext.requireCurrentUser(request);
+  }
+
+  private boolean canAccessVehicle(MasterDataAccessScope scope, Vehicle vehicle) {
+    return vehicle != null && scope.hasOrgAccess(vehicle.getOrgId());
   }
 
   private String formatDate(LocalDate value) {

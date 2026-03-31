@@ -14,6 +14,7 @@ import {
   Table,
   Tag,
   message,
+  Empty,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { EyeOutlined, PlusOutlined, SearchOutlined, StopOutlined } from '@ant-design/icons';
@@ -273,7 +274,8 @@ const ProjectsPayments: React.FC = () => {
           </Button>
           <Popconfirm
             title="确认撤销该交款记录吗？"
-            okText="确认"
+            description="撤销后将重新计算项目欠款金额，此操作不可恢复。"
+            okText="确认撤销"
             cancelText="取消"
             disabled={record.status === 'CANCELLED'}
             onConfirm={() => void handleCancel(record)}
@@ -285,7 +287,7 @@ const ProjectsPayments: React.FC = () => {
               icon={<StopOutlined />}
               disabled={record.status === 'CANCELLED'}
             >
-              撤销
+              {record.status === 'CANCELLED' ? '已撤销' : '撤销'}
             </Button>
           </Popconfirm>
         </Space>
@@ -430,6 +432,8 @@ const ProjectsPayments: React.FC = () => {
           dataSource={records}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 1200 }}
+          locale={{ emptyText: <Empty description="暂无交款记录" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
           className="bg-transparent"
           rowClassName="hover:bg-white transition-colors"
           pagination={{
@@ -446,7 +450,7 @@ const ProjectsPayments: React.FC = () => {
       </Card>
 
       <Modal
-        title="项目交款登记"
+        title={<span className="font-bold">项目交款登记</span>}
         open={open}
         confirmLoading={submitting}
         onOk={() => void handleCreate()}
@@ -454,50 +458,64 @@ const ProjectsPayments: React.FC = () => {
           setOpen(false);
           form.resetFields();
         }}
+        okText="确认登记"
+        cancelText="取消"
+        width={600}
+        destroyOnClose
       >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="projectId"
-            label="关联项目"
-            rules={[{ required: true, message: '请选择项目' }]}
-          >
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={projectOptions.map((item) => ({
-                label: (item.name || '-') + (item.code ? ' (' + item.code + ')' : ''),
-                value: item.id,
-              }))}
-            />
-          </Form.Item>
-          <Form.Item name="paymentNo" label="交款单号">
-            <Input placeholder="不填则系统自动生成" />
-          </Form.Item>
-          <Form.Item
-            name="amount"
-            label="交款金额 (元)"
-            rules={[{ required: true, message: '请输入交款金额' }]}
-          >
-            <InputNumber className="w-full" min={0.01} precision={2} />
-          </Form.Item>
-          <Form.Item
-            name="paymentDate"
-            label="交款日期"
-            rules={[{ required: true, message: '请选择交款日期' }]}
-          >
-            <DatePicker className="w-full" />
-          </Form.Item>
-          <Form.Item name="paymentType" label="交款类型">
-            <Select options={paymentTypeOptions.slice(1)} />
-          </Form.Item>
-          <Form.Item name="sourceType" label="来源类型">
-            <Select options={sourceTypeOptions} />
-          </Form.Item>
-          <Form.Item name="voucherNo" label="凭证号">
-            <Input placeholder="请输入银行流水号或收据号" />
-          </Form.Item>
+        <Form form={form} layout="vertical" className="mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+            <Form.Item
+              name="projectId"
+              label="关联项目"
+              rules={[{ required: true, message: '请选择项目' }]}
+              className="col-span-1 md:col-span-2"
+            >
+              <Select
+                showSearch
+                placeholder="请选择要交款的项目"
+                optionFilterProp="label"
+                options={projectOptions.map((item) => ({
+                  label: (item.name || '-') + (item.code ? ' (' + item.code + ')' : ''),
+                  value: item.id,
+                }))}
+              />
+            </Form.Item>
+            <Form.Item name="paymentNo" label="交款单号">
+              <Input placeholder="不填则系统自动生成" />
+            </Form.Item>
+            <Form.Item
+              name="amount"
+              label="交款金额 (元)"
+              rules={[{ required: true, message: '请输入交款金额' }]}
+            >
+              <InputNumber
+                className="w-full"
+                min={0.01}
+                precision={2}
+                placeholder="请输入金额"
+                prefix="¥"
+              />
+            </Form.Item>
+            <Form.Item
+              name="paymentDate"
+              label="交款日期"
+              rules={[{ required: true, message: '请选择交款日期' }]}
+            >
+              <DatePicker className="w-full" placeholder="请选择日期" />
+            </Form.Item>
+            <Form.Item name="paymentType" label="交款类型">
+              <Select options={paymentTypeOptions.slice(1)} placeholder="请选择类型" />
+            </Form.Item>
+            <Form.Item name="sourceType" label="来源类型">
+              <Select options={sourceTypeOptions} placeholder="请选择来源" />
+            </Form.Item>
+            <Form.Item name="voucherNo" label="凭证号">
+              <Input placeholder="请输入银行流水号或收据号" />
+            </Form.Item>
+          </div>
           <Form.Item name="remark" label="备注">
-            <Input.TextArea rows={3} placeholder="请输入备注信息" />
+            <Input.TextArea rows={3} placeholder="请输入备注信息（选填）" maxLength={200} showCount />
           </Form.Item>
         </Form>
       </Modal>

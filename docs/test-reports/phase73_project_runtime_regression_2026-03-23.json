@@ -10,7 +10,7 @@
     {
       "name": "project_daily_runtime",
       "status": "PASS",
-      "detail": "project_id=1, export_task_id=37"
+      "detail": "project_id=1, export_task_id=45"
     },
     {
       "name": "project_config_checkin_location_preload_runtime",
@@ -25,7 +25,7 @@
     {
       "name": "project_reports_runtime",
       "status": "PASS",
-      "detail": "list_total=1, trend_points=6, export_task_id=38"
+      "detail": "list_total=1, trend_points=6, export_task_id=46"
     },
     {
       "name": "project_violation_runtime",

@@ -31,6 +31,8 @@ import com.xngl.web.dto.report.ProjectReportSummaryDto;
 import com.xngl.web.dto.report.ReportTrendItemDto;
 import com.xngl.web.dto.report.SiteRankingItemDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.MasterDataAccessScope;
+import com.xngl.web.support.MasterDataAccessScopeResolver;
 import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
@@ -47,6 +49,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -77,6 +80,7 @@ public class OperationsReportController {
   private final SiteService siteService;
   private final ExportTaskService exportTaskService;
   private final UserContext userContext;
+  private final MasterDataAccessScopeResolver accessScopeResolver;
   private final ObjectMapper objectMapper;
 
   public OperationsReportController(
@@ -89,6 +93,7 @@ public class OperationsReportController {
       SiteService siteService,
       ExportTaskService exportTaskService,
       UserContext userContext,
+      MasterDataAccessScopeResolver accessScopeResolver,
       ObjectMapper objectMapper) {
     this.projectMapper = projectMapper;
     this.contractMapper = contractMapper;
@@ -99,6 +104,7 @@ public class OperationsReportController {
     this.siteService = siteService;
     this.exportTaskService = exportTaskService;
     this.userContext = userContext;
+    this.accessScopeResolver = accessScopeResolver;
     this.objectMapper = objectMapper;
   }
 
@@ -111,8 +117,9 @@ public class OperationsReportController {
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
     LocalDate targetDate = date != null ? date : LocalDate.now();
+    MasterDataAccessScope scope = resolveProjectScope(user);
     List<ProjectDailyReportItemDto> all =
-        buildProjectDailyRows(user.getTenantId(), targetDate, keyword).stream()
+        buildProjectDailyRows(user.getTenantId(), targetDate, keyword, scope).stream()
             .sorted(
                 Comparator.comparing(
                         ProjectDailyReportItemDto::getTodayVolume,
@@ -147,7 +154,9 @@ public class OperationsReportController {
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
     LocalDate targetDate = date != null ? date : LocalDate.now();
-    List<ProjectDailyReportItemDto> rows = buildProjectDailyRows(user.getTenantId(), targetDate, null);
+    MasterDataAccessScope scope = resolveProjectScope(user);
+    List<ProjectDailyReportItemDto> rows =
+        buildProjectDailyRows(user.getTenantId(), targetDate, null, scope);
     List<ProjectRankingItemDto> result =
         rows.stream()
             .sorted(
@@ -185,7 +194,9 @@ public class OperationsReportController {
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
     PeriodWindow period = resolvePeriodWindow(periodType, date);
-    List<ProjectReportItemDto> rows = buildProjectReportRows(user.getTenantId(), period, projectId, keyword);
+    MasterDataAccessScope scope = resolveProjectScope(user);
+    List<ProjectReportItemDto> rows =
+        buildProjectReportRows(user.getTenantId(), period, projectId, keyword, scope);
     return ApiResult.ok(toProjectSummary(period, rows));
   }
 
@@ -200,8 +211,9 @@ public class OperationsReportController {
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
     PeriodWindow period = resolvePeriodWindow(periodType, date);
+    MasterDataAccessScope scope = resolveProjectScope(user);
     List<ProjectReportItemDto> rows =
-        new ArrayList<>(buildProjectReportRows(user.getTenantId(), period, projectId, keyword));
+        new ArrayList<>(buildProjectReportRows(user.getTenantId(), period, projectId, keyword, scope));
     rows.sort(
         Comparator.comparing(
                 ProjectReportItemDto::getPeriodVolume, Comparator.nullsFirst(BigDecimal::compareTo))
@@ -221,12 +233,13 @@ public class OperationsReportController {
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
     PeriodWindow current = resolvePeriodWindow(periodType, date);
+    MasterDataAccessScope scope = resolveProjectScope(user);
     List<ReportTrendItemDto> records = new ArrayList<>();
     int safeLimit = Math.max(limit, 1);
     for (int i = safeLimit - 1; i >= 0; i--) {
       PeriodWindow period = shiftPeriod(current, -i);
       List<ProjectReportItemDto> rows =
-          buildProjectReportRows(user.getTenantId(), period, projectId, keyword);
+          buildProjectReportRows(user.getTenantId(), period, projectId, keyword, scope);
       ProjectReportSummaryDto summary = toProjectSummary(period, rows);
       records.add(
           new ReportTrendItemDto(
@@ -266,7 +279,9 @@ public class OperationsReportController {
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
     PeriodWindow period = resolvePeriodWindow(periodType, date);
-    return ApiResult.ok(buildProjectViolationAnalysis(user.getTenantId(), period, keyword, violationType));
+    MasterDataAccessScope scope = resolveProjectScope(user);
+    return ApiResult.ok(
+        buildProjectViolationAnalysis(user.getTenantId(), period, keyword, violationType, scope));
   }
 
   @GetMapping("/sites/ranking")
@@ -292,7 +307,10 @@ public class OperationsReportController {
   }
 
   private List<ProjectDailyReportItemDto> buildProjectDailyRows(
-      Long tenantId, LocalDate targetDate, String keyword) {
+      Long tenantId, LocalDate targetDate, String keyword, MasterDataAccessScope scope) {
+    if (scope == null || !scope.hasAnyAccess()) {
+      return Collections.emptyList();
+    }
     List<Contract> contracts =
         contractMapper.selectList(
             new LambdaQueryWrapper<Contract>().eq(Contract::getTenantId, tenantId));
@@ -308,19 +326,29 @@ public class OperationsReportController {
       return Collections.emptyList();
     }
 
-    Map<Long, Project> projectMap =
-        projectMapper.selectBatchIds(contractsByProject.keySet()).stream()
-            .filter(project -> project.getId() != null)
-            .collect(Collectors.toMap(Project::getId, Function.identity(), (left, right) -> left));
+    Map<Long, Project> projectMap = loadAccessibleProjectMap(contractsByProject.keySet(), scope);
+    if (projectMap.isEmpty()) {
+      return Collections.emptyList();
+    }
+    Map<Long, List<Contract>> visibleContractsByProject =
+        contractsByProject.entrySet().stream()
+            .filter(entry -> projectMap.containsKey(entry.getKey()))
+            .collect(
+                Collectors.toMap(
+                    Map.Entry::getKey,
+                    Map.Entry::getValue,
+                    (left, right) -> left,
+                    LinkedHashMap::new));
     Map<Long, Org> orgMap = loadOrgMap(projectMap.values());
     Map<Long, List<ContractTicket>> ticketsByContract =
         loadTicketsByContract(
-            contracts.stream()
+            visibleContractsByProject.values().stream()
+                .flatMap(List::stream)
                 .map(Contract::getId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(LinkedHashSet::new)));
 
-    return contractsByProject.entrySet().stream()
+    return visibleContractsByProject.entrySet().stream()
         .map(entry -> toProjectDailyRow(entry.getKey(), entry.getValue(), projectMap, orgMap, ticketsByContract, targetDate))
         .filter(Objects::nonNull)
         .filter(item -> matchProjectKeyword(item, keyword))
@@ -328,7 +356,10 @@ public class OperationsReportController {
   }
 
   private List<ProjectReportItemDto> buildProjectReportRows(
-      Long tenantId, PeriodWindow period, Long projectId, String keyword) {
+      Long tenantId, PeriodWindow period, Long projectId, String keyword, MasterDataAccessScope scope) {
+    if (scope == null || !scope.hasAnyAccess()) {
+      return Collections.emptyList();
+    }
     List<Contract> contracts =
         contractMapper.selectList(
             new LambdaQueryWrapper<Contract>().eq(Contract::getTenantId, tenantId));
@@ -347,19 +378,29 @@ public class OperationsReportController {
       return Collections.emptyList();
     }
 
-    Map<Long, Project> projectMap =
-        projectMapper.selectBatchIds(contractsByProject.keySet()).stream()
-            .filter(project -> project.getId() != null)
-            .collect(Collectors.toMap(Project::getId, Function.identity(), (left, right) -> left));
+    Map<Long, Project> projectMap = loadAccessibleProjectMap(contractsByProject.keySet(), scope);
+    if (projectMap.isEmpty()) {
+      return Collections.emptyList();
+    }
+    Map<Long, List<Contract>> visibleContractsByProject =
+        contractsByProject.entrySet().stream()
+            .filter(entry -> projectMap.containsKey(entry.getKey()))
+            .collect(
+                Collectors.toMap(
+                    Map.Entry::getKey,
+                    Map.Entry::getValue,
+                    (left, right) -> left,
+                    LinkedHashMap::new));
     Map<Long, Org> orgMap = loadOrgMap(projectMap.values());
     Map<Long, List<ContractTicket>> ticketsByContract =
         loadTicketsByContract(
-            contracts.stream()
+            visibleContractsByProject.values().stream()
+                .flatMap(List::stream)
                 .map(Contract::getId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(LinkedHashSet::new)));
 
-    return contractsByProject.entrySet().stream()
+    return visibleContractsByProject.entrySet().stream()
         .map(
             entry ->
                 toProjectReportItem(
@@ -742,7 +783,14 @@ public class OperationsReportController {
   }
 
   private ProjectViolationAnalysisDto buildProjectViolationAnalysis(
-      Long tenantId, PeriodWindow period, String keyword, String violationType) {
+      Long tenantId,
+      PeriodWindow period,
+      String keyword,
+      String violationType,
+      MasterDataAccessScope scope) {
+    if (scope == null || !scope.hasAnyAccess()) {
+      return emptyProjectViolationAnalysis(period);
+    }
     LambdaQueryWrapper<VehicleViolationRecord> query =
         new LambdaQueryWrapper<VehicleViolationRecord>()
             .eq(VehicleViolationRecord::getTenantId, tenantId)
@@ -768,12 +816,18 @@ public class OperationsReportController {
     }
 
     List<VehicleViolationRecord> records = vehicleViolationRecordMapper.selectList(query);
+    if (!scope.isTenantWideAccess()) {
+      Set<Long> visibleOrgIds = resolveAccessibleProjectOrgIds(scope);
+      if (visibleOrgIds.isEmpty()) {
+        return emptyProjectViolationAnalysis(period);
+      }
+      records =
+          records.stream()
+              .filter(record -> record.getOrgId() != null && visibleOrgIds.contains(record.getOrgId()))
+              .toList();
+    }
     if (records.isEmpty()) {
-      return new ProjectViolationAnalysisDto(
-          new ProjectViolationSummaryDto(period.label(), 0, 0, 0, 0, 0, 0),
-          Collections.emptyList(),
-          Collections.emptyList(),
-          Collections.emptyList());
+      return emptyProjectViolationAnalysis(period);
     }
 
     Map<Long, Vehicle> vehicleMap =
@@ -841,6 +895,55 @@ public class OperationsReportController {
             byFleet.size(),
             byTeam.size());
     return new ProjectViolationAnalysisDto(summary, byFleet, byPlate, byTeam);
+  }
+
+  private Map<Long, Project> loadAccessibleProjectMap(
+      Iterable<Long> candidateProjectIds, MasterDataAccessScope scope) {
+    LinkedHashSet<Long> projectIds = new LinkedHashSet<>();
+    for (Long candidateProjectId : candidateProjectIds) {
+      if (candidateProjectId != null) {
+        projectIds.add(candidateProjectId);
+      }
+    }
+    if (projectIds.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    return projectMapper.selectBatchIds(projectIds).stream()
+        .filter(project -> project.getId() != null)
+        .filter(project -> canAccessProject(scope, project))
+        .collect(Collectors.toMap(Project::getId, Function.identity(), (left, right) -> left));
+  }
+
+  private boolean canAccessProject(MasterDataAccessScope scope, Project project) {
+    if (scope == null || project == null || project.getId() == null || !scope.hasAnyAccess()) {
+      return false;
+    }
+    if (scope.isTenantWideAccess()) {
+      return true;
+    }
+    return scope.hasProjectAccess(project.getId()) || scope.hasOrgAccess(project.getOrgId());
+  }
+
+  private Set<Long> resolveAccessibleProjectOrgIds(MasterDataAccessScope scope) {
+    if (scope == null || !scope.hasAnyAccess()) {
+      return Set.of();
+    }
+    LinkedHashSet<Long> orgIds = new LinkedHashSet<>(scope.getOrgIds());
+    if (!scope.getProjectIds().isEmpty()) {
+      projectMapper.selectBatchIds(scope.getProjectIds()).stream()
+          .map(Project::getOrgId)
+          .filter(Objects::nonNull)
+          .forEach(orgIds::add);
+    }
+    return orgIds;
+  }
+
+  private ProjectViolationAnalysisDto emptyProjectViolationAnalysis(PeriodWindow period) {
+    return new ProjectViolationAnalysisDto(
+        new ProjectViolationSummaryDto(period.label(), 0, 0, 0, 0, 0, 0),
+        Collections.emptyList(),
+        Collections.emptyList(),
+        Collections.emptyList());
   }
 
   private List<ProjectViolationStatItemDto> buildViolationStats(
@@ -930,6 +1033,10 @@ public class OperationsReportController {
 
   private User requireCurrentUser(HttpServletRequest request) {
     return userContext.requireCurrentUser(request);
+  }
+
+  private MasterDataAccessScope resolveProjectScope(User currentUser) {
+    return accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_PROJECT);
   }
 
   private record PeriodWindow(LocalDate start, LocalDate end, String label, String type) {}

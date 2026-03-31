@@ -14,7 +14,8 @@ const RolesManagement: React.FC = () => {
     const [rolesKeyword, setRolesKeyword] = useState('');
     const [menuTreeData, setMenuTreeData] = useState<any[]>([]);
     const [selectedRole, setSelectedRole] = useState<any>(null);
-    const [checkedKeys, setCheckedKeys] = useState<React.Key[]>([]);
+    const [checkedMenuKeys, setCheckedMenuKeys] = useState<React.Key[]>([]);
+    const [checkedPermissionKeys, setCheckedPermissionKeys] = useState<React.Key[]>([]);
     const [selectedMenuKey, setSelectedMenuKey] = useState<string | null>(null);
     const [dataScopeType, setDataScopeType] = useState('ORG_AND_CHILDREN');
     const [loading, setLoading] = useState(false);
@@ -110,7 +111,8 @@ const RolesManagement: React.FC = () => {
         try {
             const res = await request.get(`/roles/${roleId}/permissions`);
             if (res.code === 200) {
-                setCheckedKeys(res.data.menuIds || []);
+                setCheckedMenuKeys(res.data.menuIds || []);
+                setCheckedPermissionKeys(res.data.permissionIds || []);
             }
         } catch (error) {
             console.error(error);
@@ -139,8 +141,8 @@ const RolesManagement: React.FC = () => {
         setLoading(true);
         try {
             const permissionsRes = await request.put(`/roles/${selectedRole.id}/permissions`, {
-                menuIds: checkedKeys,
-                permissionIds: [] // TODO: Add permission handling if needed
+                menuIds: checkedMenuKeys,
+                permissionIds: checkedPermissionKeys
             });
             const scopeRes = await request.put(`/roles/${selectedRole.id}/data-scope-rules`, [
                 {
@@ -231,7 +233,8 @@ const RolesManagement: React.FC = () => {
             if (res.code === 200) {
                 message.success('角色已删除');
                 setSelectedRole(null);
-                setCheckedKeys([]);
+                setCheckedMenuKeys([]);
+                setCheckedPermissionKeys([]);
                 await fetchRoles();
             }
         } catch (error) {
@@ -269,8 +272,8 @@ const RolesManagement: React.FC = () => {
                                             <div className="text-xs g-text-secondary truncate">{item.roleCode || '暂无编码'}</div>
                                         </div>
                                         <div className="flex flex-col gap-0.5 items-end flex-shrink-0 pr-1">
-                                            <Tag size="small" color={item.status === 'ENABLED' ? 'success' : 'default'}>{item.status === 'ENABLED' ? '启用' : '停用'}</Tag>
-                                            <Tag size="small" color={item.roleScope === 'SYSTEM' ? 'blue' : 'cyan'}>{item.roleScope === 'SYSTEM' ? '系统' : '租户'}</Tag>
+                                            <Tag color={item.status === 'ENABLED' ? 'success' : 'default'}>{item.status === 'ENABLED' ? '启用' : '停用'}</Tag>
+                                            <Tag color={item.roleScope === 'SYSTEM' ? 'blue' : 'cyan'}>{item.roleScope === 'SYSTEM' ? '系统' : '租户'}</Tag>
                                         </div>
                                     </div>
                                 </List.Item>
@@ -325,15 +328,15 @@ const RolesManagement: React.FC = () => {
                                     {menuTreeData.length > 0 && (
                                         <>
                                             <div className="flex gap-1 mb-2 pb-2 border-b g-border-panel">
-                                                <Button size="small" type="text" onClick={() => setCheckedKeys(menuTreeData.map(m => m.key))}>全选</Button>
-                                                <Button size="small" type="text" onClick={() => setCheckedKeys([])}>反选</Button>
+                                                <Button size="small" type="text" onClick={() => setCheckedMenuKeys(menuTreeData.map(m => m.key))}>全选</Button>
+                                                <Button size="small" type="text" onClick={() => setCheckedMenuKeys([])}>反选</Button>
                                             </div>
                                             <Tree
                                                 checkable
                                                 defaultExpandAll
                                                 treeData={menuTreeData}
-                                                checkedKeys={checkedKeys}
-                                                onCheck={(keys) => setCheckedKeys(keys as React.Key[])}
+                                                checkedKeys={checkedMenuKeys}
+                                                onCheck={(keys) => setCheckedMenuKeys(keys as React.Key[])}
                                                 onSelect={(keys) => setSelectedMenuKey(keys[0] as string)}
                                                 className="bg-transparent g-text-secondary custom-tree"
                                             />
@@ -350,12 +353,12 @@ const RolesManagement: React.FC = () => {
                                                     <div className="flex items-center gap-2">
                                                         <input
                                                             type="checkbox"
-                                                            checked={checkedKeys.includes(btn.key)}
+                                                            checked={checkedPermissionKeys.includes(btn.key)}
                                                             onChange={(e) => {
                                                                 if (e.target.checked) {
-                                                                    setCheckedKeys([...checkedKeys, btn.key]);
+                                                                    setCheckedPermissionKeys([...checkedPermissionKeys, btn.key]);
                                                                 } else {
-                                                                    setCheckedKeys(checkedKeys.filter(k => k !== btn.key));
+                                                                    setCheckedPermissionKeys(checkedPermissionKeys.filter(k => k !== btn.key));
                                                                 }
                                                             }}
                                                         />

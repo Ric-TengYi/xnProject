@@ -10,6 +10,7 @@ import com.xngl.manager.contract.ContractMaterialVo;
 import com.xngl.manager.contract.ContractQueryParams;
 import com.xngl.manager.contract.ContractService;
 import com.xngl.manager.contract.ContractTicketVo;
+import com.xngl.manager.contract.ContractAccessScope;
 import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
@@ -19,6 +20,7 @@ import com.xngl.web.dto.contract.ContractDetailDto;
 import com.xngl.web.dto.contract.ContractItemDto;
 import com.xngl.web.dto.contract.ContractStatsDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.ContractAccessScopeResolver;
 import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -56,12 +58,17 @@ public class ContractsController {
 
   private final ContractService contractService;
   private final UserContext userContext;
+  private final ContractAccessScopeResolver contractAccessScopeResolver;
   @org.springframework.beans.factory.annotation.Value("${app.contract.doc-dir:/data/xngl/contract-docs}")
   private String contractDocDir;
 
-  public ContractsController(ContractService contractService, UserContext userContext) {
+  public ContractsController(
+      ContractService contractService,
+      UserContext userContext,
+      ContractAccessScopeResolver contractAccessScopeResolver) {
     this.contractService = contractService;
     this.userContext = userContext;
+    this.contractAccessScopeResolver = contractAccessScopeResolver;
   }
 
   @GetMapping
@@ -77,9 +84,10 @@ public class ContractsController {
       @RequestParam(defaultValue = "20") int pageSize,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    ContractAccessScope accessScope = resolveScope(currentUser);
     IPage<Contract> page = contractService.pageContracts(
         currentUser.getTenantId(), contractType, contractStatus,
-        keyword, projectId, siteId, startDate, endDate, pageNo, pageSize);
+        keyword, projectId, siteId, startDate, endDate, pageNo, pageSize, accessScope);
     List<ContractItemDto> records = page.getRecords().stream()
         .map(this::toItemDto)
         .toList();
@@ -89,7 +97,7 @@ public class ContractsController {
   @GetMapping("/{id}")
   public ApiResult<ContractDetailDto> get(@PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    Contract contract = contractService.getContract(id, currentUser.getTenantId());
+    Contract contract = requireAccessibleContract(id, currentUser);
     return ApiResult.ok(toDetailDto(contract));
   }
 
@@ -106,6 +114,7 @@ public class ContractsController {
   public ApiResult<Void> update(@PathVariable Long id,
       @RequestBody ContractCreateDto dto, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    requireAccessibleContract(id, currentUser);
     Contract updates = fromCreateDto(dto);
     contractService.updateContract(id, currentUser.getTenantId(), updates);
     return ApiResult.ok();
@@ -114,6 +123,7 @@ public class ContractsController {
   @PostMapping("/{id}/submit")
   public ApiResult<Void> submit(@PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    requireAccessibleContract(id, currentUser);
     contractService.submitContract(id, currentUser.getTenantId(), currentUser.getId());
     return ApiResult.ok();
   }
@@ -122,6 +132,7 @@ public class ContractsController {
   public ApiResult<Void> approve(@PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
     userContext.requireApprovalPermission(currentUser);
+    requireAccessibleContract(id, currentUser);
     contractService.approveContract(id, currentUser.getTenantId(), currentUser.getId());
     return ApiResult.ok();
   }
@@ -131,6 +142,7 @@ public class ContractsController {
       @RequestBody(required = false) ApprovalActionDto dto, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
     userContext.requireApprovalPermission(currentUser);
+    requireAccessibleContract(id, currentUser);
     String reason = dto != null ? dto.getReason() : null;
     contractService.rejectContract(id, currentUser.getTenantId(), currentUser.getId(), reason);
     return ApiResult.ok();
@@ -139,7 +151,7 @@ public class ContractsController {
   @GetMapping("/stats")
   public ApiResult<ContractStatsDto> stats(HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    var raw = contractService.getContractStats(currentUser.getTenantId());
+    var raw = contractService.getContractStats(currentUser.getTenantId(), resolveScope(currentUser));
     ContractStatsDto dto = new ContractStatsDto();
     dto.setTotalContracts(raw.getTotalContracts());
     dto.setEffectiveContracts(raw.getEffectiveContracts());
@@ -173,6 +185,7 @@ public class ContractsController {
       @RequestParam(defaultValue = "20") int pageSize,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    ContractAccessScope accessScope = resolveScope(currentUser);
     ContractQueryParams params = new ContractQueryParams();
     params.setContractType(contractType);
     params.setContractStatus(contractStatus);
@@ -192,7 +205,8 @@ public class ContractsController {
     params.setExpireEndDate(expireEndDate);
     params.setPageNo(pageNo);
     params.setPageSize(pageSize);
-    IPage<Contract> page = contractService.pageContractsAdvanced(currentUser.getTenantId(), params);
+    IPage<Contract> page =
+        contractService.pageContractsAdvanced(currentUser.getTenantId(), params, accessScope);
     List<ContractItemDto> records = page.getRecords().stream()
         .map(this::toItemDto)
         .toList();
@@ -202,6 +216,7 @@ public class ContractsController {
   @GetMapping("/{id}/detail")
   public ApiResult<ContractDetailVo> getDetail(@PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    requireAccessibleContract(id, currentUser);
     ContractDetailVo detail = contractService.getContractDetail(id, currentUser.getTenantId());
     return ApiResult.ok(detail);
   }
@@ -210,6 +225,7 @@ public class ContractsController {
   public ApiResult<List<ContractApprovalRecordVo>> getApprovalRecords(
       @PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    requireAccessibleContract(id, currentUser);
     List<ContractApprovalRecordVo> records = contractService.getContractApprovalRecords(id, currentUser.getTenantId());
     return ApiResult.ok(records);
   }
@@ -218,6 +234,7 @@ public class ContractsController {
   public ApiResult<List<ContractMaterialVo>> getMaterials(
       @PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    requireAccessibleContract(id, currentUser);
     List<ContractMaterialVo> materials = contractService.getContractMaterials(id, currentUser.getTenantId());
     return ApiResult.ok(materials);
   }
@@ -226,6 +243,7 @@ public class ContractsController {
   public ResponseEntity<Resource> downloadMaterial(
       @PathVariable Long id, @PathVariable Long materialId, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    requireAccessibleContract(id, currentUser);
     var material = contractService.getContractMaterial(materialId, id, currentUser.getTenantId());
     if (!StringUtils.hasText(material.getFileUrl())) {
       throw new BizException(404, "办事材料文件不存在");
@@ -258,6 +276,7 @@ public class ContractsController {
   public ApiResult<List<ContractInvoiceVo>> getInvoices(
       @PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    requireAccessibleContract(id, currentUser);
     List<ContractInvoiceVo> invoices = contractService.getContractInvoices(id, currentUser.getTenantId());
     return ApiResult.ok(invoices);
   }
@@ -266,6 +285,7 @@ public class ContractsController {
   public ApiResult<List<ContractTicketVo>> getTickets(
       @PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    requireAccessibleContract(id, currentUser);
     List<ContractTicketVo> tickets = contractService.getContractTickets(id, currentUser.getTenantId());
     return ApiResult.ok(tickets);
   }
@@ -359,6 +379,18 @@ public class ContractsController {
 
   private User requireCurrentUser(HttpServletRequest request) {
     return userContext.requireCurrentUser(request);
+  }
+
+  private ContractAccessScope resolveScope(User currentUser) {
+    return contractAccessScopeResolver.resolve(currentUser);
+  }
+
+  private Contract requireAccessibleContract(Long contractId, User currentUser) {
+    Contract contract = contractService.getContract(contractId, currentUser.getTenantId());
+    if (!resolveScope(currentUser).matchesContract(contract)) {
+      throw new BizException(403, "当前账号无权查看该合同");
+    }
+    return contract;
   }
 
   private String resolveContractNo(Contract contract) {

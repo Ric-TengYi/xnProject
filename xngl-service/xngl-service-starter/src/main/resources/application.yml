@@ -47,7 +47,7 @@ app:
     secret: xngl-default-secret-change-in-production
     expiration-ms: 86400000
   contract:
-    doc-dir: ${CONTRACT_DOC_DIR:/data/xngl/contract-docs}
+    doc-dir: ${CONTRACT_DOC_DIR:${java.io.tmpdir}/xngl/contract-docs}
   alerts:
     auto-generate-enabled: true
     auto-generate-cron: "0 0/30 * * * ?"

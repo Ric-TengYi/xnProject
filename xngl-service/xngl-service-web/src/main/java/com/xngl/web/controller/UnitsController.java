@@ -24,6 +24,8 @@ import com.xngl.web.dto.unit.UnitSiteContractGroupDto;
 import com.xngl.web.dto.unit.UnitSummaryDto;
 import com.xngl.web.dto.unit.UnitUpsertDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.MasterDataAccessScope;
+import com.xngl.web.support.MasterDataAccessScopeResolver;
 import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -63,6 +65,7 @@ public class UnitsController {
   private final ContractMapper contractMapper;
   private final VehicleMapper vehicleMapper;
   private final UserContext userContext;
+  private final MasterDataAccessScopeResolver accessScopeResolver;
 
   public UnitsController(
       OrgMapper orgMapper,
@@ -70,13 +73,15 @@ public class UnitsController {
       SiteMapper siteMapper,
       ContractMapper contractMapper,
       VehicleMapper vehicleMapper,
-      UserContext userContext) {
+      UserContext userContext,
+      MasterDataAccessScopeResolver accessScopeResolver) {
     this.orgMapper = orgMapper;
     this.projectMapper = projectMapper;
     this.siteMapper = siteMapper;
     this.contractMapper = contractMapper;
     this.vehicleMapper = vehicleMapper;
     this.userContext = userContext;
+    this.accessScopeResolver = accessScopeResolver;
   }
 
   @GetMapping
@@ -88,9 +93,17 @@ public class UnitsController {
       @RequestParam(defaultValue = "20") int pageSize,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_UNIT);
+    if (!scope.isTenantWideAccess() && scope.getOrgIds().isEmpty()) {
+      return ApiResult.ok(new PageResult<>((long) pageNo, (long) pageSize, 0L, Collections.emptyList()));
+    }
     LambdaQueryWrapper<Org> query =
         new LambdaQueryWrapper<Org>().eq(Org::getTenantId, currentUser.getTenantId());
     query.in(Org::getOrgType, SUPPORTED_TYPES);
+    if (!scope.isTenantWideAccess()) {
+      query.in(Org::getId, scope.getOrgIds());
+    }
     if (StringUtils.hasText(unitType) && !"ALL".equalsIgnoreCase(unitType.trim())) {
       query.eq(Org::getOrgType, unitType.trim().toUpperCase());
     }
@@ -115,20 +128,27 @@ public class UnitsController {
     query.orderByDesc(Org::getUpdateTime).orderByDesc(Org::getId);
 
     IPage<Org> page = orgMapper.selectPage(new Page<>(pageNo, pageSize), query);
-    UnitMetrics metrics = loadMetrics(currentUser.getTenantId(), page.getRecords());
+    List<Org> visibleOrgs =
+        page.getRecords().stream().filter(org -> scope.hasOrgAccess(org.getId())).toList();
+    page.setRecords(visibleOrgs);
+    page.setTotal(visibleOrgs.size());
+    UnitMetrics metrics = loadMetrics(currentUser.getTenantId(), visibleOrgs);
     List<UnitListItemDto> records =
-        page.getRecords().stream().map(org -> toListItem(org, metrics)).toList();
+        visibleOrgs.stream().map(org -> toListItem(org, metrics)).toList();
     return ApiResult.ok(new PageResult<>(page.getCurrent(), page.getSize(), page.getTotal(), records));
   }
 
   @GetMapping("/summary")
   public ApiResult<UnitSummaryDto> summary(HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_UNIT);
     List<Org> units =
         orgMapper.selectList(
             new LambdaQueryWrapper<Org>()
                 .eq(Org::getTenantId, currentUser.getTenantId())
                 .in(Org::getOrgType, SUPPORTED_TYPES));
+    units = units.stream().filter(org -> scope.hasOrgAccess(org.getId())).toList();
     UnitSummaryDto dto = new UnitSummaryDto();
     dto.setTotalUnits(units.size());
     dto.setConstructionUnits(units.stream().filter(org -> "CONSTRUCTION_UNIT".equals(org.getOrgType())).count());
@@ -149,12 +169,9 @@ public class UnitsController {
   @GetMapping("/{id}")
   public ApiResult<UnitDetailDto> get(@PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    Org org = orgMapper.selectById(id);
-    if (org == null
-        || !Objects.equals(org.getTenantId(), currentUser.getTenantId())
-        || !SUPPORTED_TYPES.contains(org.getOrgType())) {
-      return ApiResult.fail(404, "单位不存在");
-    }
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_UNIT);
+    Org org = ensureUnitExists(id, currentUser.getTenantId(), scope);
     UnitMetrics metrics = loadMetrics(currentUser.getTenantId(), List.of(org));
     return ApiResult.ok(toDetail(org, metrics));
   }
@@ -163,7 +180,9 @@ public class UnitsController {
   public ApiResult<List<UnitProjectStatDto>> listProjects(
       @PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    ensureUnitExists(id, currentUser.getTenantId());
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_UNIT);
+    ensureUnitExists(id, currentUser.getTenantId(), scope);
     List<Contract> contracts = listContractsByUnit(currentUser.getTenantId(), id);
     if (contracts.isEmpty()) {
       return ApiResult.ok(Collections.emptyList());
@@ -209,7 +228,9 @@ public class UnitsController {
       @RequestParam(required = false) Long projectId,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    ensureUnitExists(id, currentUser.getTenantId());
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_UNIT);
+    ensureUnitExists(id, currentUser.getTenantId(), scope);
     List<Contract> contracts = listContractsByUnit(currentUser.getTenantId(), id);
     if (projectId != null) {
       contracts =
@@ -405,11 +426,12 @@ public class UnitsController {
     return value != null ? value.format(ISO_DATE_TIME) : null;
   }
 
-  private Org ensureUnitExists(Long unitId, Long tenantId) {
+  private Org ensureUnitExists(Long unitId, Long tenantId, MasterDataAccessScope scope) {
     Org org = orgMapper.selectById(unitId);
     if (org == null
         || !Objects.equals(org.getTenantId(), tenantId)
-        || !SUPPORTED_TYPES.contains(org.getOrgType())) {
+        || !SUPPORTED_TYPES.contains(org.getOrgType())
+        || !scope.hasOrgAccess(org.getId())) {
       throw new BizException(404, "单位不存在");
     }
     return org;

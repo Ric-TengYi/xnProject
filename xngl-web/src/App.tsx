@@ -41,6 +41,7 @@ import AlertConfig from './pages/AlertConfig';
 import EventsManagement from './pages/EventsManagement';
 import SecurityLedger from './pages/SecurityLedger';
 import OrgManagement from './pages/OrgManagement';
+import UnitsManagement from './pages/UnitsManagement';
 import UsersManagement from './pages/UsersManagement';
 import RolesManagement from './pages/RolesManagement';
 import Dictionary from './pages/Dictionary';
@@ -103,6 +104,7 @@ function App() {
           <Route path="messages" element={<MessageCenter />} />
 
           <Route path="settings/org" element={<OrgManagement />} />
+          <Route path="settings/units" element={<UnitsManagement />} />
           <Route path="settings/users" element={<UsersManagement />} />
           <Route path="settings/roles" element={<RolesManagement />} />
           <Route path="settings/dictionary" element={<Dictionary />} />

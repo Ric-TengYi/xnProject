@@ -14,7 +14,9 @@ public class SiteListItemDto {
   private String name;
   private String code;
   private String address;
+  private Long projectId;
   private Integer status;
+  private Long orgId;
   private String siteType;
   private BigDecimal capacity;
   private String settlementMode;

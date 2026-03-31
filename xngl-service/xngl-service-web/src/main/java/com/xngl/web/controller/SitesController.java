@@ -27,6 +27,8 @@ import com.xngl.web.dto.site.SiteListItemDto;
 import com.xngl.web.dto.site.SiteMapLayerDto;
 import com.xngl.web.dto.site.SiteOperationConfigDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.MasterDataAccessScope;
+import com.xngl.web.support.MasterDataAccessScopeResolver;
 import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
@@ -65,6 +67,7 @@ public class SitesController {
   private final SiteDeviceMapper siteDeviceMapper;
   private final SiteOperationConfigMapper siteOperationConfigMapper;
   private final UserContext userContext;
+  private final MasterDataAccessScopeResolver accessScopeResolver;
 
   public SitesController(
       SiteService siteService,
@@ -74,7 +77,8 @@ public class SitesController {
       ProjectMapper projectMapper,
       SiteDeviceMapper siteDeviceMapper,
       SiteOperationConfigMapper siteOperationConfigMapper,
-      UserContext userContext) {
+      UserContext userContext,
+      MasterDataAccessScopeResolver accessScopeResolver) {
     this.siteService = siteService;
     this.siteMapper = siteMapper;
     this.contractMapper = contractMapper;
@@ -83,11 +87,15 @@ public class SitesController {
     this.siteDeviceMapper = siteDeviceMapper;
     this.siteOperationConfigMapper = siteOperationConfigMapper;
     this.userContext = userContext;
+    this.accessScopeResolver = accessScopeResolver;
   }
 
   @GetMapping
-  public ApiResult<List<SiteListItemDto>> list() {
-    List<Site> sites = siteService.list();
+  public ApiResult<List<SiteListItemDto>> list(HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_SITE);
+    List<Site> sites = filterVisibleSites(siteService.list(), scope);
     Map<Long, Site> siteMap =
         sites.stream()
             .filter(site -> site.getId() != null)
@@ -98,19 +106,25 @@ public class SitesController {
   }
 
   @GetMapping("/{id}")
-  public ApiResult<SiteDetailDto> get(@PathVariable Long id) {
+  public ApiResult<SiteDetailDto> get(@PathVariable Long id, HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_SITE);
     Site site = siteService.getById(id);
-    if (site == null) return ApiResult.fail(404, "场地不存在");
+    if (site == null || !canAccessSite(scope, site)) return ApiResult.fail(404, "场地不存在");
     Map<Long, Site> siteMap =
-        siteService.list().stream()
+        filterVisibleSites(siteService.list(), scope).stream()
             .filter(item -> item.getId() != null)
             .collect(Collectors.toMap(Site::getId, Function.identity(), (left, right) -> left));
     return ApiResult.ok(toDetail(site, siteMap));
   }
 
   @GetMapping("/map-layers")
-  public ApiResult<List<SiteMapLayerDto>> mapLayers() {
-    List<Site> sites = siteService.list();
+  public ApiResult<List<SiteMapLayerDto>> mapLayers(HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_SITE);
+    List<Site> sites = filterVisibleSites(siteService.list(), scope);
     Map<Long, List<SiteDevice>> deviceMap = loadDeviceMap(sites);
     List<SiteMapLayerDto> records =
         sites.stream()
@@ -136,9 +150,13 @@ public class SitesController {
       @RequestParam(required = false) String keyword,
       @RequestParam(required = false) String status,
       @RequestParam(defaultValue = "1") int pageNo,
-      @RequestParam(defaultValue = "20") int pageSize) {
+      @RequestParam(defaultValue = "20") int pageSize,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_SITE);
     LinkedHashMap<Long, Site> siteMap =
-        siteService.list().stream()
+        filterVisibleSites(siteService.list(), scope).stream()
             .filter(site -> site.getId() != null)
             .collect(Collectors.toMap(Site::getId, site -> site, (left, right) -> left, LinkedHashMap::new));
 
@@ -157,7 +175,9 @@ public class SitesController {
 
     List<Contract> contracts =
         contractMapper.selectList(
-            new LambdaQueryWrapper<Contract>().in(Contract::getSiteId, availableSiteIds));
+            new LambdaQueryWrapper<Contract>()
+                .eq(Contract::getTenantId, currentUser.getTenantId())
+                .in(Contract::getSiteId, availableSiteIds));
     if (contracts.isEmpty()) {
       return ApiResult.ok(new PageResult<>((long) pageNo, (long) pageSize, 0L, Collections.emptyList()));
     }
@@ -277,7 +297,9 @@ public class SitesController {
     dto.setName(s.getName());
     dto.setCode(s.getCode());
     dto.setAddress(s.getAddress());
+    dto.setProjectId(s.getProjectId());
     dto.setStatus(s.getStatus());
+    dto.setOrgId(s.getOrgId());
     dto.setSiteType(s.getSiteType());
     dto.setCapacity(s.getCapacity());
     dto.setSettlementMode(s.getSettlementMode());
@@ -516,6 +538,17 @@ public class SitesController {
 
   private User requireCurrentUser(HttpServletRequest request) {
     return userContext.requireCurrentUser(request);
+  }
+
+  private List<Site> filterVisibleSites(List<Site> sites, MasterDataAccessScope scope) {
+    if (sites == null || sites.isEmpty()) {
+      return Collections.emptyList();
+    }
+    return sites.stream().filter(site -> canAccessSite(scope, site)).toList();
+  }
+
+  private boolean canAccessSite(MasterDataAccessScope scope, Site site) {
+    return site != null && scope.hasOrgAccess(site.getOrgId());
   }
 
   private DisposalListItemDto toDisposalItem(

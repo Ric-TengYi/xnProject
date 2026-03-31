@@ -14,12 +14,17 @@ import com.xngl.manager.disposal.entity.DisposalPermit;
 import com.xngl.manager.disposal.mapper.DisposalPermitMapper;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.MasterDataAccessScope;
+import com.xngl.web.support.MasterDataAccessScopeResolver;
 import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import lombok.Data;
 import org.springframework.util.StringUtils;
@@ -42,6 +47,7 @@ public class DisposalPermitsController {
   private final SiteMapper siteMapper;
   private final VehicleMapper vehicleMapper;
   private final UserContext userContext;
+  private final MasterDataAccessScopeResolver accessScopeResolver;
 
   public DisposalPermitsController(
       DisposalPermitMapper permitMapper,
@@ -49,13 +55,15 @@ public class DisposalPermitsController {
       ProjectMapper projectMapper,
       SiteMapper siteMapper,
       VehicleMapper vehicleMapper,
-      UserContext userContext) {
+      UserContext userContext,
+      MasterDataAccessScopeResolver accessScopeResolver) {
     this.permitMapper = permitMapper;
     this.contractMapper = contractMapper;
     this.projectMapper = projectMapper;
     this.siteMapper = siteMapper;
     this.vehicleMapper = vehicleMapper;
     this.userContext = userContext;
+    this.accessScopeResolver = accessScopeResolver;
   }
 
   @GetMapping
@@ -71,6 +79,8 @@ public class DisposalPermitsController {
       @RequestParam(required = false) String sourcePlatform,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_DISPOSAL_PERMIT);
     String keywordValue = trimToNull(keyword);
     String typeValue = trimToNull(permitType);
     String statusValue = trimToNull(status);
@@ -101,6 +111,7 @@ public class DisposalPermitsController {
                     StringUtils.hasText(sourcePlatformValue),
                     DisposalPermit::getSourcePlatform,
                     sourcePlatformValue));
+    rows = new java.util.ArrayList<>(filterVisiblePermits(rows, currentUser.getTenantId(), scope));
     rows.sort(
         Comparator.comparing(DisposalPermit::getUpdateTime, Comparator.nullsLast(Comparator.naturalOrder()))
             .reversed()
@@ -111,8 +122,13 @@ public class DisposalPermitsController {
   @GetMapping("/{id}")
   public ApiResult<DisposalPermit> get(@PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_DISPOSAL_PERMIT);
     DisposalPermit permit = permitMapper.selectById(id);
     if (permit == null || !Objects.equals(permit.getTenantId(), currentUser.getTenantId())) {
+      return ApiResult.fail(404, "处置证不存在");
+    }
+    if (filterVisiblePermits(List.of(permit), currentUser.getTenantId(), scope).isEmpty()) {
       return ApiResult.fail(404, "处置证不存在");
     }
     return ApiResult.ok(permit);
@@ -299,6 +315,108 @@ public class DisposalPermitsController {
 
   private User requireCurrentUser(HttpServletRequest request) {
     return userContext.requireCurrentUser(request);
+  }
+
+  private List<DisposalPermit> filterVisiblePermits(
+      List<DisposalPermit> permits, Long tenantId, MasterDataAccessScope scope) {
+    if (permits == null || permits.isEmpty()) {
+      return List.of();
+    }
+    if (scope.isTenantWideAccess()) {
+      return permits;
+    }
+
+    LinkedHashSet<Long> projectIds = new LinkedHashSet<>();
+    LinkedHashSet<Long> siteIds = new LinkedHashSet<>();
+    LinkedHashSet<Long> contractIds = new LinkedHashSet<>();
+    LinkedHashSet<String> vehicleNos = new LinkedHashSet<>();
+    for (DisposalPermit permit : permits) {
+      if (permit.getProjectId() != null) {
+        projectIds.add(permit.getProjectId());
+      }
+      if (permit.getSiteId() != null) {
+        siteIds.add(permit.getSiteId());
+      }
+      if (permit.getContractId() != null) {
+        contractIds.add(permit.getContractId());
+      }
+      if (StringUtils.hasText(permit.getVehicleNo())) {
+        vehicleNos.add(normalizePlateNo(permit.getVehicleNo()));
+      }
+    }
+
+    Map<Long, Contract> contractMap =
+        contractIds.isEmpty()
+            ? Map.of()
+            : contractMapper.selectBatchIds(contractIds).stream()
+                .filter(contract -> contract.getId() != null)
+                .collect(java.util.stream.Collectors.toMap(Contract::getId, contract -> contract, (left, right) -> left));
+    for (Contract contract : contractMap.values()) {
+      if (contract.getProjectId() != null) {
+        projectIds.add(contract.getProjectId());
+      }
+      if (contract.getSiteId() != null) {
+        siteIds.add(contract.getSiteId());
+      }
+    }
+
+    Map<Long, Project> projectMap =
+        projectIds.isEmpty()
+            ? Map.of()
+            : projectMapper.selectBatchIds(projectIds).stream()
+                .filter(project -> project.getId() != null)
+                .collect(java.util.stream.Collectors.toMap(Project::getId, project -> project, (left, right) -> left));
+    Map<Long, Site> siteMap =
+        siteIds.isEmpty()
+            ? Map.of()
+            : siteMapper.selectBatchIds(siteIds).stream()
+                .filter(site -> site.getId() != null)
+                .collect(java.util.stream.Collectors.toMap(Site::getId, site -> site, (left, right) -> left));
+    Map<String, Vehicle> vehicleMap = loadVehicleMap(tenantId, vehicleNos);
+
+    return permits.stream()
+        .filter(
+            permit -> {
+              if (scope.hasProjectAccess(permit.getProjectId())) {
+                return true;
+              }
+              Contract contract = permit.getContractId() != null ? contractMap.get(permit.getContractId()) : null;
+              Project project =
+                  permit.getProjectId() != null
+                      ? projectMap.get(permit.getProjectId())
+                      : (contract != null ? projectMap.get(contract.getProjectId()) : null);
+              if (project != null && scope.hasOrgAccess(project.getOrgId())) {
+                return true;
+              }
+              Site site =
+                  permit.getSiteId() != null
+                      ? siteMap.get(permit.getSiteId())
+                      : (contract != null ? siteMap.get(contract.getSiteId()) : null);
+              if (site != null && scope.hasOrgAccess(site.getOrgId())) {
+                return true;
+              }
+              Vehicle vehicle = vehicleMap.get(normalizePlateNo(permit.getVehicleNo()));
+              return vehicle != null && scope.hasOrgAccess(vehicle.getOrgId());
+            })
+        .toList();
+  }
+
+  private Map<String, Vehicle> loadVehicleMap(Long tenantId, LinkedHashSet<String> vehicleNos) {
+    if (vehicleNos == null || vehicleNos.isEmpty()) {
+      return Map.of();
+    }
+    return vehicleMapper.selectList(
+            new LambdaQueryWrapper<Vehicle>()
+                .eq(Vehicle::getTenantId, tenantId)
+                .in(Vehicle::getPlateNo, vehicleNos))
+        .stream()
+        .filter(vehicle -> StringUtils.hasText(vehicle.getPlateNo()))
+        .collect(
+            java.util.stream.Collectors.toMap(
+                vehicle -> normalizePlateNo(vehicle.getPlateNo()),
+                vehicle -> vehicle,
+                (left, right) -> left,
+                LinkedHashMap::new));
   }
 
   @Data

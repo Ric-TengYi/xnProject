@@ -253,10 +253,10 @@ const ProjectsPermits: React.FC = () => {
       setSubmitLoading(true);
       if (currentRecord) {
         await updateDisposalPermit(currentRecord.id, { 
-          ...currentRecord, 
+          permitNo: currentRecord.permitNo,
           permitType: currentRecord.permitType || undefined,
           vehicleNo: values.vehicleNo 
-        });
+        } as any);
         message.success('车辆绑定已更新');
       }
       setBindModalOpen(false);

@@ -151,11 +151,16 @@ public class SettlementServiceImpl implements SettlementService {
       Long projectId,
       Long siteId,
       int pageNo,
-      int pageSize) {
+      int pageSize,
+      ContractAccessScope accessScope) {
+    if (accessScope != null && !accessScope.isTenantWideAccess() && !accessScope.hasAnyAccess()) {
+      return emptyPage(pageNo, pageSize);
+    }
     LambdaQueryWrapper<SettlementOrder> query = new LambdaQueryWrapper<>();
     if (tenantId != null) {
       query.eq(SettlementOrder::getTenantId, tenantId);
     }
+    applySettlementScope(query, accessScope);
     if (StringUtils.hasText(settlementType)) {
       query.eq(SettlementOrder::getSettlementType, settlementType.trim().toUpperCase());
     }
@@ -253,23 +258,27 @@ public class SettlementServiceImpl implements SettlementService {
   }
 
   @Override
-  public SettlementStatsResult getSettlementStats(Long tenantId) {
-    long totalOrders = countByCondition(tenantId, null, null);
-    long draftOrders = countByCondition(tenantId, "settlementStatus", STATUS_DRAFT);
-    long pendingOrders = countByCondition(tenantId, "approvalStatus", STATUS_APPROVING);
-    long settledOrders = countByCondition(tenantId, "settlementStatus", STATUS_SETTLED);
+  public SettlementStatsResult getSettlementStats(Long tenantId, ContractAccessScope accessScope) {
+    if (accessScope != null && !accessScope.isTenantWideAccess() && !accessScope.hasAnyAccess()) {
+      return new SettlementStatsResult(ZERO, ZERO, 0L, 0L, 0L, 0L);
+    }
+    long totalOrders = countByCondition(tenantId, null, null, accessScope);
+    long draftOrders = countByCondition(tenantId, "settlementStatus", STATUS_DRAFT, accessScope);
+    long pendingOrders = countByCondition(tenantId, "approvalStatus", STATUS_APPROVING, accessScope);
+    long settledOrders = countByCondition(tenantId, "settlementStatus", STATUS_SETTLED, accessScope);
 
-    BigDecimal pendingAmount = sumPayableByCondition(tenantId, "approvalStatus", STATUS_APPROVING);
-    BigDecimal settledAmount = sumPayableByCondition(tenantId, "settlementStatus", STATUS_SETTLED);
+    BigDecimal pendingAmount = sumPayableByCondition(tenantId, "approvalStatus", STATUS_APPROVING, accessScope);
+    BigDecimal settledAmount = sumPayableByCondition(tenantId, "settlementStatus", STATUS_SETTLED, accessScope);
 
     return new SettlementStatsResult(pendingAmount, settledAmount, totalOrders, draftOrders, pendingOrders, settledOrders);
   }
 
-  private long countByCondition(Long tenantId, String field, String value) {
+  private long countByCondition(Long tenantId, String field, String value, ContractAccessScope accessScope) {
     LambdaQueryWrapper<SettlementOrder> query = new LambdaQueryWrapper<>();
     if (tenantId != null) {
       query.eq(SettlementOrder::getTenantId, tenantId);
     }
+    applySettlementScope(query, accessScope);
     if ("settlementStatus".equals(field) && value != null) {
       query.eq(SettlementOrder::getSettlementStatus, value);
     }
@@ -279,11 +288,13 @@ public class SettlementServiceImpl implements SettlementService {
     return settlementOrderMapper.selectCount(query);
   }
 
-  private BigDecimal sumPayableByCondition(Long tenantId, String field, String value) {
+  private BigDecimal sumPayableByCondition(
+      Long tenantId, String field, String value, ContractAccessScope accessScope) {
     LambdaQueryWrapper<SettlementOrder> query = new LambdaQueryWrapper<>();
     if (tenantId != null) {
       query.eq(SettlementOrder::getTenantId, tenantId);
     }
+    applySettlementScope(query, accessScope);
     if ("settlementStatus".equals(field) && value != null) {
       query.eq(SettlementOrder::getSettlementStatus, value);
     }
@@ -296,6 +307,42 @@ public class SettlementServiceImpl implements SettlementService {
     return orders.stream()
         .map(o -> safeAmount(o.getPayableAmount()))
         .reduce(ZERO, BigDecimal::add);
+  }
+
+  private void applySettlementScope(
+      LambdaQueryWrapper<SettlementOrder> query, ContractAccessScope accessScope) {
+    if (query == null || accessScope == null || accessScope.isTenantWideAccess()) {
+      return;
+    }
+    if (!accessScope.hasAnyAccess()) {
+      query.apply("1 = 0");
+      return;
+    }
+    query.and(
+        wrapper -> {
+          boolean hasClause = false;
+          if (!accessScope.getProjectIds().isEmpty()) {
+            wrapper.in(SettlementOrder::getTargetProjectId, accessScope.getProjectIds());
+            hasClause = true;
+          }
+          if (!accessScope.getSiteIds().isEmpty()) {
+            if (hasClause) {
+              wrapper.or();
+            }
+            wrapper.in(SettlementOrder::getTargetSiteId, accessScope.getSiteIds());
+            hasClause = true;
+          }
+          if (!hasClause) {
+            wrapper.apply("1 = 0");
+          }
+        });
+  }
+
+  private <T> IPage<T> emptyPage(int pageNo, int pageSize) {
+    Page<T> page = new Page<>(pageNo, pageSize);
+    page.setTotal(0L);
+    page.setRecords(List.of());
+    return page;
   }
 
   private void validatePeriod(LocalDate periodStart, LocalDate periodEnd) {

@@ -18,7 +18,7 @@ import {
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { BankOutlined, CarOutlined, PlusOutlined, SearchOutlined, TeamOutlined } from '@ant-design/icons';
+import { BankOutlined, CarOutlined, EditOutlined, PlusOutlined, SearchOutlined, TeamOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import {
   createUnit,
@@ -137,7 +137,7 @@ const UnitsManagement: React.FC = () => {
     }
   };
 
-  const openEdit = async (record?: UnitRecord) => {
+  const openEdit = async (record?: UnitRecord | UnitDetailRecord) => {
     if (!record) {
       setEditingUnit(null);
       form.resetFields();
@@ -182,6 +182,9 @@ const UnitsManagement: React.FC = () => {
       form.resetFields();
       setPageNo(1);
       await Promise.all([loadSummary(), loadUnits()]);
+      if (detailOpen && editingUnit) {
+        void openDetail(editingUnit.id);
+      }
     } catch (error) {
       if ((error as { errorFields?: unknown[] })?.errorFields) {
         return;
@@ -224,6 +227,8 @@ const UnitsManagement: React.FC = () => {
       title: '单位名称',
       dataIndex: 'orgName',
       key: 'orgName',
+      width: 240,
+      fixed: 'left',
       render: (value, record) => (
         <a style={{ color: 'var(--primary)' }} onClick={() => openDetail(record.id)}>
           {value}
@@ -234,6 +239,7 @@ const UnitsManagement: React.FC = () => {
       title: '单位类型',
       dataIndex: 'orgTypeLabel',
       key: 'orgTypeLabel',
+      width: 120,
       render: (value?: string | null) => (
         <Tag color={typeColorMap[value || ''] || 'default'} className="border-none">
           {value || '未知'}
@@ -243,6 +249,7 @@ const UnitsManagement: React.FC = () => {
     {
       title: '联系人',
       key: 'contact',
+      width: 180,
       render: (_, record) => (
         <div className="flex flex-col">
           <span style={{ color: 'var(--text-primary)' }}>{record.contactPerson || '-'}</span>
@@ -253,6 +260,7 @@ const UnitsManagement: React.FC = () => {
     {
       title: '关联业务',
       key: 'relations',
+      width: 160,
       render: (_, record) => (
         <div className="flex flex-col">
           <span style={{ color: 'var(--text-secondary)' }}>项目 {record.projectCount || 0}</span>
@@ -263,6 +271,7 @@ const UnitsManagement: React.FC = () => {
     {
       title: '车辆挂接',
       key: 'vehicles',
+      width: 120,
       render: (_, record) => (
         <span style={{ color: 'var(--text-secondary)' }}>
           {record.activeVehicleCount || 0} / {record.vehicleCount || 0}
@@ -273,6 +282,7 @@ const UnitsManagement: React.FC = () => {
       title: '状态',
       dataIndex: 'statusLabel',
       key: 'statusLabel',
+      width: 100,
       render: (value?: string | null) => (
         <Tag color={statusColorMap[value || ''] || 'default'} className="border-none">
           {value || '未知'}
@@ -282,6 +292,8 @@ const UnitsManagement: React.FC = () => {
     {
       title: '操作',
       key: 'action',
+      width: 120,
+      fixed: 'right',
       render: (_, record) => (
         <Space size="middle">
           <a style={{ color: 'var(--primary)' }} onClick={() => openDetail(record.id)}>
@@ -318,8 +330,8 @@ const UnitsManagement: React.FC = () => {
       </Row>
 
       <Card className="glass-panel g-border-panel border" bodyStyle={{ padding: 0 }}>
-        <div className="p-4 border-b g-border-panel border flex flex-wrap gap-4 justify-between g-bg-toolbar">
-          <div className="flex gap-4 flex-wrap">
+        <div className="p-4 border-b g-border-panel border g-bg-toolbar">
+          <div className="flex flex-wrap gap-4 items-center">
             <Input
               placeholder="搜索单位名称/编码/联系人"
               prefix={<SearchOutlined className="g-text-secondary" />}
@@ -355,6 +367,7 @@ const UnitsManagement: React.FC = () => {
           dataSource={records}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 1000 }}
           locale={{ emptyText: <Empty description="暂无单位数据" /> }}
           pagination={{
             current: pageNo,
@@ -373,7 +386,14 @@ const UnitsManagement: React.FC = () => {
       </Card>
 
       <Drawer
-        title={selectedUnit?.orgName || '单位详情'}
+        title={
+          <div className="flex justify-between items-center w-full pr-8">
+            <span>{selectedUnit?.orgName || '单位详情'}</span>
+            <Button size="small" type="primary" ghost icon={<EditOutlined />} onClick={() => { if(selectedUnit) openEdit(selectedUnit); }}>
+              编辑
+            </Button>
+          </div>
+        }
         width={720}
         open={detailOpen}
         onClose={() => {
@@ -382,24 +402,42 @@ const UnitsManagement: React.FC = () => {
         }}
       >
         {selectedUnit ? (
-          <Descriptions
-            bordered
-            column={2}
-            items={[
-              { key: 'name', label: '单位名称', children: selectedUnit.orgName },
-              { key: 'type', label: '单位类型', children: selectedUnit.orgTypeLabel || '-' },
-              { key: 'code', label: '单位编码', children: selectedUnit.orgCode || '-' },
-              { key: 'credit', label: '统一社会信用代码', children: selectedUnit.unifiedSocialCode || '-' },
-              { key: 'contact', label: '联系人', children: selectedUnit.contactPerson || '-' },
-              { key: 'phone', label: '联系电话', children: selectedUnit.contactPhone || '-' },
-              { key: 'status', label: '状态', children: <Tag color={statusColorMap[selectedUnit.statusLabel || ''] || 'default'}>{selectedUnit.statusLabel || '未知'}</Tag> },
-              { key: 'vehicle', label: '车辆挂接', children: `${selectedUnit.activeVehicleCount || 0} / ${selectedUnit.vehicleCount || 0}` },
-              { key: 'project', label: '关联项目', children: selectedUnit.projectCount || 0 },
-              { key: 'contract', label: '关联合同', children: selectedUnit.contractCount || 0 },
-              { key: 'address', label: '联系地址', span: 2, children: selectedUnit.address || '-' },
-              { key: 'remark', label: '备注', span: 2, children: selectedUnit.remark || '-' },
-            ]}
-          />
+          <div className="space-y-6">
+            <Card title="基础信息" size="small" className="glass-panel g-border-panel border">
+              <Descriptions bordered column={2} size="small">
+                <Descriptions.Item label="单位名称" span={2}>{selectedUnit.orgName}</Descriptions.Item>
+                <Descriptions.Item label="单位类型">{selectedUnit.orgTypeLabel || '-'}</Descriptions.Item>
+                <Descriptions.Item label="单位编码">{selectedUnit.orgCode || '-'}</Descriptions.Item>
+                <Descriptions.Item label="统一社会信用代码" span={2}>{selectedUnit.unifiedSocialCode || '-'}</Descriptions.Item>
+                <Descriptions.Item label="状态">
+                  <Tag color={statusColorMap[selectedUnit.statusLabel || ''] || 'default'}>{selectedUnit.statusLabel || '未知'}</Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="备注">{selectedUnit.remark || '-'}</Descriptions.Item>
+              </Descriptions>
+            </Card>
+
+            <Card title="联系方式" size="small" className="glass-panel g-border-panel border">
+              <Descriptions bordered column={2} size="small">
+                <Descriptions.Item label="联系人">{selectedUnit.contactPerson || '-'}</Descriptions.Item>
+                <Descriptions.Item label="联系电话">{selectedUnit.contactPhone || '-'}</Descriptions.Item>
+                <Descriptions.Item label="联系地址" span={2}>{selectedUnit.address || '-'}</Descriptions.Item>
+              </Descriptions>
+            </Card>
+
+            <Card title="关联业务概览" size="small" className="glass-panel g-border-panel border">
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Statistic title="关联项目" value={selectedUnit.projectCount || 0} />
+                </Col>
+                <Col span={8}>
+                  <Statistic title="关联合同" value={selectedUnit.contractCount || 0} />
+                </Col>
+                <Col span={8}>
+                  <Statistic title="车辆挂接" value={`${selectedUnit.activeVehicleCount || 0} / ${selectedUnit.vehicleCount || 0}`} />
+                </Col>
+              </Row>
+            </Card>
+          </div>
         ) : (
           <Empty description={detailLoading ? '加载中...' : '暂无详情'} />
         )}

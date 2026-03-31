@@ -22,7 +22,8 @@ public interface ContractService {
       LocalDate startDate,
       LocalDate endDate,
       int pageNo,
-      int pageSize);
+      int pageSize,
+      ContractAccessScope accessScope);
 
   List<ContractReceipt> listReceiptsByContract(Long contractId, Long tenantId);
 
@@ -35,9 +36,9 @@ public interface ContractService {
 
   IPage<Contract> pageContracts(Long tenantId, String contractType, String contractStatus,
       String keyword, Long projectId, Long siteId, LocalDate startDate, LocalDate endDate,
-      int pageNo, int pageSize);
+      int pageNo, int pageSize, ContractAccessScope accessScope);
 
-  IPage<Contract> pageContractsAdvanced(Long tenantId, ContractQueryParams params);
+  IPage<Contract> pageContractsAdvanced(Long tenantId, ContractQueryParams params, ContractAccessScope accessScope);
 
   ContractDetailVo getContractDetail(Long contractId, Long tenantId);
 
@@ -61,5 +62,5 @@ public interface ContractService {
 
   void rejectContract(Long contractId, Long tenantId, Long operatorId, String reason);
 
-  ContractStatsResult getContractStats(Long tenantId);
+  ContractStatsResult getContractStats(Long tenantId, ContractAccessScope accessScope);
 }

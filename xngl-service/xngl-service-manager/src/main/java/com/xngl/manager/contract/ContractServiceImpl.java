@@ -110,10 +110,24 @@ public class ContractServiceImpl implements ContractService {
       LocalDate startDate,
       LocalDate endDate,
       int pageNo,
-      int pageSize) {
+      int pageSize,
+      ContractAccessScope accessScope) {
+    if (accessScope != null && !accessScope.isTenantWideAccess() && !accessScope.hasAnyAccess()) {
+      return emptyPage(pageNo, pageSize);
+    }
     LambdaQueryWrapper<ContractReceipt> query = new LambdaQueryWrapper<>();
     if (tenantId != null) {
       query.eq(ContractReceipt::getTenantId, tenantId);
+    }
+    Set<Long> accessibleContractIds = resolveAccessibleContractIds(tenantId, accessScope);
+    if (accessScope != null && !accessScope.isTenantWideAccess()) {
+      if (contractId != null && !accessibleContractIds.contains(contractId)) {
+        return emptyPage(pageNo, pageSize);
+      }
+      if (accessibleContractIds.isEmpty()) {
+        return emptyPage(pageNo, pageSize);
+      }
+      query.in(ContractReceipt::getContractId, accessibleContractIds);
     }
     if (contractId != null) {
       query.eq(ContractReceipt::getContractId, contractId);
@@ -324,11 +338,15 @@ public class ContractServiceImpl implements ContractService {
   @Override
   public IPage<Contract> pageContracts(Long tenantId, String contractType, String contractStatus,
       String keyword, Long projectId, Long siteId, LocalDate startDate, LocalDate endDate,
-      int pageNo, int pageSize) {
+      int pageNo, int pageSize, ContractAccessScope accessScope) {
+    if (accessScope != null && !accessScope.isTenantWideAccess() && !accessScope.hasAnyAccess()) {
+      return emptyPage(pageNo, pageSize);
+    }
     LambdaQueryWrapper<Contract> query = new LambdaQueryWrapper<>();
     if (tenantId != null) {
       query.eq(Contract::getTenantId, tenantId);
     }
+    applyContractScope(query, accessScope);
     if (StringUtils.hasText(contractType)) {
       query.eq(Contract::getContractType, contractType.trim());
     }
@@ -363,7 +381,7 @@ public class ContractServiceImpl implements ContractService {
       String contractStatus, String keyword, Long projectId, Long siteId, LocalDate startDate, LocalDate endDate,
       int pageNo, int pageSize) {
     IPage<Contract> page = pageContracts(tenantId, contractType, contractStatus, keyword, projectId, siteId,
-        startDate, endDate, pageNo, pageSize);
+        startDate, endDate, pageNo, pageSize, null);
 
     List<Contract> filtered = page.getRecords().stream()
         .filter(contract -> roleService.canAccessOrganization(userId, contract.getSiteId(), "ORG_AND_CHILDREN"))
@@ -484,19 +502,31 @@ public class ContractServiceImpl implements ContractService {
   }
 
   @Override
-  public ContractStatsResult getContractStats(Long tenantId) {
+  public ContractStatsResult getContractStats(Long tenantId, ContractAccessScope accessScope) {
     ContractStatsResult result = new ContractStatsResult();
+    if (accessScope != null && !accessScope.isTenantWideAccess() && !accessScope.hasAnyAccess()) {
+      result.setTotalContracts(0L);
+      result.setEffectiveContracts(0L);
+      result.setMonthlyReceiptAmount(ZERO);
+      result.setMonthlyReceiptCount(0);
+      result.setPendingReceiptAmount(ZERO);
+      result.setTotalSettlementOrders(0L);
+      result.setPendingSettlementOrders(0L);
+      return result;
+    }
 
     LambdaQueryWrapper<Contract> totalQuery = new LambdaQueryWrapper<>();
     if (tenantId != null) {
       totalQuery.eq(Contract::getTenantId, tenantId);
     }
+    applyContractScope(totalQuery, accessScope);
     result.setTotalContracts(contractMapper.selectCount(totalQuery));
 
     LambdaQueryWrapper<Contract> effectiveQuery = new LambdaQueryWrapper<>();
     if (tenantId != null) {
       effectiveQuery.eq(Contract::getTenantId, tenantId);
     }
+    applyContractScope(effectiveQuery, accessScope);
     effectiveQuery.in(Contract::getContractStatus, ACTIVE_CONTRACT_STATUSES);
     result.setEffectiveContracts(contractMapper.selectCount(effectiveQuery));
 
@@ -505,20 +535,32 @@ public class ContractServiceImpl implements ContractService {
     if (tenantId != null) {
       receiptQuery.eq(ContractReceipt::getTenantId, tenantId);
     }
+    Set<Long> accessibleContractIds = resolveAccessibleContractIds(tenantId, accessScope);
+    if (accessScope != null && !accessScope.isTenantWideAccess()) {
+      if (accessibleContractIds.isEmpty()) {
+        result.setMonthlyReceiptAmount(ZERO);
+        result.setMonthlyReceiptCount(0);
+      } else {
+        receiptQuery.in(ContractReceipt::getContractId, accessibleContractIds);
+      }
+    }
     receiptQuery.ge(ContractReceipt::getReceiptDate, monthStart);
     receiptQuery.eq(ContractReceipt::getStatus, RECEIPT_STATUS_NORMAL);
     receiptQuery.select(ContractReceipt::getAmount);
-    List<ContractReceipt> monthlyReceipts = contractReceiptMapper.selectList(receiptQuery);
-    BigDecimal monthlyAmount = monthlyReceipts.stream()
-        .map(r -> safeAmount(r.getAmount()))
-        .reduce(ZERO, BigDecimal::add);
-    result.setMonthlyReceiptAmount(monthlyAmount);
-    result.setMonthlyReceiptCount(monthlyReceipts.size());
+    if (accessScope == null || accessScope.isTenantWideAccess() || !accessibleContractIds.isEmpty()) {
+      List<ContractReceipt> monthlyReceipts = contractReceiptMapper.selectList(receiptQuery);
+      BigDecimal monthlyAmount = monthlyReceipts.stream()
+          .map(r -> safeAmount(r.getAmount()))
+          .reduce(ZERO, BigDecimal::add);
+      result.setMonthlyReceiptAmount(monthlyAmount);
+      result.setMonthlyReceiptCount(monthlyReceipts.size());
+    }
 
     LambdaQueryWrapper<Contract> pendingQuery = new LambdaQueryWrapper<>();
     if (tenantId != null) {
       pendingQuery.eq(Contract::getTenantId, tenantId);
     }
+    applyContractScope(pendingQuery, accessScope);
     pendingQuery.in(Contract::getContractStatus, ACTIVE_CONTRACT_STATUSES);
     pendingQuery.select(Contract::getContractAmount, Contract::getAmount, Contract::getReceivedAmount);
     List<Contract> activeContracts = contractMapper.selectList(pendingQuery);
@@ -549,11 +591,15 @@ public class ContractServiceImpl implements ContractService {
   }
 
   @Override
-  public IPage<Contract> pageContractsAdvanced(Long tenantId, ContractQueryParams params) {
+  public IPage<Contract> pageContractsAdvanced(Long tenantId, ContractQueryParams params, ContractAccessScope accessScope) {
+    if (accessScope != null && !accessScope.isTenantWideAccess() && !accessScope.hasAnyAccess()) {
+      return emptyPage(params.getPageNo(), params.getPageSize());
+    }
     LambdaQueryWrapper<Contract> query = new LambdaQueryWrapper<>();
     if (tenantId != null) {
       query.eq(Contract::getTenantId, tenantId);
     }
+    applyContractScope(query, accessScope);
     if (StringUtils.hasText(params.getContractType())) {
       query.eq(Contract::getContractType, params.getContractType().trim());
     }
@@ -610,6 +656,74 @@ public class ContractServiceImpl implements ContractService {
     }
     query.orderByDesc(Contract::getCreateTime);
     return contractMapper.selectPage(new Page<>(params.getPageNo(), params.getPageSize()), query);
+  }
+
+  private void applyContractScope(
+      LambdaQueryWrapper<Contract> query, ContractAccessScope accessScope) {
+    if (query == null || accessScope == null || accessScope.isTenantWideAccess()) {
+      return;
+    }
+    if (!accessScope.hasAnyAccess()) {
+      query.apply("1 = 0");
+      return;
+    }
+    query.and(
+        wrapper -> {
+          boolean hasClause = false;
+          if (!accessScope.getProjectIds().isEmpty()) {
+            wrapper.in(Contract::getProjectId, accessScope.getProjectIds());
+            hasClause = true;
+          }
+          if (!accessScope.getSiteIds().isEmpty()) {
+            if (hasClause) {
+              wrapper.or();
+            }
+            wrapper.in(Contract::getSiteId, accessScope.getSiteIds());
+            hasClause = true;
+          }
+          if (!accessScope.getOrgIds().isEmpty()) {
+            if (hasClause) {
+              wrapper.or();
+            }
+            wrapper.in(Contract::getConstructionOrgId, accessScope.getOrgIds())
+                .or()
+                .in(Contract::getTransportOrgId, accessScope.getOrgIds())
+                .or()
+                .in(Contract::getSiteOperatorOrgId, accessScope.getOrgIds())
+                .or()
+                .in(Contract::getPartyId, accessScope.getOrgIds());
+            hasClause = true;
+          }
+          if (!hasClause) {
+            wrapper.apply("1 = 0");
+          }
+        });
+  }
+
+  private Set<Long> resolveAccessibleContractIds(Long tenantId, ContractAccessScope accessScope) {
+    if (accessScope == null || accessScope.isTenantWideAccess()) {
+      return Set.of();
+    }
+    if (!accessScope.hasAnyAccess()) {
+      return Set.of();
+    }
+    LambdaQueryWrapper<Contract> query = new LambdaQueryWrapper<>();
+    if (tenantId != null) {
+      query.eq(Contract::getTenantId, tenantId);
+    }
+    applyContractScope(query, accessScope);
+    query.select(Contract::getId);
+    return contractMapper.selectList(query).stream()
+        .map(Contract::getId)
+        .filter(java.util.Objects::nonNull)
+        .collect(java.util.stream.Collectors.toUnmodifiableSet());
+  }
+
+  private <T> IPage<T> emptyPage(int pageNo, int pageSize) {
+    Page<T> page = new Page<>(pageNo, pageSize);
+    page.setTotal(0L);
+    page.setRecords(List.of());
+    return page;
   }
 
   @Override

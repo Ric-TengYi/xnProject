@@ -11,7 +11,7 @@
       "passed": 7,
       "failed": 0,
       "detail": "returncode=0",
-      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS project_daily_runtime: project_id=1, export_task_id=37\nPASS project_config_checkin_location_preload_runtime: checkin=proj-punch-001, radius=200.0, preload=1500.0\nPASS project_config_route_violation_runtime: route_points=5, fence=PROJECT-FENCE-001\nPASS project_reports_runtime: list_total=1, trend_points=6, export_task_id=38\nPASS project_violation_runtime: violations=9, fleet_rows=5, plate_rows=6\nPASS project_pages_visible: 项目日报 / 项目报表 / 项目配置\n",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS project_daily_runtime: project_id=1, export_task_id=45\nPASS project_config_checkin_location_preload_runtime: checkin=proj-punch-001, radius=200.0, preload=1500.0\nPASS project_config_route_violation_runtime: route_points=5, fence=PROJECT-FENCE-001\nPASS project_reports_runtime: list_total=1, trend_points=6, export_task_id=46\nPASS project_violation_runtime: violations=9, fleet_rows=5, plate_rows=6\nPASS project_pages_visible: 项目日报 / 项目报表 / 项目配置\n",
       "stderr_tail": ""
     }
   ]

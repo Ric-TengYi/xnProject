@@ -103,6 +103,7 @@ const items: MenuItem[] = [
   ]),
   getItem('系统设置', 'settings', <SettingOutlined />, [
     getItem(<Link to="/settings/org">组织管理</Link>, '/settings/org'),
+    getItem(<Link to="/settings/units">单位管理</Link>, '/settings/units'),
     getItem(<Link to="/settings/users">用户管理</Link>, '/settings/users'),
     getItem(<Link to="/settings/roles">角色管理</Link>, '/settings/roles'),
     getItem(<Link to="/settings/dictionary">数据字典</Link>, '/settings/dictionary'),
@@ -223,7 +224,7 @@ const MainLayout: React.FC = () => {
     }
   };
 
-  const userMenuItems = [
+  const userMenuItems: import("antd").MenuProps["items"] = [
     {
       key: 'profile',
       icon: <UserOutlined />,

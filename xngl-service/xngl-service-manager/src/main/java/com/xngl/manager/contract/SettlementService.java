@@ -31,7 +31,8 @@ public interface SettlementService {
       Long projectId,
       Long siteId,
       int pageNo,
-      int pageSize);
+      int pageSize,
+      ContractAccessScope accessScope);
 
   SettlementOrder getSettlement(Long id, Long tenantId);
 
@@ -43,5 +44,5 @@ public interface SettlementService {
 
   void rejectSettlement(Long id, Long tenantId, String reason);
 
-  SettlementStatsResult getSettlementStats(Long tenantId);
+  SettlementStatsResult getSettlementStats(Long tenantId, ContractAccessScope accessScope);
 }

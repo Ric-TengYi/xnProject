@@ -23,11 +23,14 @@ import com.xngl.manager.project.ProjectPaymentSummaryVo;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
 import com.xngl.web.dto.project.ProjectConfigDto;
+import com.xngl.web.dto.project.ProjectConfigUpdateRequestDto;
 import com.xngl.web.dto.project.ProjectContractSummaryDto;
 import com.xngl.web.dto.project.ProjectDetailDto;
 import com.xngl.web.dto.project.ProjectListItemDto;
 import com.xngl.web.dto.project.ProjectSiteSummaryDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.MasterDataAccessScope;
+import com.xngl.web.support.MasterDataAccessScopeResolver;
 import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
@@ -47,6 +50,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -68,6 +72,7 @@ public class ProjectsController {
   private final AlertFenceMapper alertFenceMapper;
   private final ProjectPaymentService projectPaymentService;
   private final UserContext userContext;
+  private final MasterDataAccessScopeResolver accessScopeResolver;
 
   public ProjectsController(
       ProjectMapper projectMapper,
@@ -78,7 +83,8 @@ public class ProjectsController {
       ProjectConfigMapper projectConfigMapper,
       AlertFenceMapper alertFenceMapper,
       ProjectPaymentService projectPaymentService,
-      UserContext userContext) {
+      UserContext userContext,
+      MasterDataAccessScopeResolver accessScopeResolver) {
     this.projectMapper = projectMapper;
     this.orgMapper = orgMapper;
     this.contractMapper = contractMapper;
@@ -88,6 +94,7 @@ public class ProjectsController {
     this.alertFenceMapper = alertFenceMapper;
     this.projectPaymentService = projectPaymentService;
     this.userContext = userContext;
+    this.accessScopeResolver = accessScopeResolver;
   }
 
   @GetMapping
@@ -98,8 +105,34 @@ public class ProjectsController {
       @RequestParam(defaultValue = "20") int pageSize,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_PROJECT);
+    if (!scope.hasAnyAccess()) {
+      return ApiResult.ok(new PageResult<>((long) pageNo, (long) pageSize, 0L, Collections.emptyList()));
+    }
 
     LambdaQueryWrapper<Project> query = new LambdaQueryWrapper<>();
+    if (!scope.isTenantWideAccess()) {
+      query.and(
+          wrapper -> {
+            boolean hasCondition = false;
+            if (!scope.getOrgIds().isEmpty()) {
+              wrapper.in(Project::getOrgId, scope.getOrgIds());
+              hasCondition = true;
+            }
+            if (!scope.getProjectIds().isEmpty()) {
+              if (hasCondition) {
+                wrapper.or().in(Project::getId, scope.getProjectIds());
+              } else {
+                wrapper.in(Project::getId, scope.getProjectIds());
+              }
+              hasCondition = true;
+            }
+            if (!hasCondition) {
+              wrapper.apply("1 = 0");
+            }
+          });
+    }
     if (StringUtils.hasText(keyword)) {
       String effectiveKeyword = keyword.trim();
       query.and(
@@ -117,9 +150,11 @@ public class ProjectsController {
     query.orderByDesc(Project::getUpdateTime).orderByDesc(Project::getId);
 
     IPage<Project> page = projectMapper.selectPage(new Page<>(pageNo, pageSize), query);
-    Map<Long, Org> orgMap = loadOrgMap(page.getRecords());
+    List<Project> visibleProjects =
+        page.getRecords().stream().filter(project -> canAccessProject(scope, project)).toList();
+    Map<Long, Org> orgMap = loadOrgMap(visibleProjects);
     List<ProjectListItemDto> records =
-        page.getRecords().stream()
+        visibleProjects.stream()
             .map(project -> toListItem(project, orgMap.get(project.getOrgId()), currentUser.getTenantId()))
             .toList();
     return ApiResult.ok(new PageResult<>(page.getCurrent(), page.getSize(), page.getTotal(), records));
@@ -128,12 +163,43 @@ public class ProjectsController {
   @GetMapping("/{id}")
   public ApiResult<ProjectDetailDto> get(@PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_PROJECT);
     Project project = projectMapper.selectById(id);
-    if (project == null) {
+    if (project == null || !canAccessProject(scope, project)) {
       return ApiResult.fail(404, "项目不存在");
     }
     Org org = project.getOrgId() != null ? orgMapper.selectById(project.getOrgId()) : null;
     return ApiResult.ok(toDetail(project, org, currentUser.getTenantId()));
+  }
+
+  @PutMapping("/{id}/config")
+  public ApiResult<ProjectConfigDto> updateConfig(
+      @PathVariable Long id,
+      @RequestBody ProjectConfigUpdateRequestDto body,
+      HttpServletRequest request) {
+    User currentUser = requireCurrentUser(request);
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_PROJECT);
+    Project project = projectMapper.selectById(id);
+    if (project == null || !canAccessProject(scope, project)) {
+      return ApiResult.fail(404, "项目不存在");
+    }
+
+    validateProjectConfig(body, currentUser.getTenantId());
+    ProjectConfig entity = loadProjectConfigEntity(currentUser.getTenantId(), id);
+    if (entity == null) {
+      entity = new ProjectConfig();
+      entity.setTenantId(currentUser.getTenantId());
+      entity.setProjectId(id);
+    }
+    applyProjectConfig(entity, body);
+    if (entity.getId() == null) {
+      projectConfigMapper.insert(entity);
+    } else {
+      projectConfigMapper.updateById(entity);
+    }
+    return ApiResult.ok(loadProjectConfig(currentUser.getTenantId(), id));
   }
 
   @PostMapping
@@ -335,12 +401,7 @@ public class ProjectsController {
   }
 
   private ProjectConfigDto loadProjectConfig(Long tenantId, Long projectId) {
-    ProjectConfig config =
-        projectConfigMapper.selectOne(
-            new LambdaQueryWrapper<ProjectConfig>()
-                .eq(ProjectConfig::getTenantId, tenantId)
-                .eq(ProjectConfig::getProjectId, projectId)
-                .last("limit 1"));
+    ProjectConfig config = loadProjectConfigEntity(tenantId, projectId);
     AlertFence fence = null;
     if (config != null && StringUtils.hasText(config.getViolationFenceCode())) {
       fence =
@@ -365,6 +426,57 @@ public class ProjectsController {
         config != null ? config.getRemark() : null);
   }
 
+  private ProjectConfig loadProjectConfigEntity(Long tenantId, Long projectId) {
+    return projectConfigMapper.selectOne(
+        new LambdaQueryWrapper<ProjectConfig>()
+            .eq(ProjectConfig::getTenantId, tenantId)
+            .eq(ProjectConfig::getProjectId, projectId)
+            .last("limit 1"));
+  }
+
+  private void validateProjectConfig(ProjectConfigUpdateRequestDto body, Long tenantId) {
+    if (body == null) {
+      throw new BizException(400, "请求体不能为空");
+    }
+    if (Boolean.TRUE.equals(body.getCheckinEnabled()) && !StringUtils.hasText(body.getCheckinAccount())) {
+      throw new BizException(400, "打卡账号不能为空");
+    }
+    if (body.getLocationRadiusMeters() != null && body.getLocationRadiusMeters().signum() < 0) {
+      throw new BizException(400, "位置判断半径不能小于 0");
+    }
+    if (body.getPreloadVolume() != null && body.getPreloadVolume().signum() < 0) {
+      throw new BizException(400, "出土预扣值不能小于 0");
+    }
+    String fenceCode = trimToNull(body.getViolationFenceCode());
+    if (Boolean.TRUE.equals(body.getViolationRuleEnabled()) && !StringUtils.hasText(fenceCode)) {
+      throw new BizException(400, "违规围栏不能为空");
+    }
+    if (StringUtils.hasText(fenceCode)) {
+      AlertFence fence =
+          alertFenceMapper.selectOne(
+              new LambdaQueryWrapper<AlertFence>()
+                  .eq(AlertFence::getTenantId, tenantId)
+                  .eq(AlertFence::getFenceCode, fenceCode)
+                  .last("limit 1"));
+      if (fence == null) {
+        throw new BizException(400, "违规围栏不存在");
+      }
+    }
+  }
+
+  private void applyProjectConfig(ProjectConfig entity, ProjectConfigUpdateRequestDto body) {
+    entity.setCheckinEnabled(Boolean.TRUE.equals(body.getCheckinEnabled()) ? 1 : 0);
+    entity.setCheckinAccount(trimToNull(body.getCheckinAccount()));
+    entity.setCheckinAuthScope(trimToNull(body.getCheckinAuthScope()));
+    entity.setLocationCheckRequired(Boolean.TRUE.equals(body.getLocationCheckRequired()) ? 1 : 0);
+    entity.setLocationRadiusMeters(defaultDecimal(body.getLocationRadiusMeters()));
+    entity.setPreloadVolume(defaultDecimal(body.getPreloadVolume()));
+    entity.setRouteGeoJson(trimToNull(body.getRouteGeoJson()));
+    entity.setViolationRuleEnabled(Boolean.TRUE.equals(body.getViolationRuleEnabled()) ? 1 : 0);
+    entity.setViolationFenceCode(trimToNull(body.getViolationFenceCode()));
+    entity.setRemark(trimToNull(body.getRemark()));
+  }
+
   private long countContracts(Long tenantId, Long projectId) {
     return contractMapper.selectCount(
         new LambdaQueryWrapper<Contract>()
@@ -379,6 +491,13 @@ public class ProjectsController {
 
   private User requireCurrentUser(HttpServletRequest request) {
     return userContext.requireCurrentUser(request);
+  }
+
+  private boolean canAccessProject(MasterDataAccessScope scope, Project project) {
+    if (project == null) {
+      return false;
+    }
+    return scope.hasProjectAccess(project.getId()) || scope.hasOrgAccess(project.getOrgId());
   }
 
   private String resolveProjectStatusLabel(Integer status) {
@@ -411,6 +530,10 @@ public class ProjectsController {
 
   private BigDecimal defaultDecimal(BigDecimal value) {
     return value != null ? value : BigDecimal.ZERO;
+  }
+
+  private String trimToNull(String value) {
+    return StringUtils.hasText(value) ? value.trim() : null;
   }
 
   private String formatDate(LocalDate value) {

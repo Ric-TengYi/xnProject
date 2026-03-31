@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xngl.infrastructure.persistence.entity.organization.User;
+import com.xngl.manager.contract.ContractAccessScope;
 import com.xngl.manager.contract.ContractReportService;
 import com.xngl.manager.contract.ExportTaskService;
 import com.xngl.manager.user.UserService;
@@ -14,6 +15,7 @@ import com.xngl.web.dto.contract.MonthlyTrendDto;
 import com.xngl.web.dto.contract.MonthlyTypeDto;
 import com.xngl.web.dto.contract.UnitStatItemDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.ContractAccessScopeResolver;
 import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
@@ -42,6 +44,7 @@ public class ContractReportController {
   private final ExportTaskService exportTaskService;
   private final UserService userService;
   private final UserContext userContext;
+  private final ContractAccessScopeResolver contractAccessScopeResolver;
   private final ObjectMapper objectMapper;
 
   public ContractReportController(
@@ -49,11 +52,13 @@ public class ContractReportController {
       ExportTaskService exportTaskService,
       UserService userService,
       UserContext userContext,
+      ContractAccessScopeResolver contractAccessScopeResolver,
       ObjectMapper objectMapper) {
     this.reportService = reportService;
     this.exportTaskService = exportTaskService;
     this.userService = userService;
     this.userContext = userContext;
+    this.contractAccessScopeResolver = contractAccessScopeResolver;
     this.objectMapper = objectMapper;
   }
 
@@ -63,7 +68,8 @@ public class ContractReportController {
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
     String effectiveMonth = resolveMonth(month);
-    Map<String, Object> data = reportService.getMonthlySummary(user.getTenantId(), effectiveMonth);
+    Map<String, Object> data =
+        reportService.getMonthlySummary(user.getTenantId(), effectiveMonth, resolveScope(user));
     return ApiResult.ok(toSummaryDto(data));
   }
 
@@ -72,7 +78,8 @@ public class ContractReportController {
       @RequestParam(defaultValue = "6") int months,
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
-    List<Map<String, Object>> data = reportService.getMonthlyTrend(user.getTenantId(), months);
+    List<Map<String, Object>> data =
+        reportService.getMonthlyTrend(user.getTenantId(), months, resolveScope(user));
     List<MonthlyTrendDto> result = data.stream().map(this::toTrendDto).toList();
     return ApiResult.ok(result);
   }
@@ -83,7 +90,8 @@ public class ContractReportController {
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
     String effectiveMonth = resolveMonth(month);
-    List<Map<String, Object>> data = reportService.getMonthlyTypes(user.getTenantId(), effectiveMonth);
+    List<Map<String, Object>> data =
+        reportService.getMonthlyTypes(user.getTenantId(), effectiveMonth, resolveScope(user));
     List<MonthlyTypeDto> result = data.stream().map(this::toTypeDto).toList();
     return ApiResult.ok(result);
   }
@@ -98,7 +106,7 @@ public class ContractReportController {
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
     IPage<Map<String, Object>> page = reportService.getUnitStats(
-        user.getTenantId(), unitType, month, keyword, pageNo, pageSize);
+        user.getTenantId(), unitType, month, keyword, pageNo, pageSize, resolveScope(user));
     List<UnitStatItemDto> records = page.getRecords().stream()
         .map(this::toUnitStatDto)
         .toList();
@@ -111,7 +119,8 @@ public class ContractReportController {
       @RequestParam(defaultValue = "6") int months,
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
-    List<Map<String, Object>> data = reportService.getUnitTrend(user.getTenantId(), orgId, months);
+    List<Map<String, Object>> data =
+        reportService.getUnitTrend(user.getTenantId(), orgId, months, resolveScope(user));
     List<MonthlyTrendDto> result = data.stream().map(this::toTrendDto).toList();
     return ApiResult.ok(result);
   }
@@ -139,7 +148,8 @@ public class ContractReportController {
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
-    Map<String, Object> data = reportService.getDailySummary(user.getTenantId(), date);
+    Map<String, Object> data =
+        reportService.getDailySummary(user.getTenantId(), date, resolveScope(user));
     return ApiResult.ok(data);
   }
 
@@ -149,7 +159,8 @@ public class ContractReportController {
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
-    List<Map<String, Object>> data = reportService.getDailyTrend(user.getTenantId(), startDate, endDate);
+    List<Map<String, Object>> data =
+        reportService.getDailyTrend(user.getTenantId(), startDate, endDate, resolveScope(user));
     return ApiResult.ok(data);
   }
 
@@ -161,7 +172,8 @@ public class ContractReportController {
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
     int effectiveYear = year != null ? year : LocalDate.now().getYear();
-    Map<String, Object> data = reportService.getYearlySummary(user.getTenantId(), effectiveYear);
+    Map<String, Object> data =
+        reportService.getYearlySummary(user.getTenantId(), effectiveYear, resolveScope(user));
     return ApiResult.ok(data);
   }
 
@@ -170,7 +182,8 @@ public class ContractReportController {
       @RequestParam(defaultValue = "5") int years,
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
-    List<Map<String, Object>> data = reportService.getYearlyTrend(user.getTenantId(), years);
+    List<Map<String, Object>> data =
+        reportService.getYearlyTrend(user.getTenantId(), years, resolveScope(user));
     return ApiResult.ok(data);
   }
 
@@ -182,7 +195,8 @@ public class ContractReportController {
       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
-    Map<String, Object> data = reportService.getCustomPeriodSummary(user.getTenantId(), startDate, endDate);
+    Map<String, Object> data =
+        reportService.getCustomPeriodSummary(user.getTenantId(), startDate, endDate, resolveScope(user));
     return ApiResult.ok(data);
   }
 
@@ -193,7 +207,9 @@ public class ContractReportController {
       @RequestParam(defaultValue = "day") String groupBy,
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
-    List<Map<String, Object>> data = reportService.getCustomPeriodTrend(user.getTenantId(), startDate, endDate, groupBy);
+    List<Map<String, Object>> data =
+        reportService.getCustomPeriodTrend(
+            user.getTenantId(), startDate, endDate, groupBy, resolveScope(user));
     return ApiResult.ok(data);
   }
 
@@ -261,6 +277,10 @@ public class ContractReportController {
     if (value == null) return 0;
     if (value instanceof Number n) return n.intValue();
     return Integer.parseInt(value.toString());
+  }
+
+  private ContractAccessScope resolveScope(User currentUser) {
+    return contractAccessScopeResolver.resolve(currentUser);
   }
 
   private User requireCurrentUser(HttpServletRequest request) {

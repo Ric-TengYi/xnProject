@@ -4,15 +4,21 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.xngl.infrastructure.persistence.entity.organization.Role;
 import com.xngl.infrastructure.persistence.entity.organization.User;
 import com.xngl.infrastructure.persistence.entity.system.DataScopeRule;
+import com.xngl.infrastructure.persistence.entity.system.Menu;
 import com.xngl.infrastructure.persistence.entity.system.Permission;
+import com.xngl.manager.menu.MenuService;
 import com.xngl.manager.permission.PermissionService;
 import com.xngl.manager.role.RoleService;
 import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
 import com.xngl.web.dto.user.*;
+import com.xngl.web.exception.BizException;
+import com.xngl.web.support.TenantManagementAccessGuard;
 import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
@@ -26,15 +32,25 @@ public class RolesController {
   private static final DateTimeFormatter ISO = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
   private final RoleService roleService;
+  private final MenuService menuService;
   private final PermissionService permissionService;
   private final UserContext userContext;
   private final UserService userService;
+  private final TenantManagementAccessGuard accessGuard;
 
-  public RolesController(RoleService roleService, PermissionService permissionService, UserContext userContext, UserService userService) {
+  public RolesController(
+      RoleService roleService,
+      MenuService menuService,
+      PermissionService permissionService,
+      UserContext userContext,
+      UserService userService,
+      TenantManagementAccessGuard accessGuard) {
     this.roleService = roleService;
+    this.menuService = menuService;
     this.permissionService = permissionService;
     this.userContext = userContext;
     this.userService = userService;
+    this.accessGuard = accessGuard;
   }
 
   @GetMapping
@@ -46,12 +62,10 @@ public class RolesController {
       @RequestParam(defaultValue = "1") int pageNo,
       @RequestParam(defaultValue = "20") int pageSize,
       HttpServletRequest request) {
-    User currentUser = userContext.requireCurrentUser(request);
-    List<Long> roleIds = userService.listRoleIdsByUserId(currentUser.getId());
-    Role currentUserRole = roleIds.isEmpty() ? null : roleService.getById(roleIds.get(0));
-    IPage<Role> page = currentUserRole != null
-        ? roleService.pageWithPermissionFilter(keyword, tenantId, roleScope, status, pageNo, pageSize, currentUserRole)
-        : roleService.page(keyword, tenantId, roleScope, status, pageNo, pageSize);
+    User currentUser = accessGuard.requireTenantManagementUser(request);
+    IPage<Role> page =
+        roleService.page(
+            keyword, currentUser.getTenantId(), roleScope, status, pageNo, pageSize);
     List<RoleListItemDto> records =
         page.getRecords().stream().map(this::toListItem).collect(Collectors.toList());
     return ApiResult.ok(
@@ -59,19 +73,23 @@ public class RolesController {
   }
 
   @GetMapping("/{id}")
-  public ApiResult<RoleDetailDto> get(@PathVariable Long id) {
-    Role r = roleService.getById(id);
-    if (r == null) return ApiResult.fail(404, "角色不存在");
+  public ApiResult<RoleDetailDto> get(@PathVariable Long id, HttpServletRequest request) {
+    User currentUser = accessGuard.requireTenantManagementUser(request);
+    Role r = requireRole(id, currentUser);
     return ApiResult.ok(toDetail(r));
   }
 
   @GetMapping("/{id}/permissions")
-  public ApiResult<RolePermissionsDto> listPermissions(@PathVariable Long id) {
-    Role r = roleService.getById(id);
-    if (r == null) return ApiResult.fail(404, "角色不存在");
-    List<Long> menuIds = roleService.listMenuIdsByRoleId(id);
-    List<Long> permissionIds = roleService.listPermissionIdsByRoleId(id);
-    List<Permission> permissions = permissionService.listByIds(permissionIds);
+  public ApiResult<RolePermissionsDto> listPermissions(
+      @PathVariable Long id, HttpServletRequest request) {
+    User currentUser = accessGuard.requireTenantManagementUser(request);
+    requireRole(id, currentUser);
+    List<Long> menuIds =
+        filterMenuIdsByTenant(roleService.listMenuIdsByRoleId(id), currentUser.getTenantId());
+    List<Permission> permissions =
+        filterPermissionsByTenant(
+            roleService.listPermissionIdsByRoleId(id), currentUser.getTenantId());
+    List<Long> permissionIds = permissions.stream().map(Permission::getId).toList();
     List<String> buttonCodes =
         permissions.stream()
             .filter(
@@ -103,19 +121,24 @@ public class RolesController {
 
   @PutMapping("/{id}/permissions")
   public ApiResult<Void> updatePermissions(
-      @PathVariable Long id, @RequestBody java.util.Map<String, List<Long>> body) {
-    Role r = roleService.getById(id);
-    if (r == null) return ApiResult.fail(404, "角色不存在");
+      @PathVariable Long id,
+      @RequestBody java.util.Map<String, List<Long>> body,
+      HttpServletRequest request) {
+    User currentUser = accessGuard.requireTenantManagementUser(request);
+    requireRole(id, currentUser);
     List<Long> menuIds = body.get("menuIds");
     List<Long> permissionIds = body.get("permissionIds");
+    ensureMenusBelongToTenant(menuIds, currentUser.getTenantId());
+    ensurePermissionsBelongToTenant(permissionIds, currentUser.getTenantId());
     roleService.updatePermissions(id, menuIds, permissionIds);
     return ApiResult.ok();
   }
 
   @GetMapping("/{id}/data-scope-rules")
-  public ApiResult<List<DataScopeRuleDto>> listDataScopeRules(@PathVariable Long id) {
-    Role r = roleService.getById(id);
-    if (r == null) return ApiResult.fail(404, "角色不存在");
+  public ApiResult<List<DataScopeRuleDto>> listDataScopeRules(
+      @PathVariable Long id, HttpServletRequest request) {
+    User currentUser = accessGuard.requireTenantManagementUser(request);
+    requireRole(id, currentUser);
     List<DataScopeRule> rules = roleService.listDataScopeRulesByRoleId(id);
     List<DataScopeRuleDto> list =
         rules.stream()
@@ -129,9 +152,9 @@ public class RolesController {
 
   @PutMapping("/{id}/data-scope-rules")
   public ApiResult<Void> updateDataScopeRules(
-      @PathVariable Long id, @RequestBody List<DataScopeRuleDto> dtos) {
-    Role r = roleService.getById(id);
-    if (r == null) return ApiResult.fail(404, "角色不存在");
+      @PathVariable Long id, @RequestBody List<DataScopeRuleDto> dtos, HttpServletRequest request) {
+    User currentUser = accessGuard.requireTenantManagementUser(request);
+    requireRole(id, currentUser);
     List<DataScopeRule> rules =
         dtos.stream()
             .map(
@@ -149,41 +172,162 @@ public class RolesController {
 
   @PostMapping
   public ApiResult<String> create(@RequestBody RoleCreateUpdateDto dto, HttpServletRequest request) {
-    User currentUser = userContext.requireCurrentUser(request);
-    List<Long> roleIds = userService.listRoleIdsByUserId(currentUser.getId());
-    Role currentUserRole = roleIds.isEmpty() ? null : roleService.getById(roleIds.get(0));
+    User currentUser = accessGuard.requireTenantManagementUser(request);
+    Role currentUserRole = resolveEffectiveCurrentUserRole(currentUser);
     if (currentUserRole == null) return ApiResult.fail(403, "无法获取当前用户角色");
 
     Role r = new Role();
     mapToEntity(dto, r);
+    r.setTenantId(currentUser.getTenantId());
     roleService.validateRoleCreation(currentUserRole, r);
     long id = roleService.create(r);
     return ApiResult.ok(String.valueOf(id));
   }
 
   @PutMapping("/{id}")
-  public ApiResult<Void> update(@PathVariable Long id, @RequestBody RoleCreateUpdateDto dto, HttpServletRequest request) {
-    Role r = roleService.getById(id);
-    if (r == null) return ApiResult.fail(404, "角色不存在");
+  public ApiResult<Void> update(
+      @PathVariable Long id, @RequestBody RoleCreateUpdateDto dto, HttpServletRequest request) {
+    User currentUser = accessGuard.requireTenantManagementUser(request);
+    Role r = requireRole(id, currentUser);
 
-    User currentUser = userContext.requireCurrentUser(request);
-    List<Long> roleIds = userService.listRoleIdsByUserId(currentUser.getId());
-    Role currentUserRole = roleIds.isEmpty() ? null : roleService.getById(roleIds.get(0));
+    Role currentUserRole = resolveEffectiveCurrentUserRole(currentUser);
     if (currentUserRole == null) return ApiResult.fail(403, "无法获取当前用户角色");
 
     mapToEntity(dto, r);
     roleService.validateRoleCreation(currentUserRole, r);
     r.setId(id);
+    r.setTenantId(currentUser.getTenantId());
     roleService.update(r);
     return ApiResult.ok();
   }
 
   @DeleteMapping("/{id}")
-  public ApiResult<Void> delete(@PathVariable Long id) {
-    Role r = roleService.getById(id);
-    if (r == null) return ApiResult.fail(404, "角色不存在");
+  public ApiResult<Void> delete(@PathVariable Long id, HttpServletRequest request) {
+    User currentUser = accessGuard.requireTenantManagementUser(request);
+    requireRole(id, currentUser);
     roleService.delete(id);
     return ApiResult.ok();
+  }
+
+  private Role requireRole(Long id, User currentUser) {
+    Role role = roleService.getById(id);
+    if (role == null) {
+      throw new BizException(404, "角色不存在");
+    }
+    accessGuard.ensureSameTenant(role.getTenantId(), currentUser.getTenantId(), "角色");
+    return role;
+  }
+
+  private Role resolveEffectiveCurrentUserRole(User currentUser) {
+    List<Role> currentUserRoles = resolveCurrentUserRoles(currentUser);
+    if (!currentUserRoles.isEmpty()) {
+      return currentUserRoles.get(0);
+    }
+    return null;
+  }
+
+  private List<Role> resolveCurrentUserRoles(User currentUser) {
+    List<Long> roleIds = userService.listRoleIdsByUserId(currentUser.getId());
+    if (roleIds == null || roleIds.isEmpty()) {
+      return List.of();
+    }
+    List<Role> loadedRoles = new ArrayList<>();
+    List<Role> batchRoles = roleService.listByIds(roleIds);
+    if (batchRoles != null && !batchRoles.isEmpty()) {
+      loadedRoles.addAll(batchRoles);
+    }
+    java.util.Set<Long> loadedRoleIds =
+        loadedRoles.stream().map(Role::getId).filter(Objects::nonNull).collect(Collectors.toSet());
+    for (Long roleId : roleIds) {
+      if (roleId == null || loadedRoleIds.contains(roleId)) {
+        continue;
+      }
+      Role role = roleService.getById(roleId);
+      if (role != null) {
+        loadedRoles.add(role);
+      }
+    }
+    return loadedRoles.stream()
+        .filter(role -> Objects.equals(role.getTenantId(), currentUser.getTenantId()))
+        .sorted(
+            Comparator.comparingInt(this::roleScopePriority)
+                .thenComparingInt(role -> dataScopePriority(role.getDataScopeTypeDefault()))
+                .reversed())
+        .toList();
+  }
+
+  private int roleScopePriority(Role role) {
+    if (role == null || role.getRoleScope() == null) {
+      return 0;
+    }
+    return switch (role.getRoleScope().trim().toUpperCase()) {
+      case "SYSTEM" -> 3;
+      case "TENANT" -> 2;
+      case "ORG" -> 1;
+      default -> 0;
+    };
+  }
+
+  private int dataScopePriority(String dataScopeTypeDefault) {
+    if (dataScopeTypeDefault == null) {
+      return 0;
+    }
+    return switch (dataScopeTypeDefault.trim().toUpperCase()) {
+      case "ALL" -> 4;
+      case "ORG_AND_CHILDREN" -> 3;
+      case "CUSTOM_ORG_SET" -> 2;
+      case "SELF" -> 1;
+      default -> 0;
+    };
+  }
+
+  private List<Long> filterMenuIdsByTenant(List<Long> menuIds, Long tenantId) {
+    if (menuIds == null || menuIds.isEmpty()) {
+      return List.of();
+    }
+    java.util.Set<Long> allowedMenuIds =
+        menuService.listByIds(menuIds).stream()
+            .filter(menu -> Objects.equals(menu.getTenantId(), tenantId))
+            .map(Menu::getId)
+            .collect(Collectors.toSet());
+    return menuIds.stream().filter(allowedMenuIds::contains).distinct().toList();
+  }
+
+  private List<Permission> filterPermissionsByTenant(List<Long> permissionIds, Long tenantId) {
+    if (permissionIds == null || permissionIds.isEmpty()) {
+      return List.of();
+    }
+    java.util.Map<Long, Permission> allowedPermissionMap =
+        permissionService.listByIds(permissionIds).stream()
+            .filter(permission -> Objects.equals(permission.getTenantId(), tenantId))
+            .collect(Collectors.toMap(Permission::getId, permission -> permission, (left, right) -> left));
+    return permissionIds.stream()
+        .distinct()
+        .map(allowedPermissionMap::get)
+        .filter(Objects::nonNull)
+        .toList();
+  }
+
+  private void ensureMenusBelongToTenant(List<Long> menuIds, Long tenantId) {
+    if (menuIds == null || menuIds.isEmpty()) {
+      return;
+    }
+    List<Menu> menus = menuService.listByIds(menuIds);
+    if (menus.size() != menuIds.size()
+        || menus.stream().anyMatch(menu -> !Objects.equals(menu.getTenantId(), tenantId))) {
+      throw new BizException(400, "存在不属于当前租户的菜单");
+    }
+  }
+
+  private void ensurePermissionsBelongToTenant(List<Long> permissionIds, Long tenantId) {
+    if (permissionIds == null || permissionIds.isEmpty()) {
+      return;
+    }
+    List<Permission> permissions = permissionService.listByIds(permissionIds);
+    if (permissions.size() != permissionIds.size()
+        || permissions.stream().anyMatch(permission -> !Objects.equals(permission.getTenantId(), tenantId))) {
+      throw new BizException(400, "存在不属于当前租户的权限点");
+    }
   }
 
   private RoleListItemDto toListItem(Role r) {

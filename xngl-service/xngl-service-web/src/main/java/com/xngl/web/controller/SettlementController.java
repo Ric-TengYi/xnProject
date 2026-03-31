@@ -12,6 +12,7 @@ import com.xngl.infrastructure.persistence.mapper.ContractTicketMapper;
 import com.xngl.infrastructure.persistence.mapper.ProjectMapper;
 import com.xngl.infrastructure.persistence.mapper.SiteMapper;
 import com.xngl.manager.contract.ContractService;
+import com.xngl.manager.contract.ContractAccessScope;
 import com.xngl.manager.contract.SettlementService;
 import com.xngl.manager.user.UserService;
 import com.xngl.web.dto.ApiResult;
@@ -24,6 +25,7 @@ import com.xngl.web.dto.contract.SettlementLineDto;
 import com.xngl.web.dto.contract.SettlementStatsDto;
 import com.xngl.web.dto.contract.SettlementGenerateDto;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.ContractAccessScopeResolver;
 import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -57,6 +59,7 @@ public class SettlementController {
   private final SettlementService settlementService;
   private final ContractService contractService;
   private final UserContext userContext;
+  private final ContractAccessScopeResolver contractAccessScopeResolver;
   private final ContractTicketMapper contractTicketMapper;
   private final ProjectMapper projectMapper;
   private final SiteMapper siteMapper;
@@ -65,12 +68,14 @@ public class SettlementController {
       SettlementService settlementService,
       ContractService contractService,
       UserContext userContext,
+      ContractAccessScopeResolver contractAccessScopeResolver,
       ContractTicketMapper contractTicketMapper,
       ProjectMapper projectMapper,
       SiteMapper siteMapper) {
     this.settlementService = settlementService;
     this.contractService = contractService;
     this.userContext = userContext;
+    this.contractAccessScopeResolver = contractAccessScopeResolver;
     this.contractTicketMapper = contractTicketMapper;
     this.projectMapper = projectMapper;
     this.siteMapper = siteMapper;
@@ -80,6 +85,10 @@ public class SettlementController {
   public ApiResult<String> generateProject(
       @Valid @RequestBody SettlementGenerateDto dto, HttpServletRequest request) {
     User user = requireCurrentUser(request);
+    ContractAccessScope accessScope = resolveScope(user);
+    if (!accessScope.hasProjectAccess(dto.getTargetId())) {
+      throw new BizException(403, "当前账号无权发起该项目结算");
+    }
     long id =
         settlementService.generateProjectSettlement(
             user.getTenantId(),
@@ -95,6 +104,10 @@ public class SettlementController {
   public ApiResult<String> generateSite(
       @Valid @RequestBody SettlementGenerateDto dto, HttpServletRequest request) {
     User user = requireCurrentUser(request);
+    ContractAccessScope accessScope = resolveScope(user);
+    if (!accessScope.hasSiteAccess(dto.getTargetId())) {
+      throw new BizException(403, "当前账号无权发起该场地结算");
+    }
     long id =
         settlementService.generateSiteSettlement(
             user.getTenantId(),
@@ -116,9 +129,10 @@ public class SettlementController {
       @RequestParam(defaultValue = "20") int pageSize,
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
+    ContractAccessScope accessScope = resolveScope(user);
     IPage<SettlementOrder> page =
         settlementService.pageSettlements(
-            user.getTenantId(), settlementType, status, projectId, siteId, pageNo, pageSize);
+            user.getTenantId(), settlementType, status, projectId, siteId, pageNo, pageSize, accessScope);
     Map<Long, Project> projectMap = loadProjectMap(page.getRecords());
     Map<Long, Site> siteMap = loadSiteMap(page.getRecords());
     List<SettlementItemDto> records =
@@ -130,7 +144,7 @@ public class SettlementController {
   @GetMapping("/{id}")
   public ApiResult<SettlementDetailDto> get(@PathVariable Long id, HttpServletRequest request) {
     User user = requireCurrentUser(request);
-    SettlementOrder order = settlementService.getSettlement(id, user.getTenantId());
+    SettlementOrder order = requireAccessibleSettlement(id, user);
     List<SettlementItem> items =
         settlementService.listSettlementItems(id, user.getTenantId());
     Project project =
@@ -142,6 +156,7 @@ public class SettlementController {
   @PostMapping("/{id}/submit")
   public ApiResult<Void> submit(@PathVariable Long id, HttpServletRequest request) {
     User user = requireCurrentUser(request);
+    requireAccessibleSettlement(id, user);
     settlementService.submitSettlement(id, user.getTenantId());
     return ApiResult.ok(null);
   }
@@ -150,6 +165,7 @@ public class SettlementController {
   public ApiResult<Void> approve(@PathVariable Long id, HttpServletRequest request) {
     User user = requireCurrentUser(request);
     userContext.requireApprovalPermission(user);
+    requireAccessibleSettlement(id, user);
     settlementService.approveSettlement(id, user.getTenantId());
     return ApiResult.ok(null);
   }
@@ -161,6 +177,7 @@ public class SettlementController {
       HttpServletRequest request) {
     User user = requireCurrentUser(request);
     userContext.requireApprovalPermission(user);
+    requireAccessibleSettlement(id, user);
     settlementService.rejectSettlement(
         id, user.getTenantId(), dto != null ? dto.getReason() : null);
     return ApiResult.ok(null);
@@ -169,7 +186,7 @@ public class SettlementController {
   @GetMapping("/stats")
   public ApiResult<SettlementStatsDto> stats(HttpServletRequest request) {
     User user = requireCurrentUser(request);
-    var raw = settlementService.getSettlementStats(user.getTenantId());
+    var raw = settlementService.getSettlementStats(user.getTenantId(), resolveScope(user));
     SettlementStatsDto stats = new SettlementStatsDto();
     stats.setPendingAmount(raw.getPendingAmount());
     stats.setSettledAmount(raw.getSettledAmount());
@@ -348,6 +365,18 @@ public class SettlementController {
 
   private User requireCurrentUser(HttpServletRequest request) {
     return userContext.requireCurrentUser(request);
+  }
+
+  private ContractAccessScope resolveScope(User currentUser) {
+    return contractAccessScopeResolver.resolve(currentUser);
+  }
+
+  private SettlementOrder requireAccessibleSettlement(Long settlementId, User currentUser) {
+    SettlementOrder order = settlementService.getSettlement(settlementId, currentUser.getTenantId());
+    if (!resolveScope(currentUser).matchesSettlement(order)) {
+      throw new BizException(403, "当前账号无权查看该结算单");
+    }
+    return order;
   }
 
   private String formatDate(LocalDate value) {

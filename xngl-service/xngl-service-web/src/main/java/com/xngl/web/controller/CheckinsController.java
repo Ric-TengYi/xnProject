@@ -7,12 +7,10 @@ import com.xngl.infrastructure.persistence.entity.organization.Org;
 import com.xngl.infrastructure.persistence.entity.organization.User;
 import com.xngl.infrastructure.persistence.entity.project.Project;
 import com.xngl.infrastructure.persistence.entity.site.Site;
-import com.xngl.infrastructure.persistence.entity.vehicle.Vehicle;
 import com.xngl.infrastructure.persistence.mapper.ContractMapper;
 import com.xngl.infrastructure.persistence.mapper.ContractTicketMapper;
 import com.xngl.infrastructure.persistence.mapper.OrgMapper;
 import com.xngl.infrastructure.persistence.mapper.ProjectMapper;
-import com.xngl.infrastructure.persistence.mapper.VehicleMapper;
 import com.xngl.manager.site.SiteService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
@@ -24,7 +22,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -55,7 +52,6 @@ public class CheckinsController {
   private final ContractMapper contractMapper;
   private final ProjectMapper projectMapper;
   private final OrgMapper orgMapper;
-  private final VehicleMapper vehicleMapper;
   private final SiteService siteService;
   private final UserContext userContext;
 
@@ -64,14 +60,12 @@ public class CheckinsController {
       ContractMapper contractMapper,
       ProjectMapper projectMapper,
       OrgMapper orgMapper,
-      VehicleMapper vehicleMapper,
       SiteService siteService,
       UserContext userContext) {
     this.contractTicketMapper = contractTicketMapper;
     this.contractMapper = contractMapper;
     this.projectMapper = projectMapper;
     this.orgMapper = orgMapper;
-    this.vehicleMapper = vehicleMapper;
     this.siteService = siteService;
     this.userContext = userContext;
   }
@@ -106,18 +100,11 @@ public class CheckinsController {
     Map<Long, Project> projectMap = loadProjects(contracts);
     Map<Long, Site> siteMap = loadSites(contracts);
     Map<Long, Org> orgMap = loadTransportOrgs(contracts);
-    Map<Long, List<Vehicle>> vehiclesByOrg = loadVehicles(currentUser.getTenantId(), contracts);
-    List<Vehicle> tenantVehicles = new ArrayList<>(
-        vehicleMapper.selectList(
-            new LambdaQueryWrapper<Vehicle>()
-                .eq(Vehicle::getTenantId, currentUser.getTenantId())
-                .orderByAsc(Vehicle::getOrgId)
-                .orderByAsc(Vehicle::getId)));
 
     String keywordValue = trimToNull(keyword);
     List<CheckinListItemDto> rows =
         tickets.stream()
-            .map(ticket -> toItem(ticket, contractMap.get(ticket.getContractId()), projectMap, siteMap, orgMap, vehiclesByOrg, tenantVehicles))
+            .map(ticket -> toItem(ticket, contractMap.get(ticket.getContractId()), projectMap, siteMap, orgMap))
             .filter(item -> matchesKeyword(item, keywordValue))
             .sorted(Comparator.comparing(CheckinListItemDto::getPunchTime, Comparator.nullsLast(Comparator.reverseOrder()))
                 .thenComparing(CheckinListItemDto::getId, Comparator.nullsLast(Comparator.reverseOrder())))
@@ -156,13 +143,7 @@ public class CheckinsController {
     Map<Long, Project> projectMap = loadProjects(List.of(contract));
     Map<Long, Site> siteMap = loadSites(List.of(contract));
     Map<Long, Org> orgMap = loadTransportOrgs(List.of(contract));
-    Map<Long, List<Vehicle>> vehiclesByOrg = loadVehicles(currentUser.getTenantId(), List.of(contract));
-    List<Vehicle> tenantVehicles = vehicleMapper.selectList(
-        new LambdaQueryWrapper<Vehicle>()
-            .eq(Vehicle::getTenantId, currentUser.getTenantId())
-            .orderByAsc(Vehicle::getOrgId)
-            .orderByAsc(Vehicle::getId));
-    return ApiResult.ok(toItem(ticket, contract, projectMap, siteMap, orgMap, vehiclesByOrg, tenantVehicles));
+    return ApiResult.ok(toItem(ticket, contract, projectMap, siteMap, orgMap));
   }
 
   private List<Contract> loadContracts(Long tenantId, Long projectId, Long siteId) {
@@ -233,44 +214,15 @@ public class CheckinsController {
         .collect(Collectors.toMap(Org::getId, org -> org, (left, right) -> left, LinkedHashMap::new));
   }
 
-  private Map<Long, List<Vehicle>> loadVehicles(Long tenantId, List<Contract> contracts) {
-    LinkedHashSet<Long> transportOrgIds = contracts.stream()
-        .map(Contract::getTransportOrgId)
-        .filter(Objects::nonNull)
-        .collect(Collectors.toCollection(LinkedHashSet::new));
-    if (transportOrgIds.isEmpty()) {
-      return Collections.emptyMap();
-    }
-    return vehicleMapper.selectList(
-            new LambdaQueryWrapper<Vehicle>()
-                .eq(Vehicle::getTenantId, tenantId)
-                .in(Vehicle::getOrgId, transportOrgIds)
-                .orderByAsc(Vehicle::getId))
-        .stream()
-        .collect(Collectors.groupingBy(Vehicle::getOrgId, LinkedHashMap::new, Collectors.toList()));
-  }
-
   private CheckinListItemDto toItem(
       ContractTicket ticket,
       Contract contract,
       Map<Long, Project> projectMap,
       Map<Long, Site> siteMap,
-      Map<Long, Org> orgMap,
-      Map<Long, List<Vehicle>> vehiclesByOrg,
-      List<Vehicle> tenantVehicles) {
+      Map<Long, Org> orgMap) {
     Project project = contract != null ? projectMap.get(contract.getProjectId()) : null;
     Site site = contract != null ? siteMap.get(contract.getSiteId()) : null;
     Org transportOrg = contract != null ? orgMap.get(contract.getTransportOrgId()) : null;
-    Vehicle vehicle = null;
-    if (contract != null && contract.getTransportOrgId() != null) {
-      List<Vehicle> vehicles = vehiclesByOrg.get(contract.getTransportOrgId());
-      if (vehicles != null && !vehicles.isEmpty()) {
-        vehicle = vehicles.get((int) ((ticket.getId() != null ? ticket.getId() : 0L) % vehicles.size()));
-      }
-    }
-    if (vehicle == null && !tenantVehicles.isEmpty()) {
-      vehicle = tenantVehicles.get((int) ((ticket.getId() != null ? ticket.getId() : 0L) % tenantVehicles.size()));
-    }
     CheckinListItemDto dto = new CheckinListItemDto();
     dto.setId(ticket.getId() != null ? String.valueOf(ticket.getId()) : null);
     dto.setTicketNo(ticket.getTicketNo());
@@ -288,8 +240,6 @@ public class CheckinsController {
     dto.setProjectName(project != null ? project.getName() : null);
     dto.setSiteId(site != null && site.getId() != null ? String.valueOf(site.getId()) : null);
     dto.setSiteName(site != null ? site.getName() : null);
-    dto.setPlateNo(vehicle != null ? vehicle.getPlateNo() : "-");
-    dto.setDriverName(vehicle != null ? firstNonBlank(vehicle.getDriverName(), vehicle.getCaptainName()) : "-");
     dto.setTransportOrgName(transportOrg != null ? transportOrg.getOrgName() : null);
     return dto;
   }

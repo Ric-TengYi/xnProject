@@ -77,6 +77,7 @@ type UnitRecord = {
   id: string;
   orgName: string;
   orgType?: string | null;
+  orgTypeLabel?: string | null;
 };
 
 const { RangePicker } = DatePicker;
