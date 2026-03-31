@@ -38,6 +38,8 @@ const levelOptions = [
 
 const AlertConfig: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+  const isAdmin = userInfo?.userType === 'TENANT_ADMIN' || userInfo?.userType === 'SYSTEM_ADMIN';
   const [submitLoading, setSubmitLoading] = useState(false);
   const [rules, setRules] = useState<AlertRuleRecord[]>([]);
   const [fences, setFences] = useState<AlertFenceRecord[]>([]);
@@ -150,9 +152,9 @@ const AlertConfig: React.FC = () => {
     {
       title: '启用',
       key: 'status',
-      render: (_, record) => <Switch checked={record.status === 'ENABLED'} onChange={(checked) => void updateAlertRuleStatus(record.id, checked ? 'ENABLED' : 'DISABLED').then(loadData)} />,
+      render: (_, record) => <Switch disabled={!isAdmin} checked={record.status === 'ENABLED'} onChange={(checked) => void updateAlertRuleStatus(record.id, checked ? 'ENABLED' : 'DISABLED').then(loadData)} />,
     },
-    { title: '操作', key: 'action', render: (_, record) => <Button type="link" onClick={() => openRuleModal(record)}>编辑</Button> },
+    { title: '操作', key: 'action', render: (_, record) => isAdmin ? <Button type="link" onClick={() => openRuleModal(record)}>编辑</Button> : null },
   ];
 
   const fenceColumns: ColumnsType<AlertFenceRecord> = [
@@ -163,9 +165,9 @@ const AlertConfig: React.FC = () => {
     {
       title: '启用',
       key: 'status',
-      render: (_, record) => <Switch checked={record.status === 'ENABLED'} onChange={(checked) => void updateAlertFenceStatus(record.id, checked ? 'ENABLED' : 'DISABLED').then(loadData)} />,
+      render: (_, record) => <Switch disabled={!isAdmin} checked={record.status === 'ENABLED'} onChange={(checked) => void updateAlertFenceStatus(record.id, checked ? 'ENABLED' : 'DISABLED').then(loadData)} />,
     },
-    { title: '操作', key: 'action', render: (_, record) => <Button type="link" onClick={() => openFenceModal(record)}>编辑</Button> },
+    { title: '操作', key: 'action', render: (_, record) => isAdmin ? <Button type="link" onClick={() => openFenceModal(record)}>编辑</Button> : null },
   ];
 
   const pushColumns: ColumnsType<AlertPushRuleRecord> = [
@@ -176,9 +178,9 @@ const AlertConfig: React.FC = () => {
     {
       title: '启用',
       key: 'status',
-      render: (_, record) => <Switch checked={record.status === 'ENABLED'} onChange={(checked) => void updateAlertPushRuleStatus(record.id, checked ? 'ENABLED' : 'DISABLED').then(loadData)} />,
+      render: (_, record) => <Switch disabled={!isAdmin} checked={record.status === 'ENABLED'} onChange={(checked) => void updateAlertPushRuleStatus(record.id, checked ? 'ENABLED' : 'DISABLED').then(loadData)} />,
     },
-    { title: '操作', key: 'action', render: (_, record) => <Button type="link" onClick={() => openPushModal(record)}>编辑</Button> },
+    { title: '操作', key: 'action', render: (_, record) => isAdmin ? <Button type="link" onClick={() => openPushModal(record)}>编辑</Button> : null },
   ];
 
   const modelCards = sceneOptions.map((scene) => {
@@ -209,7 +211,7 @@ const AlertConfig: React.FC = () => {
             label: '阈值规则',
             children: (
               <Card className="glass-panel g-border-panel border" extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => openRuleModal()}>新增规则</Button>}>
-                <Table rowKey="id" loading={loading} columns={ruleColumns} dataSource={rules} pagination={false} />
+                <Table rowKey="id" loading={loading} columns={ruleColumns} dataSource={rules} pagination={false} scroll={{ x: 'max-content' }} />
               </Card>
             ),
           },
@@ -217,8 +219,8 @@ const AlertConfig: React.FC = () => {
             key: 'fences',
             label: '预警围栏',
             children: (
-              <Card className="glass-panel g-border-panel border" extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => openFenceModal()}>新增围栏</Button>}>
-                <Table rowKey="id" loading={loading} columns={fenceColumns} dataSource={fences} pagination={false} />
+              <Card className="glass-panel g-border-panel border" extra={isAdmin ? <Button type="primary" icon={<PlusOutlined />} onClick={() => openFenceModal()}>新增围栏</Button> : null}>
+                <Table rowKey="id" loading={loading} columns={fenceColumns} dataSource={fences} pagination={false} scroll={{ x: 'max-content' }} />
               </Card>
             ),
           },
@@ -226,8 +228,8 @@ const AlertConfig: React.FC = () => {
             key: 'push',
             label: '推送规则',
             children: (
-              <Card className="glass-panel g-border-panel border" extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => openPushModal()}>新增推送规则</Button>}>
-                <Table rowKey="id" loading={loading} columns={pushColumns} dataSource={pushRules} pagination={false} />
+              <Card className="glass-panel g-border-panel border" extra={isAdmin ? <Button type="primary" icon={<PlusOutlined />} onClick={() => openPushModal()}>新增推送规则</Button> : null}>
+                <Table rowKey="id" loading={loading} columns={pushColumns} dataSource={pushRules} pagination={false} scroll={{ x: 'max-content' }} />
               </Card>
             ),
           },

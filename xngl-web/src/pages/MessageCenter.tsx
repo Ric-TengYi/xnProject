@@ -111,6 +111,8 @@ const MessageCenter: React.FC = () => {
       return null;
     }
     switch (record.bizType) {
+      case 'ALERT':
+        return `/alerts/monitor?alertId=${record.bizId}`;
       case 'MANUAL_EVENT':
         return `/alerts/events?eventId=${record.bizId}`;
       case 'SECURITY_INSPECTION':
@@ -326,6 +328,7 @@ const MessageCenter: React.FC = () => {
           rowKey="id"
           loading={loading}
           className="bg-transparent"
+          scroll={{ x: 'max-content' }}
           rowClassName="hover:bg-white transition-colors"
           locale={{ emptyText: '暂无消息数据' }}
           pagination={{

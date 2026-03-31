@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Button,
   Card,
@@ -152,7 +153,11 @@ const formatJsonText = (value?: string | null) => {
 };
 
 const AlertsMonitor: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const [queryHandledId, setQueryHandledId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+  const isAdmin = userInfo?.userType === 'TENANT_ADMIN' || userInfo?.userType === 'SYSTEM_ADMIN';
   const [detailLoading, setDetailLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [generateLoading, setGenerateLoading] = useState(false);
@@ -250,6 +255,23 @@ const AlertsMonitor: React.FC = () => {
     occurRange,
     resolveRange,
   ]);
+
+  useEffect(() => {
+    const alertId = searchParams.get('alertId');
+    if (!alertId || queryHandledId === alertId) {
+      return;
+    }
+    setQueryHandledId(alertId);
+    setDetailOpen(true);
+    setDetailLoading(true);
+    fetchAlertDetail(alertId)
+      .then((data) => setDetail(data))
+      .catch((error) => {
+        console.error(error);
+        message.error('获取预警详情失败');
+      })
+      .finally(() => setDetailLoading(false));
+  }, [queryHandledId, searchParams]);
 
   const openDetail = async (record: AlertRecord) => {
     setDetailOpen(true);
@@ -402,7 +424,7 @@ const AlertsMonitor: React.FC = () => {
             <Button type="link" size="small" onClick={() => void openDetail(record)}>
               详情
             </Button>
-            {record.status !== 'PROCESSING' && record.status !== 'CLOSED' ? (
+            {isAdmin && record.status !== 'PROCESSING' && record.status !== 'CLOSED' ? (
               <Button
                 type="link"
                 size="small"
@@ -411,12 +433,12 @@ const AlertsMonitor: React.FC = () => {
                 开始处置
               </Button>
             ) : null}
-            {record.status !== 'CONFIRMED' && record.status !== 'CLOSED' ? (
+            {isAdmin && record.status !== 'CONFIRMED' && record.status !== 'CLOSED' ? (
               <Button type="link" size="small" onClick={() => openActionModal(record, 'CONFIRMED')}>
                 确认
               </Button>
             ) : null}
-            {record.status !== 'CLOSED' ? (
+            {isAdmin && record.status !== 'CLOSED' ? (
               <Button type="link" size="small" onClick={() => openActionModal(record, 'CLOSED')}>
                 关闭
               </Button>
@@ -498,7 +520,7 @@ const AlertsMonitor: React.FC = () => {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[2fr_1fr]">
         <Card className="glass-panel g-border-panel border" title="预警实例列表">
-          <Table rowKey="id" loading={loading} columns={columns} dataSource={records} pagination={{ pageSize: 8 }} />
+          <Table rowKey="id" loading={loading} columns={columns} dataSource={records} pagination={{ pageSize: 8 }} scroll={{ x: 'max-content' }} />
         </Card>
 
         <div className="space-y-6">
@@ -639,17 +661,17 @@ const AlertsMonitor: React.FC = () => {
           </Descriptions.Item>
         </Descriptions>
         <div className="mt-4 flex justify-end gap-2">
-          {detail && detail.status !== 'PROCESSING' && detail.status !== 'CLOSED' ? (
+          {isAdmin && detail && detail.status !== 'PROCESSING' && detail.status !== 'CLOSED' ? (
             <Button onClick={() => openActionModal(detail, 'PROCESSING')}>
               开始处置
             </Button>
           ) : null}
-          {detail && detail.status !== 'CONFIRMED' && detail.status !== 'CLOSED' ? (
+          {isAdmin && detail && detail.status !== 'CONFIRMED' && detail.status !== 'CLOSED' ? (
             <Button onClick={() => openActionModal(detail, 'CONFIRMED')}>
               确认预警
             </Button>
           ) : null}
-          {detail && detail.status !== 'CLOSED' ? (
+          {isAdmin && detail && detail.status !== 'CLOSED' ? (
             <Button type="primary" onClick={() => openActionModal(detail, 'CLOSED')}>
               关闭预警
             </Button>

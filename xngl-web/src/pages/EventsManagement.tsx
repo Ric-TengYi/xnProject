@@ -133,6 +133,9 @@ const EventsManagement: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+  const isAdmin = userInfo?.userType === 'TENANT_ADMIN' || userInfo?.userType === 'SYSTEM_ADMIN';
   const [summary, setSummary] = useState<ManualEventSummaryRecord>(emptySummary);
   const [records, setRecords] = useState<ManualEventRecord[]>([]);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -328,12 +331,15 @@ const EventsManagement: React.FC = () => {
       return;
     }
     try {
+      setActionLoading(true);
       await action();
       message.success(successText);
       await refreshDetail(detail.record.id);
     } catch (error) {
       console.error(error);
       message.error(successText.replace('成功', '失败'));
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -530,7 +536,7 @@ const EventsManagement: React.FC = () => {
           </Space>
         }
       >
-        <Table rowKey="id" loading={loading} columns={columns} dataSource={records} pagination={{ pageSize: 10 }} />
+        <Table rowKey="id" loading={loading} columns={columns} dataSource={records} pagination={{ pageSize: 10 }} scroll={{ x: 'max-content' }} />
       </Card>
 
       <Drawer
@@ -539,11 +545,12 @@ const EventsManagement: React.FC = () => {
         onClose={() => setDetailOpen(false)}
         width={640}
         extra={
-          detail?.record.status === 'PENDING_AUDIT' ? (
+          isAdmin && detail?.record.status === 'PENDING_AUDIT' ? (
             <Space>
               <Button
                 icon={<CloseCircleOutlined />}
                 danger
+                loading={actionLoading}
                 onClick={() => void performDetailAction(() => rejectManualEvent(detail.record.id, '退回补充说明'), '事件已退回')}
               >
                 退回
@@ -551,13 +558,14 @@ const EventsManagement: React.FC = () => {
               <Button
                 icon={<CheckCircleOutlined />}
                 type="primary"
+                loading={actionLoading}
                 onClick={() => void performDetailAction(() => approveManualEvent(detail.record.id, '审核通过'), '事件审核成功')}
               >
                 通过
               </Button>
             </Space>
-          ) : detail?.record.status === 'PROCESSING' ? (
-            <Button type="primary" onClick={() => void performDetailAction(() => closeManualEvent(detail.record.id, '已完成处置'), '事件关闭成功')}>
+          ) : isAdmin && detail?.record.status === 'PROCESSING' ? (
+            <Button type="primary" loading={actionLoading} onClick={() => void performDetailAction(() => closeManualEvent(detail.record.id, '已完成处置'), '事件关闭成功')}>
               关闭事件
             </Button>
           ) : detail?.record.status === 'DRAFT' || detail?.record.status === 'REJECTED' ? (

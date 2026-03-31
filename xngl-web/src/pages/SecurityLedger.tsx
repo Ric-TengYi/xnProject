@@ -232,6 +232,8 @@ const SecurityLedger: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [rectifyLoading, setRectifyLoading] = useState(false);
+  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+  const isAdmin = userInfo?.userType === 'TENANT_ADMIN' || userInfo?.userType === 'SYSTEM_ADMIN';
   const [summary, setSummary] = useState<SecuritySummaryRecord>(emptySummary);
   const [records, setRecords] = useState<SecurityInspectionRecord[]>([]);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -266,6 +268,15 @@ const SecurityLedger: React.FC = () => {
   const createObjectType = Form.useWatch('objectType', createForm) || 'SITE';
 
   const loadMasters = async () => {
+    const [projectList, siteList, vehicleList, userList] = await Promise.all([
+      fetchProjects(),
+      fetchSites(),
+      fetchVehicles({ pageNo: 1, pageSize: 100 }),
+      fetchSecurityUsers()
+    ]);
+    setProjects(projectList?.records || []);
+    setSites(siteList || []);
+    setVehicles(vehicleList?.records || []);
     setUsers(userList || []);
   };
 
@@ -550,14 +561,16 @@ const SecurityLedger: React.FC = () => {
           <Button type="link" onClick={() => void openDetail(record)}>
             详情
           </Button>
-          {record.status !== 'CLOSED' ? (
+          {isAdmin && record.status !== 'CLOSED' ? (
             <Button type="link" onClick={() => openRectifyModal(record)}>
               整改
             </Button>
           ) : null}
-          <Button type="link" danger onClick={() => handleDelete(record)}>
-            删除
-          </Button>
+          {isAdmin ? (
+            <Button type="link" danger onClick={() => handleDelete(record)}>
+              删除
+            </Button>
+          ) : null}
         </Space>
       ),
     },
@@ -583,22 +596,24 @@ const SecurityLedger: React.FC = () => {
           <Button onClick={() => void handleExport()}>
             导出
           </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              createForm.setFieldsValue({
-                objectType: 'SITE',
-                resultLevel: 'PASS',
-                dangerLevel: 'LOW',
-                issueCount: 0,
-                status: 'CLOSED',
-              });
-              setCreateOpen(true);
-            }}
-          >
-            新增检查记录
-          </Button>
+          {isAdmin ? (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                createForm.setFieldsValue({
+                  objectType: 'SITE',
+                  resultLevel: 'PASS',
+                  dangerLevel: 'LOW',
+                  issueCount: 0,
+                  status: 'CLOSED',
+                });
+                setCreateOpen(true);
+              }}
+            >
+              新增检查记录
+            </Button>
+          ) : null}
         </Space>
       </div>
 
@@ -664,7 +679,7 @@ const SecurityLedger: React.FC = () => {
           </Space>
         }
       >
-        <Table rowKey="id" loading={loading} columns={columns} dataSource={records} pagination={{ pageSize: 10 }} />
+        <Table rowKey="id" loading={loading} columns={columns} dataSource={records} pagination={{ pageSize: 10 }} scroll={{ x: 'max-content' }} />
       </Card>
 
       <Drawer
@@ -674,8 +689,8 @@ const SecurityLedger: React.FC = () => {
         width={640}
         extra={
           <Space>
-            {detail && detail.status !== 'CLOSED' ? <Button type="primary" onClick={() => openRectifyModal(detail)}>整改处理</Button> : null}
-            {detail ? (
+            {isAdmin && detail && detail.status !== 'CLOSED' ? <Button type="primary" onClick={() => openRectifyModal(detail)}>整改处理</Button> : null}
+            {isAdmin && detail ? (
               <Button danger onClick={() => handleDelete(detail)}>
                 删除记录
               </Button>
