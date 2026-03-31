@@ -79,6 +79,9 @@ const SitesManagement: React.FC = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const [form] = Form.useForm<SiteCreatePayload>();
+    
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+    const isAdmin = userInfo?.userType === 'TENANT_ADMIN' || userInfo?.userType === 'SYSTEM_ADMIN';
 
     useEffect(() => {
         const loadSites = async () => {
@@ -163,8 +166,8 @@ const SitesManagement: React.FC = () => {
         { key: '1', label: '查看详情', onClick: () => navigate(`/sites/${id}`) },
         { key: '2', label: '配置设备', onClick: () => navigate(`/sites/${id}?tab=config`) },
         { type: 'divider' },
-        { key: '3', label: '临时停用', danger: true },
-    ];
+        isAdmin ? { key: '3', label: '临时停用', danger: true } : null,
+    ].filter(Boolean) as MenuProps['items'];
 
     const filteredSites = useMemo(
       () =>
@@ -214,9 +217,11 @@ const SitesManagement: React.FC = () => {
                     <Button icon={<FilterOutlined />} className="bg-white g-text-secondary g-border-panel border hover:g-text-primary hover:border-slate-500">
                         高级筛选
                     </Button>
-                    <Button type="primary" icon={<PlusOutlined />} className="g-btn-primary border-none shadow-[0_0_15px_rgba(37,99,235,0.4)]" onClick={handleOpenCreate}>
-                        新增场地
-                    </Button>
+                    {isAdmin && (
+                        <Button type="primary" icon={<PlusOutlined />} className="g-btn-primary border-none shadow-[0_0_15px_rgba(37,99,235,0.4)]" onClick={handleOpenCreate}>
+                            新增场地
+                        </Button>
+                    )}
                 </div>
             </div>
 

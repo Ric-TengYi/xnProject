@@ -4,8 +4,6 @@ import { SearchOutlined, PlusOutlined, EditOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { fetchSites, type SiteRecord } from '../utils/siteApi';
 
-const { Option } = Select;
-
 const resolveType = (site: SiteRecord) => {
     if (site.siteType === 'STATE_OWNED') return '国有场地';
     if (site.siteType === 'COLLECTIVE') return '集体场地';
@@ -40,6 +38,9 @@ const SitesBasicInfo: React.FC = () => {
     const [regionFilter, setRegionFilter] = useState('all');
     const [loading, setLoading] = useState(false);
     const [sitesData, setSitesData] = useState<SiteRecord[]>([]);
+
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+    const isAdmin = userInfo?.userType === 'TENANT_ADMIN' || userInfo?.userType === 'SYSTEM_ADMIN';
 
     useEffect(() => {
         const loadSites = async () => {
@@ -119,7 +120,7 @@ const SitesBasicInfo: React.FC = () => {
             title: '操作',
             key: 'action',
             render: (_: any, record: any) => (
-                <Button type="link" size="small" icon={<EditOutlined />} onClick={() => navigate(`/sites/${record.id}?tab=info`)}>编辑</Button>
+                isAdmin ? <Button type="link" size="small" icon={<EditOutlined />} onClick={() => navigate(`/sites/${record.id}?tab=info`)}>编辑</Button> : null
             ),
         },
     ];
@@ -133,21 +134,21 @@ const SitesBasicInfo: React.FC = () => {
                 <div className="flex justify-between mb-4">
                     <Space>
                         <Input placeholder="搜索场地名称" prefix={<SearchOutlined />} className="bg-white g-border-panel border g-text-primary w-64" value={searchText} onChange={(e) => setSearchText(e.target.value)} />
-                        <Select value={typeFilter} className="w-32 bg-white" onChange={setTypeFilter}>
-                            <Option value="all">全部类型</Option>
-                            <Option value="国有场地">国有场地</Option>
-                            <Option value="集体场地">集体场地</Option>
-                            <Option value="工程场地">工程场地</Option>
-                        </Select>
-                        <Select value={regionFilter} className="w-32 bg-white" onChange={setRegionFilter}>
-                            <Option value="all">全部区域</Option>
-                            <Option value="滨海新区">滨海新区</Option>
-                            <Option value="南郊区">南郊区</Option>
-                            <Option value="北区">北区</Option>
-                        </Select>
+                        <Select value={typeFilter} className="w-32 bg-white" onChange={setTypeFilter} options={[
+                            { value: 'all', label: '全部类型' },
+                            { value: '国有场地', label: '国有场地' },
+                            { value: '集体场地', label: '集体场地' },
+                            { value: '工程场地', label: '工程场地' }
+                        ]} />
+                        <Select value={regionFilter} className="w-32 bg-white" onChange={setRegionFilter} options={[
+                            { value: 'all', label: '全部区域' },
+                            { value: '滨海新区', label: '滨海新区' },
+                            { value: '南郊区', label: '南郊区' },
+                            { value: '北区', label: '北区' }
+                        ]} />
                         <Button type="primary">查询</Button>
                     </Space>
-                    <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/sites?create=1')}>新增场地</Button>
+                    {isAdmin && <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/sites?create=1')}>新增场地</Button>}
                 </div>
 
                 <Table 

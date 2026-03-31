@@ -27,7 +27,6 @@ import { fetchSites } from '../utils/siteApi';
 import type { SiteRecord } from '../utils/siteApi';
 
 const { Search } = Input;
-const { Option } = Select;
 const { RangePicker } = DatePicker;
 
 type PeriodType = 'DAY' | 'MONTH' | 'YEAR' | 'CUSTOM';
@@ -260,18 +259,16 @@ const SitesReports: React.FC = () => {
       <Card className="glass-panel g-border-panel border">
         <div className="flex flex-wrap gap-3 justify-between">
           <Space wrap>
-            <Select value={periodType} className="w-32" onChange={(value) => setPeriodType(value)}>
-              <Option value="DAY">日报</Option>
-              <Option value="MONTH">月报</Option>
-              <Option value="YEAR">年报</Option>
-              <Option value="CUSTOM">自定义</Option>
-            </Select>
+            <Select value={periodType} className="w-32" onChange={(value) => setPeriodType(value as PeriodType)} options={[
+              { value: 'DAY', label: '日报' },
+              { value: 'MONTH', label: '月报' },
+              { value: 'YEAR', label: '年报' },
+              { value: 'CUSTOM', label: '自定义' }
+            ]} />
             {renderDatePicker()}
-            <Select allowClear placeholder="全部场地" value={siteId} onChange={(value) => setSiteId(value)} className="w-56">
-              {sites.map((site) => (
-                <Option key={site.id} value={site.id}>{site.name}</Option>
-              ))}
-            </Select>
+            <Select allowClear placeholder="全部场地" value={siteId} onChange={(value) => setSiteId(value)} className="w-56" options={
+              sites.map(site => ({ value: String(site.id), label: site.name }))
+            } />
             <Search
               placeholder="搜索场地名称/类型"
               allowClear
@@ -301,6 +298,7 @@ const SitesReports: React.FC = () => {
             {trend.length === 0 ? (
               <Empty description="暂无趋势数据" />
             ) : (
+              // @ts-ignore
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={trend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.08)" vertical={false} />

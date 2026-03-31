@@ -4,8 +4,6 @@ import { SearchOutlined, DownloadOutlined } from '@ant-design/icons';
 import { fetchSiteDisposals, fetchSites, type DisposalRecord, type SiteRecord } from '../utils/siteApi';
 
 const { RangePicker } = DatePicker;
-const { Option } = Select;
-
 const SitesDisposals: React.FC = () => {
     const [sites, setSites] = useState<SiteRecord[]>([]);
     const [loading, setLoading] = useState(false);
@@ -16,6 +14,9 @@ const SitesDisposals: React.FC = () => {
     const [pageSize, setPageSize] = useState(10);
     const [total, setTotal] = useState(0);
     const [records, setRecords] = useState<DisposalRecord[]>([]);
+
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+    const isAdmin = userInfo?.userType === 'TENANT_ADMIN' || userInfo?.userType === 'SYSTEM_ADMIN';
 
     const summary = useMemo(() => ({
         total: total,
@@ -88,13 +89,13 @@ const SitesDisposals: React.FC = () => {
                 <Tag color={status === '正常' ? 'green' : 'red'}>{status}</Tag>
             )
         },
-        {
+        ...(isAdmin ? [{
             title: '操作',
             key: 'action',
             render: () => (
                 <Button type="link" size="small">详情</Button>
             ),
-        },
+        }] : []),
     ];
 
     return (
@@ -113,22 +114,20 @@ const SitesDisposals: React.FC = () => {
             <Card className="glass-panel g-border-panel border">
                 <div className="flex justify-between mb-4 flex-wrap gap-4">
                     <Space className="flex-wrap">
-                        <Select value={siteId} className="w-40 bg-white" onChange={(value) => { setSiteId(value); setPageNo(1); }}>
-                            <Option value="all">全部场地</Option>
-                            {sites.map((site) => (
-                                <Option value={site.id} key={site.id}>{site.name}</Option>
-                            ))}
-                        </Select>
+                        <Select value={siteId} className="w-40 bg-white" onChange={(value) => { setSiteId(value); setPageNo(1); }} options={[
+                            { value: 'all', label: '全部场地' },
+                            ...sites.map(site => ({ value: String(site.id), label: site.name }))
+                        ]} />
                         <Input placeholder="搜索车牌/项目" prefix={<SearchOutlined />} className="bg-white g-border-panel border g-text-primary w-48" value={searchText} onChange={(e) => { setSearchText(e.target.value); setPageNo(1); }} />
                         <RangePicker className="bg-white g-border-panel border" showTime />
-                        <Select value={status} className="w-32 bg-white" onChange={(value) => { setStatus(value); setPageNo(1); }}>
-                            <Option value="all">全部状态</Option>
-                            <Option value="正常">正常</Option>
-                            <Option value="异常">异常</Option>
-                        </Select>
+                        <Select value={status} className="w-32 bg-white" onChange={(value) => { setStatus(value); setPageNo(1); }} options={[
+                            { value: 'all', label: '全部状态' },
+                            { value: '正常', label: '正常' },
+                            { value: '异常', label: '异常' }
+                        ]} />
                         <Button type="primary">查询</Button>
                     </Space>
-                    <Button icon={<DownloadOutlined />} className="bg-white g-border-panel border g-text-primary hover:g-text-primary-link hover:border-blue-400">导出数据</Button>
+                    {isAdmin && <Button icon={<DownloadOutlined />} className="bg-white g-border-panel border g-text-primary hover:g-text-primary-link hover:border-blue-400">导出数据</Button>}
                 </div>
                 <Table 
                     columns={columns} 

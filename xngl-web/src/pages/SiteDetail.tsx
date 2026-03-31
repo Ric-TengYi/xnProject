@@ -178,6 +178,9 @@ const SiteDetail: React.FC = () => {
     const [deviceForm] = Form.useForm();
     const [operationForm] = Form.useForm();
 
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+    const isAdmin = userInfo?.userType === 'TENANT_ADMIN' || userInfo?.userType === 'SYSTEM_ADMIN';
+
     useEffect(() => {
         if (!id) {
             return;
@@ -623,7 +626,7 @@ const SiteDetail: React.FC = () => {
                             </div>
                         </div>
                     </Card>
-                    <Card title="场地基础信息" className="glass-panel g-border-panel border" extra={<Button type="link" icon={<EditOutlined />}>编辑</Button>}>
+                    <Card title="场地基础信息" className="glass-panel g-border-panel border" extra={isAdmin && <Button type="link" icon={<EditOutlined />}>编辑</Button>}>
                         <Descriptions column={3} className="g-text-secondary">
                             <Descriptions.Item label="场地名称">{siteInfo?.name || '-'}</Descriptions.Item>
                             <Descriptions.Item label="场地类型"><Tag color="blue">{typeText}</Tag></Descriptions.Item>
@@ -696,7 +699,7 @@ const SiteDetail: React.FC = () => {
                             { title: '来源', dataIndex: 'source', key: 'source' },
                             { title: '消纳量(方)', dataIndex: 'amount', key: 'amount' },
                             { title: '状态', dataIndex: 'status', key: 'status', render: (s: string) => <Tag color={s === '正常' || s === '有效' ? 'success' : 'default'}>{s}</Tag> },
-                            { title: '操作', key: 'action', render: () => <a className="g-text-error">作废</a> }
+                            ...(isAdmin ? [{ title: '操作', key: 'action', render: () => <a className="g-text-error">作废</a> }] : [])
                         ]}
                         pagination={{
                             current: disposalsPageNo,
@@ -718,7 +721,7 @@ const SiteDetail: React.FC = () => {
             key: 'survey',
             label: '场地测绘',
             children: (
-                <Card className="glass-panel g-border-panel border" extra={<Button type="primary" size="small" onClick={() => openSurveyModal()}>新增测绘</Button>}>
+                <Card className="glass-panel g-border-panel border" extra={isAdmin && <Button type="primary" size="small" onClick={() => openSurveyModal()}>新增测绘</Button>}>
                     <div className="mb-4 text-sm g-text-secondary">
                         无地磅场地可通过测绘记录直接形成结算方量；系统会自动按 `测得方量 - 扣减方量 = 结算方量` 计算。
                     </div>
@@ -758,7 +761,7 @@ const SiteDetail: React.FC = () => {
             label: '场地资料',
             children: (
                 <div className="space-y-6">
-                    <Card title="审批阶段资料" className="glass-panel g-border-panel border" extra={<Button type="primary" size="small" onClick={() => openDocumentModal(undefined, 'APPROVAL')}>上传资料</Button>}>
+                    <Card title="审批阶段资料" className="glass-panel g-border-panel border" extra={isAdmin && <Button type="primary" size="small" onClick={() => openDocumentModal(undefined, 'APPROVAL')}>上传资料</Button>}>
                         <List
                             locale={{ emptyText: '当前暂无审批阶段资料' }}
                             dataSource={documentGroups.APPROVAL}
@@ -776,7 +779,7 @@ const SiteDetail: React.FC = () => {
                             )}
                         />
                     </Card>
-                    <Card title="建设阶段资料" className="glass-panel g-border-panel border" extra={<Button type="primary" size="small" onClick={() => openDocumentModal(undefined, 'CONSTRUCTION')}>上传资料</Button>}>
+                    <Card title="建设阶段资料" className="glass-panel g-border-panel border" extra={isAdmin && <Button type="primary" size="small" onClick={() => openDocumentModal(undefined, 'CONSTRUCTION')}>上传资料</Button>}>
                         <List
                             locale={{ emptyText: '当前暂无建设阶段资料' }}
                             dataSource={documentGroups.CONSTRUCTION}
@@ -794,7 +797,7 @@ const SiteDetail: React.FC = () => {
                             )}
                         />
                     </Card>
-                    <Card title="运营阶段资料" className="glass-panel g-border-panel border" extra={<Button type="primary" size="small" onClick={() => openDocumentModal(undefined, 'OPERATION')}>上传资料</Button>}>
+                    <Card title="运营阶段资料" className="glass-panel g-border-panel border" extra={isAdmin && <Button type="primary" size="small" onClick={() => openDocumentModal(undefined, 'OPERATION')}>上传资料</Button>}>
                         <List
                             locale={{ emptyText: '当前暂无运营阶段资料' }}
                             dataSource={documentGroups.OPERATION}
@@ -812,7 +815,7 @@ const SiteDetail: React.FC = () => {
                             )}
                         />
                     </Card>
-                    <Card title="移交阶段资料" className="glass-panel g-border-panel border" extra={<Button type="primary" size="small" onClick={() => openDocumentModal(undefined, 'TRANSFER')}>上传资料</Button>}>
+                    <Card title="移交阶段资料" className="glass-panel g-border-panel border" extra={isAdmin && <Button type="primary" size="small" onClick={() => openDocumentModal(undefined, 'TRANSFER')}>上传资料</Button>}>
                         <List
                             locale={{ emptyText: '当前暂无移交阶段资料' }}
                             dataSource={documentGroups.TRANSFER}
@@ -838,7 +841,7 @@ const SiteDetail: React.FC = () => {
             label: '场地配置',
             children: (
                 <div className="space-y-6">
-                    <Card title="人员配置" className="glass-panel g-border-panel border" extra={<Button type="primary" size="small" onClick={() => openPersonnelModal()}>新增人员</Button>}>
+                    <Card title="人员配置" className="glass-panel g-border-panel border" extra={isAdmin && <Button type="primary" size="small" onClick={() => openPersonnelModal()}>新增人员</Button>}>
                         <List
                             locale={{ emptyText: '当前暂无人员配置' }}
                             dataSource={personnel}
@@ -875,7 +878,7 @@ const SiteDetail: React.FC = () => {
                             )}
                         />
                     </Card>
-                    <Card title="设备配置" className="glass-panel g-border-panel border" extra={<Button type="primary" size="small" onClick={() => openDeviceModal()}>新增设备</Button>}>
+                    <Card title="设备配置" className="glass-panel g-border-panel border" extra={isAdmin && <Button type="primary" size="small" onClick={() => openDeviceModal()}>新增设备</Button>}>
                         <List
                             locale={{ emptyText: '当前暂无设备配置' }}
                             dataSource={siteInfo?.devices || []}
@@ -913,7 +916,7 @@ const SiteDetail: React.FC = () => {
                                 </Form.Item>
                             </div>
                             <div className="mt-4">
-                                <Button type="primary" loading={operationSubmitting} onClick={() => void handleSaveOperationConfig()}>保存配置</Button>
+                                {isAdmin && <Button type="primary" loading={operationSubmitting} onClick={() => void handleSaveOperationConfig()}>保存配置</Button>}
                             </div>
                         </Form>
                     </Card>
