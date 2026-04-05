@@ -30,6 +30,8 @@ import com.xngl.infrastructure.persistence.mapper.VehiclePersonnelCertificateMap
 import com.xngl.manager.message.MessageRecordService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.CollaborationAccessScope;
+import com.xngl.web.support.CollaborationAccessScopeResolver;
 import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
@@ -83,6 +85,7 @@ public class SecurityInspectionsController {
   private final SiteDeviceMapper siteDeviceMapper;
   private final MessageRecordService messageRecordService;
   private final UserContext userContext;
+  private final CollaborationAccessScopeResolver collaborationAccessScopeResolver;
 
   public SecurityInspectionsController(
       SecurityInspectionMapper inspectionMapper,
@@ -99,7 +102,8 @@ public class SecurityInspectionsController {
       SiteDocumentMapper siteDocumentMapper,
       SiteDeviceMapper siteDeviceMapper,
       MessageRecordService messageRecordService,
-      UserContext userContext) {
+      UserContext userContext,
+      CollaborationAccessScopeResolver collaborationAccessScopeResolver) {
     this.inspectionMapper = inspectionMapper;
     this.inspectionActionMapper = inspectionActionMapper;
     this.projectMapper = projectMapper;
@@ -115,6 +119,7 @@ public class SecurityInspectionsController {
     this.siteDeviceMapper = siteDeviceMapper;
     this.messageRecordService = messageRecordService;
     this.userContext = userContext;
+    this.collaborationAccessScopeResolver = collaborationAccessScopeResolver;
   }
 
   @GetMapping
@@ -139,6 +144,7 @@ public class SecurityInspectionsController {
       @RequestParam(required = false) String nextCheckTimeTo,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    CollaborationAccessScope scope = collaborationAccessScopeResolver.resolve(currentUser);
     List<SecurityInspection> rows =
         queryInspections(
             currentUser.getTenantId(),
@@ -160,13 +166,15 @@ public class SecurityInspectionsController {
             parseDateTime(rectifyDeadlineTo),
             parseDateTime(nextCheckTimeFrom),
             parseDateTime(nextCheckTimeTo));
+    rows = filterVisibleInspections(rows, scope);
     return ApiResult.ok(enrich(rows, false));
   }
 
   @GetMapping("/{id:\\d+}")
   public ApiResult<Map<String, Object>> get(@PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    SecurityInspection entity = requireEntity(id, currentUser.getTenantId());
+    SecurityInspection entity =
+        requireEntity(id, currentUser.getTenantId(), collaborationAccessScopeResolver.resolve(currentUser));
     return ApiResult.ok(enrich(List.of(entity), true).stream().findFirst().orElseGet(LinkedHashMap::new));
   }
 
@@ -192,6 +200,7 @@ public class SecurityInspectionsController {
       @RequestParam(required = false) String nextCheckTimeTo,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    CollaborationAccessScope scope = collaborationAccessScopeResolver.resolve(currentUser);
     List<SecurityInspection> rows =
         queryInspections(
             currentUser.getTenantId(),
@@ -213,6 +222,7 @@ public class SecurityInspectionsController {
             parseDateTime(rectifyDeadlineTo),
             parseDateTime(nextCheckTimeFrom),
             parseDateTime(nextCheckTimeTo));
+    rows = filterVisibleInspections(rows, scope);
     YearMonth currentMonth = YearMonth.now();
     long monthCount =
         rows.stream()
@@ -272,9 +282,11 @@ public class SecurityInspectionsController {
       @RequestParam(required = false) String nextCheckTimeTo,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    CollaborationAccessScope scope = collaborationAccessScopeResolver.resolve(currentUser);
     List<Map<String, Object>> rows =
         enrich(
-            queryInspections(
+            filterVisibleInspections(
+                queryInspections(
                 currentUser.getTenantId(),
                 keyword,
                 objectType,
@@ -294,6 +306,7 @@ public class SecurityInspectionsController {
                 parseDateTime(rectifyDeadlineTo),
                 parseDateTime(nextCheckTimeFrom),
                 parseDateTime(nextCheckTimeTo)),
+            scope),
             false);
     return csvResponse("security_inspections.csv", buildInspectionCsv(rows));
   }
@@ -302,8 +315,10 @@ public class SecurityInspectionsController {
   public ApiResult<Map<String, Object>> create(
       @RequestBody InspectionUpsertRequest body, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    CollaborationAccessScope scope = collaborationAccessScopeResolver.resolve(currentUser);
     normalizeRequest(body);
     validate(body);
+    validateAccessibleReferences(body, currentUser.getTenantId(), scope);
     SecurityInspection entity = new SecurityInspection();
     entity.setTenantId(currentUser.getTenantId());
     entity.setInspectionNo(generateInspectionNo());
@@ -318,7 +333,11 @@ public class SecurityInspectionsController {
   public ApiResult<Void> rectify(
       @PathVariable Long id, @RequestBody RectifyRequest body, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    SecurityInspection entity = requireEntity(id, currentUser.getTenantId());
+    SecurityInspection entity =
+        requireEntity(id, currentUser.getTenantId(), collaborationAccessScopeResolver.resolve(currentUser));
+    if (!"OPEN".equalsIgnoreCase(entity.getStatus()) && !"RECTIFYING".equalsIgnoreCase(entity.getStatus())) {
+      throw new BizException(400, "仅待整改或整改中的台账支持整改处理");
+    }
     String beforeStatus = entity.getStatus();
     String beforeResultLevel = entity.getResultLevel();
     entity.setRectifyRemark(trimToNull(body != null ? body.getRectifyRemark() : null));
@@ -360,7 +379,8 @@ public class SecurityInspectionsController {
   @DeleteMapping("/{id}")
   public ApiResult<Void> delete(@PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    SecurityInspection entity = requireEntity(id, currentUser.getTenantId());
+    SecurityInspection entity =
+        requireEntity(id, currentUser.getTenantId(), collaborationAccessScopeResolver.resolve(currentUser));
     insertAction(
         entity,
         currentUser,
@@ -465,12 +485,59 @@ public class SecurityInspectionsController {
     }
   }
 
-  private SecurityInspection requireEntity(Long id, Long tenantId) {
+  private void validateAccessibleReferences(
+      InspectionUpsertRequest body, Long tenantId, CollaborationAccessScope scope) {
+    if (body == null) {
+      return;
+    }
+    if (body.getProjectId() != null) {
+      Project project = projectMapper.selectById(body.getProjectId());
+      if (project == null || !scope.canAccessProject(body.getProjectId())) {
+        throw new BizException(404, "关联项目不存在");
+      }
+    }
+    if (body.getSiteId() != null) {
+      Site site = siteMapper.selectById(body.getSiteId());
+      if (site == null || !scope.canAccessSite(body.getSiteId())) {
+        throw new BizException(404, "关联场地不存在");
+      }
+    }
+    if (body.getVehicleId() != null) {
+      Vehicle vehicle = vehicleMapper.selectById(body.getVehicleId());
+      if (vehicle == null || !Objects.equals(vehicle.getTenantId(), tenantId) || !scope.canAccessVehicle(body.getVehicleId())) {
+        throw new BizException(404, "关联车辆不存在");
+      }
+    }
+    Long relatedUserId =
+        body.getUserId() != null
+            ? body.getUserId()
+            : "PERSON".equalsIgnoreCase(body.getObjectType()) ? body.getObjectId() : null;
+    if (relatedUserId != null) {
+      User relatedUser = userMapper.selectById(relatedUserId);
+      if (relatedUser == null
+          || !Objects.equals(relatedUser.getTenantId(), tenantId)
+          || !scope.canAccessUser(relatedUserId)) {
+        throw new BizException(404, "关联人员不存在");
+      }
+    }
+  }
+
+  private SecurityInspection requireEntity(Long id, Long tenantId, CollaborationAccessScope scope) {
     SecurityInspection entity = inspectionMapper.selectById(id);
-    if (entity == null || !Objects.equals(entity.getTenantId(), tenantId)) {
+    if (entity == null
+        || !Objects.equals(entity.getTenantId(), tenantId)
+        || !scope.matchesSecurityInspection(entity)) {
       throw new BizException(404, "安全检查记录不存在");
     }
     return entity;
+  }
+
+  private List<SecurityInspection> filterVisibleInspections(
+      List<SecurityInspection> rows, CollaborationAccessScope scope) {
+    if (scope.isTenantWideAccess()) {
+      return rows;
+    }
+    return rows.stream().filter(scope::matchesSecurityInspection).toList();
   }
 
   private List<SecurityInspection> queryInspections(

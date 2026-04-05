@@ -15,6 +15,8 @@ import com.xngl.infrastructure.persistence.mapper.VehicleMapper;
 import com.xngl.manager.message.MessageRecordService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.CollaborationAccessScope;
+import com.xngl.web.support.CollaborationAccessScopeResolver;
 import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
@@ -57,6 +59,7 @@ public class ManualEventsController {
   private final VehicleMapper vehicleMapper;
   private final MessageRecordService messageRecordService;
   private final UserContext userContext;
+  private final CollaborationAccessScopeResolver collaborationAccessScopeResolver;
 
   public ManualEventsController(
       ManualEventMapper eventMapper,
@@ -65,7 +68,8 @@ public class ManualEventsController {
       SiteMapper siteMapper,
       VehicleMapper vehicleMapper,
       MessageRecordService messageRecordService,
-      UserContext userContext) {
+      UserContext userContext,
+      CollaborationAccessScopeResolver collaborationAccessScopeResolver) {
     this.eventMapper = eventMapper;
     this.auditLogMapper = auditLogMapper;
     this.projectMapper = projectMapper;
@@ -73,6 +77,7 @@ public class ManualEventsController {
     this.vehicleMapper = vehicleMapper;
     this.messageRecordService = messageRecordService;
     this.userContext = userContext;
+    this.collaborationAccessScopeResolver = collaborationAccessScopeResolver;
   }
 
   @GetMapping
@@ -96,6 +101,7 @@ public class ManualEventsController {
       @RequestParam(required = false) String closeTimeTo,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    CollaborationAccessScope scope = collaborationAccessScopeResolver.resolve(currentUser);
     List<ManualEvent> events =
         queryEvents(
             currentUser.getTenantId(),
@@ -116,12 +122,14 @@ public class ManualEventsController {
             parseDateTime(reportTimeTo),
             parseDateTime(closeTimeFrom),
             parseDateTime(closeTimeTo));
+    events = filterVisibleEvents(events, scope);
     return ApiResult.ok(enrich(events, currentUser.getTenantId()));
   }
 
   @GetMapping("/pending-audits")
   public ApiResult<List<Map<String, Object>>> pendingAudits(HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    CollaborationAccessScope scope = collaborationAccessScopeResolver.resolve(currentUser);
     List<ManualEvent> events =
         eventMapper.selectList(
             new LambdaQueryWrapper<ManualEvent>()
@@ -129,6 +137,7 @@ public class ManualEventsController {
                 .eq(ManualEvent::getStatus, "PENDING_AUDIT")
                 .orderByDesc(ManualEvent::getReportTime)
                 .orderByDesc(ManualEvent::getId));
+    events = filterVisibleEvents(events, scope);
     return ApiResult.ok(enrich(events, currentUser.getTenantId()));
   }
 
@@ -153,6 +162,7 @@ public class ManualEventsController {
       @RequestParam(required = false) String closeTimeTo,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    CollaborationAccessScope scope = collaborationAccessScopeResolver.resolve(currentUser);
     List<ManualEvent> events =
         queryEvents(
             currentUser.getTenantId(),
@@ -173,6 +183,7 @@ public class ManualEventsController {
             parseDateTime(reportTimeTo),
             parseDateTime(closeTimeFrom),
             parseDateTime(closeTimeTo));
+    events = filterVisibleEvents(events, scope);
     LocalDateTime now = LocalDateTime.now();
     Map<String, Object> result = new LinkedHashMap<>();
     result.put("total", events.size());
@@ -222,9 +233,11 @@ public class ManualEventsController {
       @RequestParam(required = false) String closeTimeTo,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    CollaborationAccessScope scope = collaborationAccessScopeResolver.resolve(currentUser);
     List<Map<String, Object>> rows =
         enrich(
-            queryEvents(
+            filterVisibleEvents(
+                queryEvents(
                 currentUser.getTenantId(),
                 keyword,
                 eventType,
@@ -243,6 +256,7 @@ public class ManualEventsController {
                 parseDateTime(reportTimeTo),
                 parseDateTime(closeTimeFrom),
                 parseDateTime(closeTimeTo)),
+            scope),
             currentUser.getTenantId());
     return csvResponse("manual_events.csv", buildEventCsv(rows));
   }
@@ -250,7 +264,8 @@ public class ManualEventsController {
   @GetMapping("/{id:\\d+}")
   public ApiResult<Map<String, Object>> get(@PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    ManualEvent event = requireEvent(id, currentUser.getTenantId());
+    ManualEvent event =
+        requireEvent(id, currentUser.getTenantId(), collaborationAccessScopeResolver.resolve(currentUser));
     Map<String, Object> result = new LinkedHashMap<>();
     result.put("record", enrich(List.of(event), currentUser.getTenantId()).stream().findFirst().orElseGet(LinkedHashMap::new));
     result.put(
@@ -268,7 +283,9 @@ public class ManualEventsController {
   public ApiResult<Map<String, Object>> create(
       @RequestBody EventUpsertRequest body, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    CollaborationAccessScope scope = collaborationAccessScopeResolver.resolve(currentUser);
     validate(body);
+    validateAccessibleReferences(body, currentUser.getTenantId(), scope);
     ManualEvent event = new ManualEvent();
     event.setTenantId(currentUser.getTenantId());
     event.setEventNo("EV-" + LocalDateTime.now().format(NO_FORMATTER));
@@ -283,11 +300,13 @@ public class ManualEventsController {
   public ApiResult<Map<String, Object>> update(
       @PathVariable Long id, @RequestBody EventUpsertRequest body, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    CollaborationAccessScope scope = collaborationAccessScopeResolver.resolve(currentUser);
     validate(body);
-    ManualEvent event = requireEvent(id, currentUser.getTenantId());
+    ManualEvent event = requireEvent(id, currentUser.getTenantId(), scope);
     if (!"DRAFT".equalsIgnoreCase(event.getStatus()) && !"REJECTED".equalsIgnoreCase(event.getStatus())) {
       throw new BizException(400, "仅草稿或已退回事件支持编辑");
     }
+    validateAccessibleReferences(body, currentUser.getTenantId(), scope);
     mapToEntity(body, event, currentUser, true);
     eventMapper.updateById(event);
     insertAuditLog(currentUser, event, "UPDATE", event.getStatus(), "更新事件信息");
@@ -297,7 +316,11 @@ public class ManualEventsController {
   @PostMapping("/{id}/submit")
   public ApiResult<Void> submit(@PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    ManualEvent event = requireEvent(id, currentUser.getTenantId());
+    ManualEvent event =
+        requireEvent(id, currentUser.getTenantId(), collaborationAccessScopeResolver.resolve(currentUser));
+    if (!"DRAFT".equalsIgnoreCase(event.getStatus()) && !"REJECTED".equalsIgnoreCase(event.getStatus())) {
+      throw new BizException(400, "仅草稿或退回事件支持提交审核");
+    }
     event.setStatus("PENDING_AUDIT");
     event.setCurrentAuditNode("MANUAL_EVENT_AUDIT");
     eventMapper.updateById(event);
@@ -313,7 +336,12 @@ public class ManualEventsController {
   public ApiResult<Void> approve(
       @PathVariable Long id, @RequestBody AuditActionRequest body, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    ManualEvent event = requireEvent(id, currentUser.getTenantId());
+    userContext.requireApprovalPermission(currentUser);
+    ManualEvent event =
+        requireEvent(id, currentUser.getTenantId(), collaborationAccessScopeResolver.resolve(currentUser));
+    if (!"PENDING_AUDIT".equalsIgnoreCase(event.getStatus())) {
+      throw new BizException(400, "仅待审核事件支持通过");
+    }
     event.setStatus("PROCESSING");
     event.setCurrentAuditNode("EVENT_DISPATCH");
     eventMapper.updateById(event);
@@ -329,7 +357,12 @@ public class ManualEventsController {
   public ApiResult<Void> reject(
       @PathVariable Long id, @RequestBody AuditActionRequest body, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    ManualEvent event = requireEvent(id, currentUser.getTenantId());
+    userContext.requireApprovalPermission(currentUser);
+    ManualEvent event =
+        requireEvent(id, currentUser.getTenantId(), collaborationAccessScopeResolver.resolve(currentUser));
+    if (!"PENDING_AUDIT".equalsIgnoreCase(event.getStatus())) {
+      throw new BizException(400, "仅待审核事件支持退回");
+    }
     event.setStatus("REJECTED");
     event.setCurrentAuditNode("APPLICANT_REWORK");
     eventMapper.updateById(event);
@@ -350,7 +383,11 @@ public class ManualEventsController {
   public ApiResult<Void> close(
       @PathVariable Long id, @RequestBody AuditActionRequest body, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    ManualEvent event = requireEvent(id, currentUser.getTenantId());
+    ManualEvent event =
+        requireEvent(id, currentUser.getTenantId(), collaborationAccessScopeResolver.resolve(currentUser));
+    if (!"PROCESSING".equalsIgnoreCase(event.getStatus())) {
+      throw new BizException(400, "仅处理中事件支持关闭");
+    }
     event.setStatus("CLOSED");
     event.setCurrentAuditNode("DONE");
     event.setCloseTime(LocalDateTime.now());
@@ -430,12 +467,47 @@ public class ManualEventsController {
         "事件管理");
   }
 
-  private ManualEvent requireEvent(Long id, Long tenantId) {
+  private void validateAccessibleReferences(
+      EventUpsertRequest body, Long tenantId, CollaborationAccessScope scope) {
+    if (body == null) {
+      return;
+    }
+    if (body.getProjectId() != null) {
+      Project project = projectMapper.selectById(body.getProjectId());
+      if (project == null || !scope.canAccessProject(body.getProjectId())) {
+        throw new BizException(404, "关联项目不存在");
+      }
+    }
+    if (body.getSiteId() != null) {
+      Site site = siteMapper.selectById(body.getSiteId());
+      if (site == null || !scope.canAccessSite(body.getSiteId())) {
+        throw new BizException(404, "关联场地不存在");
+      }
+    }
+    if (body.getVehicleId() != null) {
+      Vehicle vehicle = vehicleMapper.selectById(body.getVehicleId());
+      if (vehicle == null || !Objects.equals(vehicle.getTenantId(), tenantId) || !scope.canAccessVehicle(body.getVehicleId())) {
+        throw new BizException(404, "关联车辆不存在");
+      }
+    }
+  }
+
+  private ManualEvent requireEvent(Long id, Long tenantId, CollaborationAccessScope scope) {
     ManualEvent event = eventMapper.selectById(id);
-    if (event == null || !Objects.equals(event.getTenantId(), tenantId)) {
+    if (event == null
+        || !Objects.equals(event.getTenantId(), tenantId)
+        || !scope.matchesManualEvent(event)) {
       throw new BizException(404, "事件不存在");
     }
     return event;
+  }
+
+  private List<ManualEvent> filterVisibleEvents(
+      List<ManualEvent> rows, CollaborationAccessScope scope) {
+    if (scope.isTenantWideAccess()) {
+      return rows;
+    }
+    return rows.stream().filter(scope::matchesManualEvent).toList();
   }
 
   private List<ManualEvent> queryEvents(

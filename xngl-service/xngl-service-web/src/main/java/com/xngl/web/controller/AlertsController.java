@@ -31,6 +31,8 @@ import com.xngl.manager.sysparam.entity.SysParam;
 import com.xngl.manager.sysparam.mapper.SysParamMapper;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.exception.BizException;
+import com.xngl.web.support.CollaborationAccessScope;
+import com.xngl.web.support.CollaborationAccessScopeResolver;
 import com.xngl.web.support.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
@@ -96,6 +98,7 @@ public class AlertsController {
   private final UserMapper userMapper;
   private final SysParamMapper sysParamMapper;
   private final UserContext userContext;
+  private final CollaborationAccessScopeResolver collaborationAccessScopeResolver;
 
   public AlertsController(
       AlertEventMapper alertEventMapper,
@@ -112,7 +115,8 @@ public class AlertsController {
       DisposalPermitMapper disposalPermitMapper,
       UserMapper userMapper,
       SysParamMapper sysParamMapper,
-      UserContext userContext) {
+      UserContext userContext,
+      CollaborationAccessScopeResolver collaborationAccessScopeResolver) {
     this.alertEventMapper = alertEventMapper;
     this.alertFenceMapper = alertFenceMapper;
     this.alertRuleMapper = alertRuleMapper;
@@ -128,6 +132,7 @@ public class AlertsController {
     this.userMapper = userMapper;
     this.sysParamMapper = sysParamMapper;
     this.userContext = userContext;
+    this.collaborationAccessScopeResolver = collaborationAccessScopeResolver;
   }
 
   @GetMapping
@@ -145,6 +150,7 @@ public class AlertsController {
       @RequestParam(required = false) String resolveTimeTo,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    CollaborationAccessScope scope = collaborationAccessScopeResolver.resolve(currentUser);
     List<AlertEvent> rows =
         queryTenantAlerts(
             currentUser.getTenantId(),
@@ -159,13 +165,15 @@ public class AlertsController {
             parseDateTime(occurTimeTo),
             parseDateTime(resolveTimeFrom),
             parseDateTime(resolveTimeTo));
+    rows = filterVisibleAlerts(rows, scope);
     return ApiResult.ok(enrich(rows));
   }
 
   @GetMapping("/{id:\\d+}")
   public ApiResult<Map<String, Object>> get(@PathVariable Long id, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    AlertEvent entity = requireEntity(id, currentUser.getTenantId());
+    AlertEvent entity =
+        requireEntity(id, currentUser.getTenantId(), collaborationAccessScopeResolver.resolve(currentUser));
     return ApiResult.ok(enrich(List.of(entity)).stream().findFirst().orElseGet(LinkedHashMap::new));
   }
 
@@ -184,6 +192,7 @@ public class AlertsController {
       @RequestParam(required = false) String resolveTimeTo,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    CollaborationAccessScope scope = collaborationAccessScopeResolver.resolve(currentUser);
     List<AlertEvent> rows =
         queryTenantAlerts(
             currentUser.getTenantId(),
@@ -198,6 +207,7 @@ public class AlertsController {
             parseDateTime(occurTimeTo),
             parseDateTime(resolveTimeFrom),
             parseDateTime(resolveTimeTo));
+    rows = filterVisibleAlerts(rows, scope);
     Map<String, Object> result = new LinkedHashMap<>();
     result.put("total", rows.size());
     result.put("pending", rows.stream().filter(item -> "PENDING".equalsIgnoreCase(item.getAlertStatus())).count());
@@ -233,6 +243,7 @@ public class AlertsController {
       @RequestParam(required = false) String resolveTimeTo,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    CollaborationAccessScope scope = collaborationAccessScopeResolver.resolve(currentUser);
     List<AlertEvent> rows =
         queryTenantAlerts(
             currentUser.getTenantId(),
@@ -247,6 +258,7 @@ public class AlertsController {
             parseDateTime(occurTimeTo),
             parseDateTime(resolveTimeFrom),
             parseDateTime(resolveTimeTo));
+    rows = filterVisibleAlerts(rows, scope);
     List<AlertRule> rules =
         alertRuleMapper.selectList(
             new LambdaQueryWrapper<AlertRule>()
@@ -311,6 +323,7 @@ public class AlertsController {
       @RequestParam(required = false) String resolveTimeTo,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    CollaborationAccessScope scope = collaborationAccessScopeResolver.resolve(currentUser);
     String targetTypeValue = defaultValue(targetType, "VEHICLE");
     List<AlertEvent> rows =
         queryTenantAlerts(
@@ -326,6 +339,7 @@ public class AlertsController {
             parseDateTime(occurTimeTo),
             parseDateTime(resolveTimeFrom),
             parseDateTime(resolveTimeTo));
+    rows = filterVisibleAlerts(rows, scope);
     Map<Long, Long> countMap =
         rows.stream()
             .map(item -> resolveTopRiskId(item, targetTypeValue))
@@ -467,7 +481,8 @@ public class AlertsController {
   public ApiResult<Void> handle(
       @PathVariable Long id, @RequestBody AlertHandleRequest body, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    AlertEvent entity = requireEntity(id, currentUser.getTenantId());
+    AlertEvent entity =
+        requireEntity(id, currentUser.getTenantId(), collaborationAccessScopeResolver.resolve(currentUser));
     entity.setAlertStatus(defaultValue(body != null ? body.getStatus() : null, "PROCESSING"));
     entity.setHandleRemark(trimToNull(body != null ? body.getHandleRemark() : null));
     if ("CLOSED".equalsIgnoreCase(entity.getAlertStatus()) || "CONFIRMED".equalsIgnoreCase(entity.getAlertStatus())) {
@@ -481,7 +496,8 @@ public class AlertsController {
   public ApiResult<Void> close(
       @PathVariable Long id, @RequestBody AlertHandleRequest body, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
-    AlertEvent entity = requireEntity(id, currentUser.getTenantId());
+    AlertEvent entity =
+        requireEntity(id, currentUser.getTenantId(), collaborationAccessScopeResolver.resolve(currentUser));
     entity.setAlertStatus("CLOSED");
     entity.setHandleRemark(trimToNull(body != null ? body.getHandleRemark() : null));
     entity.setResolveTime(LocalDateTime.now());
@@ -504,9 +520,11 @@ public class AlertsController {
       @RequestParam(required = false) String resolveTimeTo,
       HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
+    CollaborationAccessScope scope = collaborationAccessScopeResolver.resolve(currentUser);
     List<Map<String, Object>> rows =
         enrich(
-            queryTenantAlerts(
+            filterVisibleAlerts(
+                queryTenantAlerts(
                 currentUser.getTenantId(),
                 keyword,
                 targetType,
@@ -518,7 +536,8 @@ public class AlertsController {
                 parseDateTime(occurTimeFrom),
                 parseDateTime(occurTimeTo),
                 parseDateTime(resolveTimeFrom),
-                parseDateTime(resolveTimeTo)));
+                parseDateTime(resolveTimeTo)),
+                scope));
     return csvResponse("alerts_monitor.csv", buildAlertCsv(rows));
   }
 
@@ -683,12 +702,22 @@ public class AlertsController {
             .eq(AlertPushRule::getStatus, "ENABLED"));
   }
 
-  private AlertEvent requireEntity(Long id, Long tenantId) {
+  private AlertEvent requireEntity(Long id, Long tenantId, CollaborationAccessScope scope) {
     AlertEvent entity = alertEventMapper.selectById(id);
-    if (entity == null || !Objects.equals(entity.getTenantId(), tenantId)) {
+    if (entity == null
+        || !Objects.equals(entity.getTenantId(), tenantId)
+        || !scope.matchesAlert(entity)) {
       throw new BizException(404, "预警事件不存在");
     }
     return entity;
+  }
+
+  private List<AlertEvent> filterVisibleAlerts(
+      List<AlertEvent> rows, CollaborationAccessScope scope) {
+    if (scope.isTenantWideAccess()) {
+      return rows;
+    }
+    return rows.stream().filter(scope::matchesAlert).toList();
   }
 
   private List<Map<String, Object>> enrich(List<AlertEvent> rows) {

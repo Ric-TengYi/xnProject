@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="960" viewBox="0 0 1500 960">
+  <defs>
+    <style>
+      .title { font: 700 34px 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #17324d; }
+      .subtitle { font: 500 18px 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #51657d; }
+      .boxTitle { font: 700 24px 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #17324d; }
+      .boxText { font: 500 17px 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #35506a; }
+      .small { font: 500 15px 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #51657d; }
+      .arrow { stroke: #5d7792; stroke-width: 3; fill: none; marker-end: url(#arrowHead); }
+    </style>
+    <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#5d7792"/>
+    </marker>
+  </defs>
+
+  <rect width="1500" height="960" fill="#f5f8fc"/>
+  <text x="750" y="64" text-anchor="middle" class="title">渣土运输与消纳监管平台部署架构示意图</text>
+  <text x="750" y="100" text-anchor="middle" class="subtitle">适用于甲方正式方案展示的推荐部署拓扑，强调分层隔离、核心服务独立承载与对外对接受控接入</text>
+
+  <rect x="540" y="150" width="420" height="90" rx="22" fill="#dff1ff" stroke="#96c5e8" stroke-width="2"/>
+  <text x="750" y="200" text-anchor="middle" class="boxTitle">访问用户</text>
+  <text x="750" y="228" text-anchor="middle" class="boxText">监管端 / 企业端 / 移动端 / 第三方协同访问</text>
+
+  <rect x="500" y="290" width="500" height="110" rx="24" fill="#eef3f8" stroke="#b9c8d7" stroke-width="2"/>
+  <text x="750" y="338" text-anchor="middle" class="boxTitle">统一接入层</text>
+  <text x="750" y="372" text-anchor="middle" class="boxText">负载均衡、API 网关、HTTPS 证书、安全访问控制</text>
+
+  <rect x="150" y="470" width="360" height="150" rx="24" fill="#f4eafe" stroke="#c8ace7" stroke-width="2"/>
+  <text x="330" y="525" text-anchor="middle" class="boxTitle">前端发布层</text>
+  <text x="330" y="560" text-anchor="middle" class="boxText">管理后台静态资源</text>
+  <text x="330" y="592" text-anchor="middle" class="boxText">小程序访问入口</text>
+
+  <rect x="570" y="450" width="360" height="190" rx="24" fill="#fff5de" stroke="#dfc06f" stroke-width="2"/>
+  <text x="750" y="505" text-anchor="middle" class="boxTitle">应用服务层</text>
+  <text x="750" y="540" text-anchor="middle" class="boxText">业务服务集群</text>
+  <text x="750" y="572" text-anchor="middle" class="boxText">组织权限、项目合同、车辆场地、预警事件、统计看板</text>
+  <text x="750" y="610" text-anchor="middle" class="small">支持按业务规模拆分部署与横向扩容</text>
+
+  <rect x="990" y="450" width="360" height="190" rx="24" fill="#ffe8e4" stroke="#de9d90" stroke-width="2"/>
+  <text x="1170" y="505" text-anchor="middle" class="boxTitle">任务与集成层</text>
+  <text x="1170" y="540" text-anchor="middle" class="boxText">同步任务 / 消息任务 / 导出任务</text>
+  <text x="1170" y="572" text-anchor="middle" class="boxText">政务网 / GPS / 视频 / 地磅 / SSO 适配服务</text>
+  <text x="1170" y="610" text-anchor="middle" class="small">统一承接外部链路、重试补偿与日志追踪</text>
+
+  <rect x="260" y="730" width="500" height="150" rx="24" fill="#ffffff" stroke="#cfd9e4" stroke-width="2"/>
+  <text x="510" y="785" text-anchor="middle" class="boxTitle">数据服务层</text>
+  <text x="510" y="820" text-anchor="middle" class="boxText">MySQL 业务库 / Redis 缓存 / 文件与附件存储</text>
+  <text x="510" y="852" text-anchor="middle" class="small">建议独立部署并执行备份、恢复和容量管理</text>
+
+  <rect x="820" y="730" width="300" height="150" rx="24" fill="#e8f6ea" stroke="#9fccaa" stroke-width="2"/>
+  <text x="970" y="785" text-anchor="middle" class="boxTitle">日志审计层</text>
+  <text x="970" y="820" text-anchor="middle" class="boxText">操作日志 / 错误日志 / 同步日志 / 监控告警</text>
+  <text x="970" y="852" text-anchor="middle" class="small">支撑追溯、告警、巡检与审计</text>
+
+  <rect x="1180" y="730" width="240" height="150" rx="24" fill="#eef3f8" stroke="#b9c8d7" stroke-width="2"/>
+  <text x="1300" y="785" text-anchor="middle" class="boxTitle">第三方平台层</text>
+  <text x="1300" y="820" text-anchor="middle" class="boxText">政务网 / GPS / 视频 / 地磅 / SSO / 短信</text>
+  <text x="1300" y="852" text-anchor="middle" class="small">统一受控接入</text>
+
+  <path class="arrow" d="M750 240 L750 288"/>
+  <path class="arrow" d="M750 400 L330 468"/>
+  <path class="arrow" d="M750 400 L750 448"/>
+  <path class="arrow" d="M750 400 L1170 448"/>
+
+  <path class="arrow" d="M750 640 L560 728"/>
+  <path class="arrow" d="M750 640 L970 728"/>
+  <path class="arrow" d="M1170 640 L560 728"/>
+  <path class="arrow" d="M1170 640 L970 728"/>
+  <path class="arrow" d="M1170 640 L1300 728"/>
+
+  <text x="1190" y="308" class="small">统一安全接入</text>
+  <text x="1220" y="692" class="small">外部链路隔离</text>
+</svg>

@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980">
+  <defs>
+    <style>
+      .title { font: 700 34px 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #17324d; }
+      .subtitle { font: 500 18px 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #51657d; }
+      .boxTitle { font: 700 23px 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #17324d; }
+      .boxText { font: 500 17px 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #35506a; }
+      .small { font: 500 16px 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #35506a; }
+      .arrow { stroke: #5d7792; stroke-width: 3; fill: none; marker-end: url(#arrowHead); }
+      .dash { stroke: #92a7bc; stroke-width: 2; stroke-dasharray: 8 8; fill: none; }
+    </style>
+    <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#5d7792"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="980" fill="#f5f8fc"/>
+  <text x="800" y="64" text-anchor="middle" class="title">渣土运输与消纳监管平台应用协同架构图</text>
+  <text x="800" y="100" text-anchor="middle" class="subtitle">体现统一入口、统一服务、统一数据中心与统一对接中心的协同关系</text>
+
+  <rect x="70" y="180" width="220" height="100" rx="22" fill="#dff1ff" stroke="#96c5e8" stroke-width="2"/>
+  <text x="180" y="225" text-anchor="middle" class="boxTitle">监管端用户</text>
+  <text x="180" y="255" text-anchor="middle" class="boxText">主管部门 / 监管人员</text>
+
+  <rect x="70" y="340" width="220" height="100" rx="22" fill="#e8f6ea" stroke="#9fccaa" stroke-width="2"/>
+  <text x="180" y="385" text-anchor="middle" class="boxTitle">企业端用户</text>
+  <text x="180" y="415" text-anchor="middle" class="boxText">建设 / 施工 / 运输 / 场地单位</text>
+
+  <rect x="70" y="500" width="220" height="100" rx="22" fill="#fff5de" stroke="#dfc06f" stroke-width="2"/>
+  <text x="180" y="545" text-anchor="middle" class="boxTitle">移动端用户</text>
+  <text x="180" y="575" text-anchor="middle" class="boxText">现场管理人员 / 驾驶员</text>
+
+  <rect x="380" y="290" width="290" height="200" rx="26" fill="#f0f6ff" stroke="#94bce3" stroke-width="2"/>
+  <text x="525" y="345" text-anchor="middle" class="boxTitle">统一访问入口</text>
+  <text x="525" y="385" text-anchor="middle" class="boxText">Web 门户</text>
+  <text x="525" y="417" text-anchor="middle" class="boxText">小程序入口</text>
+  <text x="525" y="449" text-anchor="middle" class="boxText">API 网关</text>
+
+  <rect x="760" y="150" width="320" height="120" rx="24" fill="#f4eafe" stroke="#c9ace8" stroke-width="2"/>
+  <text x="920" y="198" text-anchor="middle" class="boxTitle">基础管理服务</text>
+  <text x="920" y="232" text-anchor="middle" class="boxText">组织 / 用户 / 角色 / 权限 / 参数</text>
+
+  <rect x="760" y="310" width="320" height="140" rx="24" fill="#ffeecf" stroke="#dfbf6b" stroke-width="2"/>
+  <text x="920" y="360" text-anchor="middle" class="boxTitle">经营业务服务</text>
+  <text x="920" y="395" text-anchor="middle" class="boxText">项目 / 合同 / 场地 / 车辆 / 结算</text>
+  <text x="920" y="425" text-anchor="middle" class="small">承接主要业务闭环</text>
+
+  <rect x="760" y="500" width="320" height="140" rx="24" fill="#e8f6ea" stroke="#9fccaa" stroke-width="2"/>
+  <text x="920" y="550" text-anchor="middle" class="boxTitle">监管风控服务</text>
+  <text x="920" y="585" text-anchor="middle" class="boxText">预警 / 事件 / 安全 / 违规研判</text>
+  <text x="920" y="615" text-anchor="middle" class="small">支撑监管分析与闭环处置</text>
+
+  <rect x="760" y="690" width="320" height="120" rx="24" fill="#dff1ff" stroke="#96c5e8" stroke-width="2"/>
+  <text x="920" y="738" text-anchor="middle" class="boxTitle">展示服务</text>
+  <text x="920" y="772" text-anchor="middle" class="boxText">统计 / 看板 / 查询 / 消息 / 报表</text>
+
+  <rect x="1160" y="220" width="330" height="180" rx="26" fill="#fff1f0" stroke="#df9e95" stroke-width="2"/>
+  <text x="1325" y="270" text-anchor="middle" class="boxTitle">集成适配服务</text>
+  <text x="1325" y="310" text-anchor="middle" class="boxText">政务网 / 定位/GPS / 视频 / 地磅 / SSO</text>
+  <text x="1325" y="342" text-anchor="middle" class="small">统一协议适配、鉴权、补偿与日志</text>
+
+  <rect x="1160" y="460" width="330" height="130" rx="26" fill="#fff7dc" stroke="#ddc677" stroke-width="2"/>
+  <text x="1325" y="510" text-anchor="middle" class="boxTitle">异步任务中心</text>
+  <text x="1325" y="545" text-anchor="middle" class="boxText">同步 / 导出 / 推送 / 对账 / 补偿</text>
+
+  <rect x="380" y="710" width="710" height="160" rx="28" fill="#ffffff" stroke="#cfd9e4" stroke-width="2"/>
+  <text x="735" y="760" text-anchor="middle" class="boxTitle">统一数据中心</text>
+  <text x="520" y="815" text-anchor="middle" class="boxText">业务数据库</text>
+  <text x="735" y="815" text-anchor="middle" class="boxText">缓存与会话</text>
+  <text x="950" y="815" text-anchor="middle" class="boxText">文件与附件存储</text>
+  <text x="735" y="850" text-anchor="middle" class="small">同时承载日志审计、轨迹、视频索引、对接留痕等支撑数据</text>
+  <line x1="620" y1="785" x2="620" y2="835" class="dash"/>
+  <line x1="850" y1="785" x2="850" y2="835" class="dash"/>
+
+  <rect x="1210" y="690" width="280" height="170" rx="24" fill="#eef3f8" stroke="#b9c8d7" stroke-width="2"/>
+  <text x="1350" y="735" text-anchor="middle" class="boxTitle">外部平台与设备</text>
+  <text x="1350" y="775" text-anchor="middle" class="boxText">政务监管平台</text>
+  <text x="1350" y="805" text-anchor="middle" class="boxText">定位平台 / 视频平台</text>
+  <text x="1350" y="835" text-anchor="middle" class="boxText">地磅软件 / 认证平台</text>
+
+  <path class="arrow" d="M290 230 L378 340"/>
+  <path class="arrow" d="M290 390 L378 390"/>
+  <path class="arrow" d="M290 550 L378 440"/>
+
+  <path class="arrow" d="M670 390 L758 210"/>
+  <path class="arrow" d="M670 390 L758 380"/>
+  <path class="arrow" d="M670 390 L758 570"/>
+  <path class="arrow" d="M670 390 L758 750"/>
+
+  <path class="arrow" d="M1080 210 L1158 270"/>
+  <path class="arrow" d="M1080 380 L1158 320"/>
+  <path class="arrow" d="M1080 570 L1158 520"/>
+  <path class="arrow" d="M1080 750 L1158 520"/>
+
+  <path class="arrow" d="M920 450 L920 708"/>
+  <path class="arrow" d="M920 640 L920 708"/>
+  <path class="arrow" d="M1325 400 L1325 458"/>
+  <path class="arrow" d="M1325 590 L1325 688"/>
+  <path class="arrow" d="M1230 590 L1040 790"/>
+</svg>

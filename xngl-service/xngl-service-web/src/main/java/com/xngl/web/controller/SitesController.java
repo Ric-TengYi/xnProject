@@ -248,8 +248,10 @@ public class SitesController {
   @PostMapping
   public ApiResult<SiteDetailDto> create(
       @RequestBody SiteCreateDto body, HttpServletRequest request) {
-    requireCurrentUser(request);
-    validateSiteCreate(body);
+    User currentUser = requireCurrentUser(request);
+    MasterDataAccessScope scope =
+        accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_SITE);
+    validateSiteCreate(body, scope);
 
     Site site = new Site();
     site.setName(body.getName().trim());
@@ -487,12 +489,21 @@ public class SitesController {
     return value.setScale(6, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString();
   }
 
-  private void validateSiteCreate(SiteCreateDto body) {
+  private void validateSiteCreate(SiteCreateDto body, MasterDataAccessScope scope) {
     if (body == null) {
       throw new BizException(400, "请求体不能为空");
     }
     if (!StringUtils.hasText(body.getName())) {
       throw new BizException(400, "场地名称不能为空");
+    }
+    if (body.getProjectId() != null) {
+      Project project = projectMapper.selectById(body.getProjectId());
+      if (project == null || !canAccessProject(scope, project)) {
+        throw new BizException(404, "项目不存在");
+      }
+    }
+    if (body.getOrgId() != null && !scope.isTenantWideAccess() && !scope.hasOrgAccess(body.getOrgId())) {
+      throw new BizException(404, "所属组织不存在");
     }
     String siteLevel = normalizeSiteLevel(body.getSiteLevel());
     if ("SECONDARY".equals(siteLevel) && body.getParentSiteId() == null) {
@@ -500,13 +511,17 @@ public class SitesController {
     }
     if (body.getParentSiteId() != null) {
       Site parentSite = siteMapper.selectById(body.getParentSiteId());
-      if (parentSite == null || Objects.equals(parentSite.getDeleted(), 1)) {
+      if (parentSite == null
+          || Objects.equals(parentSite.getDeleted(), 1)
+          || !canAccessSite(scope, parentSite)) {
         throw new BizException(404, "上级场地不存在");
       }
     }
     if (body.getWeighbridgeSiteId() != null) {
       Site weighbridgeSite = siteMapper.selectById(body.getWeighbridgeSiteId());
-      if (weighbridgeSite == null || Objects.equals(weighbridgeSite.getDeleted(), 1)) {
+      if (weighbridgeSite == null
+          || Objects.equals(weighbridgeSite.getDeleted(), 1)
+          || !canAccessSite(scope, weighbridgeSite)) {
         throw new BizException(404, "借用地磅场地不存在");
       }
       Long deviceCount =
@@ -548,7 +563,17 @@ public class SitesController {
   }
 
   private boolean canAccessSite(MasterDataAccessScope scope, Site site) {
-    return site != null && scope.hasOrgAccess(site.getOrgId());
+    return site != null
+        && (scope.isTenantWideAccess()
+            || scope.hasOrgAccess(site.getOrgId())
+            || scope.hasProjectAccess(site.getProjectId()));
+  }
+
+  private boolean canAccessProject(MasterDataAccessScope scope, Project project) {
+    return project != null
+        && (scope.isTenantWideAccess()
+            || scope.hasProjectAccess(project.getId())
+            || scope.hasOrgAccess(project.getOrgId()));
   }
 
   private DisposalListItemDto toDisposalItem(
