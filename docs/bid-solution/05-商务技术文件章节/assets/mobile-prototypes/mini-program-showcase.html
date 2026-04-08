@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>渣土监管小程序原型展示</title>
+    <style>
+      :root {
+        --bg: #edf3f7;
+        --panel: #ffffff;
+        --ink: #13263b;
+        --muted: #6b8096;
+        --line: rgba(19, 38, 59, 0.08);
+        --brand: #0b63ce;
+        --brand-2: #0ea5a2;
+        --good: #18a957;
+        --warn: #f59e0b;
+        --danger: #d9485f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(14, 165, 162, 0.14), transparent 28%),
+          radial-gradient(circle at bottom right, rgba(11, 99, 206, 0.14), transparent 32%),
+          linear-gradient(180deg, #f7fbfd 0%, #edf3f7 100%);
+      }
+
+      .page {
+        max-width: 1560px;
+        margin: 0 auto;
+        padding: 44px 36px 52px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 28px;
+        align-items: end;
+        margin-bottom: 28px;
+      }
+
+      .title-block {
+        padding: 28px 32px;
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.78);
+        box-shadow: 0 20px 50px rgba(25, 54, 81, 0.08);
+        backdrop-filter: blur(10px);
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        font-size: 13px;
+        color: var(--brand);
+        background: rgba(11, 99, 206, 0.08);
+        border-radius: 999px;
+      }
+
+      h1 {
+        margin: 18px 0 12px;
+        font-size: 34px;
+        line-height: 1.18;
+      }
+
+      .subtitle {
+        margin: 0;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.8;
+      }
+
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+      }
+
+      .summary-card {
+        padding: 18px 20px;
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.82));
+        border: 1px solid var(--line);
+        box-shadow: 0 16px 36px rgba(25, 54, 81, 0.08);
+      }
+
+      .summary-card strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 15px;
+      }
+
+      .summary-card span {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 24px;
+      }
+
+      .scene {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .scene-label {
+        padding-left: 6px;
+      }
+
+      .scene-label h2 {
+        margin: 0 0 6px;
+        font-size: 19px;
+      }
+
+      .scene-label p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.7;
+      }
+
+      .phone-shell {
+        width: 100%;
+        aspect-ratio: 390 / 844;
+        border-radius: 34px;
+        background: linear-gradient(180deg, #1f2f3f, #101923);
+        padding: 14px;
+        box-shadow: 0 28px 44px rgba(15, 32, 49, 0.25);
+      }
+
+      .phone-screen {
+        position: relative;
+        height: 100%;
+        overflow: hidden;
+        border-radius: 24px;
+        background: linear-gradient(180deg, #f8fbff 0%, #eef4f8 100%);
+      }
+
+      .notch {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 104px;
+        height: 24px;
+        border-radius: 999px;
+        background: #0e1821;
+        z-index: 3;
+      }
+
+      .status {
+        position: absolute;
+        top: 18px;
+        left: 22px;
+        right: 22px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        font-weight: 600;
+        z-index: 2;
+      }
+
+      .screen-inner {
+        position: absolute;
+        inset: 0;
+        padding: 44px 18px 18px;
+      }
+
+      .app-header {
+        padding: 20px 18px 18px;
+        color: #fff;
+        background: linear-gradient(135deg, var(--brand), #2a7ae0 62%, var(--brand-2));
+      }
+
+      .app-header h3 {
+        margin: 18px 0 6px;
+        font-size: 22px;
+      }
+
+      .app-header p {
+        margin: 0;
+        font-size: 12px;
+        opacity: 0.9;
+      }
+
+      .chip-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 14px;
+        flex-wrap: wrap;
+      }
+
+      .chip {
+        padding: 6px 10px;
+        font-size: 11px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.16);
+        border: 1px solid rgba(255,255,255,0.16);
+      }
+
+      .content {
+        padding: 14px 14px 16px;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 14px;
+        box-shadow: 0 10px 22px rgba(26, 54, 79, 0.06);
+      }
+
+      .panel + .panel {
+        margin-top: 12px;
+      }
+
+      .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .row + .row {
+        margin-top: 10px;
+      }
+
+      .meta {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .value {
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 9px;
+        border-radius: 999px;
+        background: rgba(11, 99, 206, 0.08);
+        color: var(--brand);
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .tag.good {
+        background: rgba(24, 169, 87, 0.1);
+        color: var(--good);
+      }
+
+      .tag.warn {
+        background: rgba(245, 158, 11, 0.12);
+        color: var(--warn);
+      }
+
+      .tag.danger {
+        background: rgba(217, 72, 95, 0.12);
+        color: var(--danger);
+      }
+
+      .steps {
+        display: grid;
+        gap: 10px;
+      }
+
+      .step {
+        padding: 10px 12px;
+        border-radius: 14px;
+        background: #f5f8fb;
+        border: 1px solid rgba(19, 38, 59, 0.06);
+      }
+
+      .step strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 12px;
+      }
+
+      .step span {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.5;
+      }
+
+      .primary-btn {
+        margin-top: 12px;
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 14px;
+        color: #fff;
+        font-weight: 700;
+        font-size: 13px;
+        text-align: center;
+        background: linear-gradient(135deg, var(--brand), #2c7adf);
+      }
+
+      .secondary-btn {
+        margin-top: 8px;
+        width: 100%;
+        padding: 11px 14px;
+        border-radius: 14px;
+        color: var(--brand);
+        font-weight: 700;
+        font-size: 13px;
+        text-align: center;
+        border: 1px solid rgba(11, 99, 206, 0.16);
+        background: rgba(11, 99, 206, 0.05);
+      }
+
+      .map {
+        height: 164px;
+        border-radius: 18px;
+        background:
+          radial-gradient(circle at 20% 24%, rgba(11, 99, 206, 0.18), transparent 18%),
+          radial-gradient(circle at 78% 30%, rgba(14, 165, 162, 0.15), transparent 20%),
+          linear-gradient(135deg, #dceaf5 0%, #f4f9fb 100%);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .map::before,
+      .map::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(19, 38, 59, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(19, 38, 59, 0.05) 1px, transparent 1px);
+        background-size: 32px 32px;
+      }
+
+      .route {
+        position: absolute;
+        left: 30px;
+        top: 92px;
+        width: 236px;
+        height: 56px;
+        border-top: 4px solid #2b7adf;
+        border-right: 4px solid #2b7adf;
+        border-radius: 40px 34px 24px 0;
+        transform: rotate(-6deg);
+      }
+
+      .pin {
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--danger);
+        border: 4px solid rgba(217, 72, 95, 0.18);
+      }
+
+      .pin.one { left: 42px; top: 94px; }
+      .pin.two { left: 242px; top: 56px; background: var(--brand-2); border-color: rgba(14, 165, 162, 0.2); }
+      .pin.three { left: 298px; top: 118px; background: var(--brand); border-color: rgba(11, 99, 206, 0.18); }
+
+      .capture {
+        border: 1px dashed rgba(19, 38, 59, 0.1);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page capture" data-shot="showcase">
+      <div class="hero">
+        <section class="title-block">
+          <div class="eyebrow">移动端与小程序应用方案展示</div>
+          <h1>面向甲方展示的小程序现场作业原型</h1>
+          <p class="subtitle">
+            以“出土打卡、消纳确认、事件上报、车辆跟踪”四个核心场景构建移动端展示稿，
+            强调现场采集、实时监管、异常闭环和全过程留痕，适合直接放入投标 Word 作为展示型页面支撑。
+          </p>
+        </section>
+        <section class="summary">
+          <div class="summary-card">
+            <strong>现场作业优先</strong>
+            <span>围绕值守、打卡、上报、跟踪等高频操作设计，减少现场输入负担。</span>
+          </div>
+          <div class="summary-card">
+            <strong>强留痕采集</strong>
+            <span>位置、照片、时间、人员、项目、车辆统一记录，满足追责和复盘需要。</span>
+          </div>
+          <div class="summary-card">
+            <strong>监管闭环联动</strong>
+            <span>移动端提交后自动进入后台预警、事件、统计和消息链路。</span>
+          </div>
+          <div class="summary-card">
+            <strong>投标展示友好</strong>
+            <span>画面强调角色入口、关键按钮和业务结果，便于评审快速理解能力完整性。</span>
+          </div>
+        </section>
+      </div>
+
+      <section class="grid">
+        <div class="scene">
+          <div class="scene-label">
+            <h2>出土打卡</h2>
+            <p>服务出土单位现场人员，突出项目选择、定位校验、现场拍照和打卡成功反馈。</p>
+          </div>
+          <div class="phone-shell" data-shot="checkin">
+            <div class="phone-screen">
+              <div class="notch"></div>
+              <div class="status"><span>09:42</span><span>5G 88%</span></div>
+              <div class="app-header">
+                <div class="tag">源头项目作业</div>
+                <h3>出土打卡</h3>
+                <p>到场即打卡，自动校验项目范围与现场位置</p>
+                <div class="chip-row">
+                  <div class="chip">定位校验</div>
+                  <div class="chip">照片留痕</div>
+                  <div class="chip">异常申报</div>
+                </div>
+              </div>
+              <div class="content">
+                <div class="panel">
+                  <div class="row"><span class="meta">所属项目</span><span class="value">城南更新项目 A-03 标段</span></div>
+                  <div class="row"><span class="meta">作业时段</span><span class="value">09:30 - 18:00</span></div>
+                  <div class="row"><span class="meta">定位状态</span><span class="tag good">已进入作业范围 18m</span></div>
+                </div>
+                <div class="panel">
+                  <div class="row"><span class="meta">现场照片</span><span class="tag">已采集 3 张</span></div>
+                  <div class="steps">
+                    <div class="step"><strong>自动记录</strong><span>时间、人员、项目、坐标与设备信息自动绑定。</span></div>
+                    <div class="step"><strong>异常兜底</strong><span>若 GPS 偏差或弱网失败，可立即发起异常申报。</span></div>
+                  </div>
+                  <div class="primary-btn">确认打卡并上传</div>
+                  <div class="secondary-btn">打卡异常申报</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="scene">
+          <div class="scene-label">
+            <h2>消纳确认</h2>
+            <p>服务场地方值守人员，强调车辆核验、磅单数据、现场确认和异常备注闭环。</p>
+          </div>
+          <div class="phone-shell" data-shot="disposal">
+            <div class="phone-screen">
+              <div class="notch"></div>
+              <div class="status"><span>09:42</span><span>5G 82%</span></div>
+              <div class="app-header" style="background: linear-gradient(135deg, #0a7a89, #109b9a 62%, #0b63ce);">
+                <div class="tag">场地值守作业</div>
+                <h3>消纳确认</h3>
+                <p>接收车辆、匹配称重、更新场地台账与容量占用</p>
+                <div class="chip-row">
+                  <div class="chip">车辆核验</div>
+                  <div class="chip">地磅联动</div>
+                  <div class="chip">容量更新</div>
+                </div>
+              </div>
+              <div class="content">
+                <div class="panel">
+                  <div class="row"><span class="meta">入场车辆</span><span class="value">浙A 7Q218</span></div>
+                  <div class="row"><span class="meta">关联项目</span><span class="value">城南更新项目 A-03 标段</span></div>
+                  <div class="row"><span class="meta">准入状态</span><span class="tag good">处置证/车辆信息校验通过</span></div>
+                </div>
+                <div class="panel">
+                  <div class="row"><span class="meta">磅单信息</span><span class="tag">净重 18.62 吨</span></div>
+                  <div class="row"><span class="meta">场地容量</span><span class="tag warn">剩余容量 22%</span></div>
+                  <div class="steps">
+                    <div class="step"><strong>自动核验</strong><span>匹配车牌、进场时间、地磅数据和现场照片。</span></div>
+                    <div class="step"><strong>人工兜底</strong><span>设备异常时可手工录入，但需强制备注并生成复核标记。</span></div>
+                  </div>
+                  <div class="primary-btn">确认消纳</div>
+                  <div class="secondary-btn">转手工消纳</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="scene">
+          <div class="scene-label">
+            <h2>事件上报</h2>
+            <p>服务监管巡查和现场作业人员，突出分类上报、图文留痕、定位绑定和处置派发。</p>
+          </div>
+          <div class="phone-shell" data-shot="event">
+            <div class="phone-screen">
+              <div class="notch"></div>
+              <div class="status"><span>09:42</span><span>5G 90%</span></div>
+              <div class="app-header" style="background: linear-gradient(135deg, #d9485f, #ec6d54 60%, #f59e0b);">
+                <div class="tag">巡查上报</div>
+                <h3>事件上报</h3>
+                <p>发现问题即刻在线化，自动形成可派发、可追溯的处置线索</p>
+                <div class="chip-row">
+                  <div class="chip">事件分类</div>
+                  <div class="chip">图文证据</div>
+                  <div class="chip">位置留痕</div>
+                </div>
+              </div>
+              <div class="content">
+                <div class="panel">
+                  <div class="row"><span class="meta">事件类别</span><span class="tag danger">违规倾倒疑似点</span></div>
+                  <div class="row"><span class="meta">发生位置</span><span class="value">高新大道北侧消纳通道</span></div>
+                  <div class="row"><span class="meta">证据材料</span><span class="tag">图片 4 张 / 视频 1 段</span></div>
+                </div>
+                <div class="panel">
+                  <div class="steps">
+                    <div class="step"><strong>自动派发</strong><span>提交后进入后台事件中心，按区域和责任人派发处置。</span></div>
+                    <div class="step"><strong>消息闭环</strong><span>处置进度、反馈结果、超时催办通过消息实时触达。</span></div>
+                  </div>
+                  <div class="primary-btn">提交事件并推送</div>
+                  <div class="secondary-btn">保存草稿</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="scene">
+          <div class="scene-label">
+            <h2>车辆跟踪</h2>
+            <p>服务监管人员和车队管理人员，强调实时位置、轨迹回放、预警状态和项目关联。</p>
+          </div>
+          <div class="phone-shell" data-shot="tracking">
+            <div class="phone-screen">
+              <div class="notch"></div>
+              <div class="status"><span>09:42</span><span>5G 76%</span></div>
+              <div class="app-header">
+                <div class="tag">运输过程监管</div>
+                <h3>车辆跟踪</h3>
+                <p>实时查看车辆位置、轨迹路径、停留状态与预警信息</p>
+                <div class="chip-row">
+                  <div class="chip">实时位置</div>
+                  <div class="chip">轨迹回放</div>
+                  <div class="chip">偏离告警</div>
+                </div>
+              </div>
+              <div class="content">
+                <div class="panel">
+                  <div class="map">
+                    <div class="route"></div>
+                    <div class="pin one"></div>
+                    <div class="pin two"></div>
+                    <div class="pin three"></div>
+                  </div>
+                </div>
+                <div class="panel">
+                  <div class="row"><span class="meta">当前车辆</span><span class="value">浙A 7Q218</span></div>
+                  <div class="row"><span class="meta">关联线路</span><span class="value">城南更新项目 -> 三号消纳场</span></div>
+                  <div class="row"><span class="meta">运行状态</span><span class="tag warn">停留超时 12 分钟</span></div>
+                  <div class="row"><span class="meta">监管动作</span><span class="tag">已触发消息提醒</span></div>
+                  <div class="primary-btn">查看完整轨迹</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from datetime import date
 from pathlib import Path
 
 from docx import Document
@@ -34,6 +35,20 @@ EXPORTS = [
         "output": OUTPUT_DIR / "甲方版-专项方案.docx",
         "files": sorted((ROOT / "03-专项方案").glob("*.md")),
     },
+    {
+        "title": "渣土运输与消纳监管平台商务技术文件章节",
+        "subject": "商务技术文件第5章至第10章",
+        "output": OUTPUT_DIR / "商务技术文件章节-汇编.docx",
+        "files": sorted(
+            file
+            for file in (ROOT / "05-商务技术文件章节").glob("[0-9][0-9]_*.md")
+            if file.stem[:2] >= "05"
+        ),
+    },
+]
+
+INDIVIDUAL_EXPORT_DIRS = [
+    ROOT / "05-商务技术文件章节",
 ]
 
 
@@ -97,7 +112,7 @@ def add_cover(document: Document, title: str, subject: str) -> None:
     p3 = document.add_paragraph()
     p3.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p3.paragraph_format.space_before = Pt(260)
-    run3 = p3.add_run("导出日期：2026-04-01")
+    run3 = p3.add_run(f"导出日期：{date.today().isoformat()}")
     run3.font.size = Pt(12)
     run3.font.name = "Microsoft YaHei"
     run3._element.rPr.rFonts.set(qn("w:eastAsia"), "Microsoft YaHei")
@@ -134,7 +149,11 @@ def insert_bookmarkless_toc_hint(document: Document) -> None:
     run.font.size = Pt(16)
     run.font.name = "Microsoft YaHei"
     run._element.rPr.rFonts.set(qn("w:eastAsia"), "Microsoft YaHei")
-    hint = document.add_paragraph("说明：如需自动目录，可在 Word 中全选后更新域或重新生成目录。")
+    toc = document.add_paragraph()
+    fld_simple = OxmlElement("w:fldSimple")
+    fld_simple.set(qn("w:instr"), 'TOC \\o "1-3" \\h \\z \\u')
+    toc._p.append(fld_simple)
+    hint = document.add_paragraph("说明：如目录未自动刷新，可在 Word 中全选后更新域。")
     hint.paragraph_format.space_after = Pt(8)
 
 
@@ -282,8 +301,35 @@ def build_docx(export: dict) -> Path:
     return export["output"]
 
 
+def extract_title(markdown_path: Path) -> str:
+    for line in markdown_path.read_text(encoding="utf-8").splitlines():
+        match = HEADING_RE.match(line.strip())
+        if match:
+            return clean_inline_text(match.group(2))
+    return markdown_path.stem
+
+
+def build_single_markdown_docx(markdown_path: Path, output_path: Path) -> Path:
+    title = extract_title(markdown_path)
+    document = Document()
+    configure_document(document, title, title)
+    add_cover(document, title, "商务技术文件章节")
+    render_markdown(document, markdown_path)
+    for section in document.sections:
+        add_page_number(section)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    document.save(output_path)
+    return output_path
+
+
 def main() -> None:
     generated = [build_docx(export) for export in EXPORTS]
+    for directory in INDIVIDUAL_EXPORT_DIRS:
+        target_dir = OUTPUT_DIR / directory.name
+        for markdown_file in sorted(
+            file for file in directory.glob("[0-9][0-9]_*.md") if file.stem[:2] >= "05"
+        ):
+            generated.append(build_single_markdown_docx(markdown_file, target_dir / f"{markdown_file.stem}.docx"))
     for path in generated:
         print(path.relative_to(ROOT))
 
