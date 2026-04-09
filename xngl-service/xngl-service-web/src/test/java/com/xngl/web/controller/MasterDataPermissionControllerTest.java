@@ -148,6 +148,7 @@ class MasterDataPermissionControllerTest {
             contractMapper,
             contractTicketMapper,
             siteMapper,
+            disposalPermitMapper,
             projectConfigMapper,
             alertFenceMapper,
             projectPaymentService,
@@ -193,6 +194,7 @@ class MasterDataPermissionControllerTest {
             contractMapper,
             contractTicketMapper,
             siteMapper,
+            disposalPermitMapper,
             projectConfigMapper,
             alertFenceMapper,
             projectPaymentService,
@@ -229,6 +231,68 @@ class MasterDataPermissionControllerTest {
   }
 
   @Test
+  void projectDetailShouldReturn404WhenProjectOrgOutsideScope() {
+    ProjectsController controller =
+        new ProjectsController(
+            projectMapper,
+            orgMapper,
+            contractMapper,
+            contractTicketMapper,
+            siteMapper,
+            disposalPermitMapper,
+            projectConfigMapper,
+            alertFenceMapper,
+            projectPaymentService,
+            userContext,
+            accessScopeResolver);
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    User currentUser = buildUser(24L, 1L);
+    Project hidden = buildProject(201L, 20L, "Hidden Project");
+
+    when(userContext.requireCurrentUser(request)).thenReturn(currentUser);
+    when(accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_PROJECT))
+        .thenReturn(MasterDataAccessScope.scoped(List.of(10L), List.of()));
+    when(projectMapper.selectById(201L)).thenReturn(hidden);
+
+    ApiResult<?> result = controller.get(201L, request);
+
+    assertThat(result.getCode()).isEqualTo(404);
+    assertThat(result.getMessage()).isEqualTo("项目不存在");
+  }
+
+  @Test
+  void projectDetailShouldReturn404WhenTenantWideUserReadsOtherTenantProject() {
+    ProjectsController controller =
+        new ProjectsController(
+            projectMapper,
+            orgMapper,
+            contractMapper,
+            contractTicketMapper,
+            siteMapper,
+            disposalPermitMapper,
+            projectConfigMapper,
+            alertFenceMapper,
+            projectPaymentService,
+            userContext,
+            accessScopeResolver);
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    User currentUser = buildUser(25L, 1L);
+    Project crossTenantProject = buildProject(202L, 30L, "Cross Tenant Project");
+    Org foreignOrg = buildOrg(30L, 2L, "Foreign Org");
+
+    when(userContext.requireCurrentUser(request)).thenReturn(currentUser);
+    when(accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_PROJECT))
+        .thenReturn(MasterDataAccessScope.tenantWide(List.of()));
+    when(projectMapper.selectById(202L)).thenReturn(crossTenantProject);
+    when(orgMapper.selectById(30L)).thenReturn(foreignOrg);
+
+    ApiResult<?> result = controller.get(202L, request);
+
+    assertThat(result.getCode()).isEqualTo(404);
+    assertThat(result.getMessage()).isEqualTo("项目不存在");
+  }
+
+  @Test
   void updateProjectConfigShouldUpsertScopedProjectAndReturnPersistedFields() {
     ProjectsController controller =
         new ProjectsController(
@@ -237,6 +301,7 @@ class MasterDataPermissionControllerTest {
             contractMapper,
             contractTicketMapper,
             siteMapper,
+            disposalPermitMapper,
             projectConfigMapper,
             alertFenceMapper,
             projectPaymentService,
@@ -267,6 +332,7 @@ class MasterDataPermissionControllerTest {
     when(accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_PROJECT))
         .thenReturn(MasterDataAccessScope.scoped(List.of(10L), List.of()));
     when(projectMapper.selectById(101L)).thenReturn(visible);
+    when(orgMapper.selectById(10L)).thenReturn(buildOrg(10L, 1L, "Visible Org"));
     AtomicReference<ProjectConfig> stored = new AtomicReference<>();
     when(projectConfigMapper.selectOne(org.mockito.ArgumentMatchers.any()))
         .thenAnswer(invocation -> stored.get());
@@ -301,6 +367,72 @@ class MasterDataPermissionControllerTest {
     assertThat(saved.getRemark()).isEqualTo("项目配置已更新");
     assertThat(OBJECT_MAPPER.valueToTree(result.getData()).path("violationFenceName").asText())
         .isEqualTo("项目-001 出土围栏");
+  }
+
+  @Test
+  void projectDetailShouldExposeRealPermitsForProjectPlayback() {
+    ProjectsController controller =
+        new ProjectsController(
+            projectMapper,
+            orgMapper,
+            contractMapper,
+            contractTicketMapper,
+            siteMapper,
+            disposalPermitMapper,
+            projectConfigMapper,
+            alertFenceMapper,
+            projectPaymentService,
+            userContext,
+            accessScopeResolver);
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    User currentUser = buildUser(23L, 1L);
+    Project project = buildProject(101L, 10L, "Visible Project");
+    Org projectOrg = buildOrg(10L, 1L, "Visible Org");
+    DisposalPermit permit = buildPermit(5100L, 1L, 101L, 1000L, "浙A12345");
+    permit.setPermitNo("P-GOV-DISPOSAL-101-1000");
+    permit.setPermitType("DISPOSAL");
+    permit.setBindStatus("BOUND");
+    permit.setStatus("ACTIVE");
+    permit.setSourcePlatform("GOV_PORTAL");
+    permit.setExpireDate(java.time.LocalDate.of(2026, 5, 8));
+    permit.setSyncBatchNo("GOV-20260408120000-ABC123");
+    permit.setContractId(7000L);
+
+    when(userContext.requireCurrentUser(request)).thenReturn(currentUser);
+    when(accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_PROJECT))
+        .thenReturn(MasterDataAccessScope.scoped(List.of(10L), List.of()));
+    when(projectMapper.selectById(101L)).thenReturn(project);
+    when(orgMapper.selectById(10L)).thenReturn(projectOrg);
+    when(projectPaymentService.getSummary(1L, 101L))
+        .thenReturn(
+            new ProjectPaymentSummaryVo(
+                101L,
+                "Visible Project",
+                "P-101",
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                null,
+                "NONE"));
+    when(contractMapper.selectCount(org.mockito.ArgumentMatchers.any())).thenReturn(0L);
+    when(siteMapper.selectCount(org.mockito.ArgumentMatchers.any())).thenReturn(0L);
+    when(contractMapper.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+    when(siteMapper.selectBatchIds(org.mockito.ArgumentMatchers.anyCollection()))
+        .thenReturn(List.of(buildSite(1000L, 10L, "Visible Site")));
+    when(projectConfigMapper.selectOne(org.mockito.ArgumentMatchers.any())).thenReturn(null);
+    when(disposalPermitMapper.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(permit));
+    when(contractMapper.selectBatchIds(org.mockito.ArgumentMatchers.anyCollection()))
+        .thenReturn(List.of(buildContract(7000L, 1L, 101L, 1000L, 10L)));
+
+    ApiResult<?> result = controller.get(101L, request);
+    JsonNode payload = OBJECT_MAPPER.valueToTree(result.getData());
+
+    assertThat(payload.has("permits")).isTrue();
+    assertThat(payload.path("permits")).hasSize(1);
+    assertThat(payload.at("/permits/0/permitNo").asText()).isEqualTo("P-GOV-DISPOSAL-101-1000");
+    assertThat(payload.at("/permits/0/sourcePlatform").asText()).isEqualTo("GOV_PORTAL");
+    assertThat(payload.at("/permits/0/siteName").asText()).isEqualTo("Visible Site");
+    assertThat(payload.at("/permits/0/contractId").asText()).isEqualTo("7000");
   }
 
   @Test
@@ -389,6 +521,34 @@ class MasterDataPermissionControllerTest {
     JsonNode row = OBJECT_MAPPER.valueToTree(result.getData().get(0));
     assertThat(row.path("projectId").asLong()).isEqualTo(88L);
     assertThat(row.path("orgId").asLong()).isEqualTo(10L);
+  }
+
+  @Test
+  void siteDetailShouldReturn404WhenSiteOutsideScope() {
+    SitesController controller =
+        new SitesController(
+            siteService,
+            siteMapper,
+            contractMapper,
+            contractTicketMapper,
+            projectMapper,
+            siteDeviceMapper,
+            siteOperationConfigMapper,
+            userContext,
+            accessScopeResolver);
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    User currentUser = buildUser(34L, 1L);
+    Site hidden = buildSite(2300L, 20L, "Hidden Site");
+
+    when(userContext.requireCurrentUser(request)).thenReturn(currentUser);
+    when(accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_SITE))
+        .thenReturn(MasterDataAccessScope.scoped(List.of(10L), List.of()));
+    when(siteService.getById(2300L)).thenReturn(hidden);
+
+    ApiResult<?> result = controller.get(2300L, request);
+
+    assertThat(result.getCode()).isEqualTo(404);
+    assertThat(result.getMessage()).isEqualTo("场地不存在");
   }
 
   @Test

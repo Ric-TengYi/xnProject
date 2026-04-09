@@ -241,7 +241,7 @@ public class PlatformIntegrationsController {
     return ApiResult.ok(loadDamRecords(currentUser.getTenantId(), siteId));
   }
 
-  @PostMapping("/dam/mock-sync")
+  @PostMapping({"/dam/sync", "/dam/mock-sync"})
   public ApiResult<DamMonitorRecordDto> mockSyncDamRecord(
       @RequestBody DamMonitorRecordUpsertDto body, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
@@ -269,7 +269,7 @@ public class PlatformIntegrationsController {
     return ApiResult.ok(toDamRecordDto(record, site));
   }
 
-  @PostMapping("/gov/mock-sync")
+  @PostMapping({"/gov/sync", "/gov/mock-sync"})
   public ApiResult<GovPermitSyncResultDto> mockSyncGovPermits(
       @RequestBody(required = false) GovPermitSyncRequestDto body, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);
@@ -389,7 +389,7 @@ public class PlatformIntegrationsController {
     return ApiResult.ok(toWeighbridgeDtos(rows));
   }
 
-  @PostMapping("/weighbridge/mock-sync")
+  @PostMapping({"/weighbridge/sync", "/weighbridge/mock-sync"})
   public ApiResult<WeighbridgeRecordDto> mockSyncWeighbridgeRecord(
       @RequestBody WeighbridgeRecordUpsertDto body, HttpServletRequest request) {
     User currentUser = requireCurrentUser(request);

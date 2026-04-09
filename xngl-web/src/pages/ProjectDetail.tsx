@@ -22,6 +22,7 @@ import { parseGeoJsonLine, parseGeoJsonPolygon } from '../utils/mapGeometry';
 import {
   fetchProjectDetail,
   type ProjectRecord,
+  type ProjectPermitSummary,
 } from '../utils/projectApi';
 
 const statusColorMap: Record<string, string> = {
@@ -43,6 +44,12 @@ const formatVolume = (value?: number | null) =>
   Number(value || 0).toLocaleString() + ' 方';
 
 const DEFAULT_MAP_CENTER: MapPoint = [120.1551, 30.2741];
+const resolvePermitType = (value?: string | null) => (value === 'TRANSPORT' ? '准运证' : '排放证');
+const resolvePermitSource = (value?: string | null) => {
+  if (value === 'GOV_PORTAL') return '政务同步';
+  if (value === 'MANUAL' || !value) return '手工维护';
+  return value;
+};
 
 const ProjectDetail: React.FC = () => {
   const { id } = useParams();
@@ -51,6 +58,7 @@ const ProjectDetail: React.FC = () => {
   const defaultTab = searchParams.get('tab') || 'info';
   const [loading, setLoading] = useState(false);
   const [project, setProject] = useState<ProjectRecord | null>(null);
+  const [permits, setPermits] = useState<ProjectPermitSummary[]>([]);
   const [configModalVisible, setConfigModalVisible] = useState(false);
 
   const loadData = async () => {
@@ -59,10 +67,12 @@ const ProjectDetail: React.FC = () => {
     try {
       const projectDetail = await fetchProjectDetail(id);
       setProject(projectDetail);
+      setPermits(projectDetail.permits || []);
     } catch (error) {
       console.error(error);
       message.error('获取项目详情失败');
       setProject(null);
+      setPermits([]);
     } finally {
       setLoading(false);
     }
@@ -75,17 +85,6 @@ const ProjectDetail: React.FC = () => {
   const contracts = project?.contractDetails || [];
   const sites = project?.siteDetails || [];
   const projectConfig = project?.config || null;
-  const permitMock = useMemo(
-    () =>
-      contracts.slice(0, 3).map((item, index) => ({
-        id: 'CZ-' + String(item.contractId || '').padStart(4, '0'),
-        car: '浙A' + String(index + 1) + '23' + String(index + 4) + '5',
-        site: item.siteName || '-',
-        status: index === 0 ? '已绑定' : '待补齐',
-        expire: item.expireDate || '-',
-      })),
-    [contracts]
-  );
   const routePath = useMemo<MapPoint[]>(
     () => parseGeoJsonLine(projectConfig?.routeGeoJson),
     [projectConfig?.routeGeoJson]
@@ -301,28 +300,54 @@ const ProjectDetail: React.FC = () => {
       key: 'permits',
       label: '处置证清单',
       children: (
-        <Card className="glass-panel g-border-panel border">
+        <Card
+          className="glass-panel g-border-panel border"
+          extra={
+            <Space>
+              <Button type="link" onClick={() => navigate('/projects/permits')}>
+                查看处置证台账
+              </Button>
+              <Button type="link" onClick={() => navigate(`/projects/permits?projectId=${project?.id || ''}`)}>
+                查看项目关联证照
+              </Button>
+              <Button type="link" onClick={() => void loadData()}>
+                刷新
+              </Button>
+            </Space>
+          }
+        >
           <List
             locale={{
-              emptyText: <Empty description="当前未沉淀真实处置证数据，先保留合同映射入口" />,
+              emptyText: <Empty description="暂无处置证记录，可先在平台对接或处置证台账中同步/新增" />,
             }}
-            dataSource={permitMock}
+            dataSource={permits}
             renderItem={(item) => (
-              <List.Item>
+              <List.Item
+                actions={[
+                  <a key="permits" onClick={() => navigate(`/projects/permits?projectId=${project?.id || ''}`)}>
+                    查看台账
+                  </a>,
+                ]}
+              >
                 <List.Item.Meta
                   title={
                     <Space>
-                      <span className="g-text-primary">{item.id}</span>
-                      <Tag color={item.status === '已绑定' ? 'success' : 'warning'}>
-                        {item.status}
+                      <span className="g-text-primary">{item.permitNo || `P-${item.permitId}`}</span>
+                      <Tag color={item.bindStatus === 'BOUND' ? 'success' : 'warning'}>
+                        {item.bindStatus === 'BOUND' ? '已绑定' : '未绑定'}
+                      </Tag>
+                      <Tag color={item.sourcePlatform === 'GOV_PORTAL' ? 'blue' : 'default'}>
+                        {resolvePermitSource(item.sourcePlatform)}
                       </Tag>
                     </Space>
                   }
                   description={
                     <Space className="g-text-secondary mt-2" size="large">
-                      <span>关联车辆: {item.car}</span>
-                      <span>消纳场地: {item.site}</span>
-                      <span>有效期至: {item.expire}</span>
+                      <span>证件类型: {resolvePermitType(item.permitType)}</span>
+                      <span>关联车辆: {item.vehicleNo || '-'}</span>
+                      <span>消纳场地: {item.siteId || '-'}</span>
+                      <span>有效期至: {item.expireDate || '-'}</span>
+                      <span>同步批次: {item.syncBatchNo || '-'}</span>
                     </Space>
                   }
                 />

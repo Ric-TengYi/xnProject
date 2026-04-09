@@ -36,9 +36,9 @@ import {
   fetchPlatformVideoChannels,
   fetchWeighbridgeRecords,
   issueWeighbridgeControlCommand,
-  mockSyncDamMonitorRecord,
-  mockSyncGovPermits,
-  mockSyncWeighbridgeRecord,
+  syncDamMonitorRecord,
+  syncGovPermits,
+  syncWeighbridgeRecord,
   updatePlatformIntegrationConfig,
   type DamMonitorRecord,
   type DamMonitorRecordPayload,
@@ -63,7 +63,7 @@ type ConfigFormState = Record<string, PlatformIntegrationConfigPayload>;
 const integrationDescriptions: Record<string, string> = {
   SSO: '统一身份认证与跨平台单点登录配置，支持免密票据生成和换取平台 JWT。',
   VIDEO: '项目监控与场地监控平台接入配置，当前自动聚合场地设备视频通道。',
-  DAM_MONITOR: '坝体监测设备接入预留，支持本地 mock 同步与在线状态校验。',
+  DAM_MONITOR: '坝体监测设备接入能力，支持现场补录同步与在线状态校验。',
 };
 
 const statusColorMap: Record<string, string> = {
@@ -293,8 +293,8 @@ const PlatformIntegrations: React.FC = () => {
     try {
       const values = await damForm.validateFields();
       setDamSubmitting(true);
-      await mockSyncDamMonitorRecord(values);
-      message.success('坝体监测 mock 数据已同步');
+      await syncDamMonitorRecord(values);
+      message.success('坝体监测记录已同步');
       setDamModalOpen(false);
       await handleDamFilter(selectedSiteId);
       const refreshedOverview = await fetchPlatformIntegrationOverview();
@@ -314,7 +314,7 @@ const PlatformIntegrations: React.FC = () => {
     try {
       const values = await govForm.validateFields();
       setGovSubmitting(true);
-      const result = await mockSyncGovPermits(values);
+      const result = await syncGovPermits(values);
       setLatestGovSync(result);
       message.success(`政务网同步完成，批次 ${result.batchNo}`);
       setGovModalOpen(false);
@@ -334,7 +334,7 @@ const PlatformIntegrations: React.FC = () => {
     try {
       const values = await weighbridgeForm.validateFields();
       setWeighbridgeSubmitting(true);
-      await mockSyncWeighbridgeRecord(values);
+      await syncWeighbridgeRecord(values);
       message.success('地磅记录已同步');
       setWeighbridgeModalOpen(false);
       await loadAll(selectedSiteId, selectedWeighbridgeSiteId);
@@ -679,7 +679,7 @@ const PlatformIntegrations: React.FC = () => {
               onChange={(value) => void handleDamFilter(value)}
             />
             <Button type="primary" onClick={openDamModal}>
-              mock 同步
+              手动同步
             </Button>
           </Space>
         }

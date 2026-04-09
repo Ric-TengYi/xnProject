@@ -18,6 +18,8 @@ import com.xngl.infrastructure.persistence.mapper.OrgMapper;
 import com.xngl.infrastructure.persistence.mapper.ProjectConfigMapper;
 import com.xngl.infrastructure.persistence.mapper.ProjectMapper;
 import com.xngl.infrastructure.persistence.mapper.SiteMapper;
+import com.xngl.manager.disposal.entity.DisposalPermit;
+import com.xngl.manager.disposal.mapper.DisposalPermitMapper;
 import com.xngl.manager.project.ProjectPaymentService;
 import com.xngl.manager.project.ProjectPaymentSummaryVo;
 import com.xngl.web.dto.ApiResult;
@@ -27,6 +29,7 @@ import com.xngl.web.dto.project.ProjectConfigUpdateRequestDto;
 import com.xngl.web.dto.project.ProjectContractSummaryDto;
 import com.xngl.web.dto.project.ProjectDetailDto;
 import com.xngl.web.dto.project.ProjectListItemDto;
+import com.xngl.web.dto.project.ProjectPermitSummaryDto;
 import com.xngl.web.dto.project.ProjectSiteSummaryDto;
 import com.xngl.web.exception.BizException;
 import com.xngl.web.support.MasterDataAccessScope;
@@ -68,6 +71,7 @@ public class ProjectsController {
   private final ContractMapper contractMapper;
   private final ContractTicketMapper contractTicketMapper;
   private final SiteMapper siteMapper;
+  private final DisposalPermitMapper disposalPermitMapper;
   private final ProjectConfigMapper projectConfigMapper;
   private final AlertFenceMapper alertFenceMapper;
   private final ProjectPaymentService projectPaymentService;
@@ -80,6 +84,7 @@ public class ProjectsController {
       ContractMapper contractMapper,
       ContractTicketMapper contractTicketMapper,
       SiteMapper siteMapper,
+      DisposalPermitMapper disposalPermitMapper,
       ProjectConfigMapper projectConfigMapper,
       AlertFenceMapper alertFenceMapper,
       ProjectPaymentService projectPaymentService,
@@ -90,6 +95,7 @@ public class ProjectsController {
     this.contractMapper = contractMapper;
     this.contractTicketMapper = contractTicketMapper;
     this.siteMapper = siteMapper;
+    this.disposalPermitMapper = disposalPermitMapper;
     this.projectConfigMapper = projectConfigMapper;
     this.alertFenceMapper = alertFenceMapper;
     this.projectPaymentService = projectPaymentService;
@@ -166,10 +172,10 @@ public class ProjectsController {
     MasterDataAccessScope scope =
         accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_PROJECT);
     Project project = projectMapper.selectById(id);
-    if (project == null || !canAccessProject(scope, project)) {
+    Org org = project != null && project.getOrgId() != null ? orgMapper.selectById(project.getOrgId()) : null;
+    if (project == null || !canAccessProject(scope, project) || !belongsToTenant(project, org, currentUser.getTenantId())) {
       return ApiResult.fail(404, "项目不存在");
     }
-    Org org = project.getOrgId() != null ? orgMapper.selectById(project.getOrgId()) : null;
     return ApiResult.ok(toDetail(project, org, currentUser.getTenantId()));
   }
 
@@ -182,7 +188,8 @@ public class ProjectsController {
     MasterDataAccessScope scope =
         accessScopeResolver.resolve(currentUser, MasterDataAccessScopeResolver.BIZ_MODULE_PROJECT);
     Project project = projectMapper.selectById(id);
-    if (project == null || !canAccessProject(scope, project)) {
+    Org org = project != null && project.getOrgId() != null ? orgMapper.selectById(project.getOrgId()) : null;
+    if (project == null || !canAccessProject(scope, project) || !belongsToTenant(project, org, currentUser.getTenantId())) {
       return ApiResult.fail(404, "项目不存在");
     }
 
@@ -267,8 +274,72 @@ public class ProjectsController {
     dto.setPaymentStatusLabel(resolvePaymentStatusLabel(item.getPaymentStatus()));
     dto.setContractDetails(contractDetails);
     dto.setSiteDetails(siteDetails);
+    dto.setPermits(loadProjectPermits(tenantId, project.getId()));
     dto.setConfig(loadProjectConfig(tenantId, project.getId()));
     return dto;
+  }
+
+  private List<ProjectPermitSummaryDto> loadProjectPermits(Long tenantId, Long projectId) {
+    List<DisposalPermit> permits =
+        disposalPermitMapper.selectList(
+            new LambdaQueryWrapper<DisposalPermit>()
+                .eq(DisposalPermit::getTenantId, tenantId)
+                .eq(DisposalPermit::getProjectId, projectId)
+                .orderByDesc(DisposalPermit::getLastSyncTime)
+                .orderByDesc(DisposalPermit::getUpdateTime)
+                .orderByDesc(DisposalPermit::getId));
+    if (permits.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    LinkedHashSet<Long> contractIds =
+        permits.stream()
+            .map(DisposalPermit::getContractId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+    Map<Long, Contract> contractMap =
+        contractIds.isEmpty()
+            ? Collections.emptyMap()
+            : contractMapper.selectBatchIds(contractIds).stream()
+                .filter(contract -> contract.getId() != null)
+                .collect(Collectors.toMap(Contract::getId, Function.identity(), (left, right) -> left));
+
+    LinkedHashSet<Long> siteIds = new LinkedHashSet<>();
+    permits.stream().map(DisposalPermit::getSiteId).filter(Objects::nonNull).forEach(siteIds::add);
+    contractMap.values().stream().map(Contract::getSiteId).filter(Objects::nonNull).forEach(siteIds::add);
+    Map<Long, Site> siteMap =
+        siteIds.isEmpty()
+            ? Collections.emptyMap()
+            : siteMapper.selectBatchIds(siteIds).stream()
+                .filter(site -> site.getId() != null)
+                .collect(Collectors.toMap(Site::getId, Function.identity(), (left, right) -> left));
+
+    return permits.stream()
+        .map(
+            permit -> {
+              Contract contract = permit.getContractId() != null ? contractMap.get(permit.getContractId()) : null;
+              Site site =
+                  permit.getSiteId() != null
+                      ? siteMap.get(permit.getSiteId())
+                      : (contract != null ? siteMap.get(contract.getSiteId()) : null);
+              return new ProjectPermitSummaryDto(
+                  stringValue(permit.getId()),
+                  permit.getPermitNo(),
+                  permit.getPermitType(),
+                  permit.getStatus(),
+                  permit.getBindStatus(),
+                  permit.getVehicleNo(),
+                  permit.getSourcePlatform(),
+                  permit.getSyncBatchNo(),
+                  formatDate(permit.getIssueDate()),
+                  formatDate(permit.getExpireDate()),
+                  stringValue(permit.getContractId()),
+                  contract != null ? contract.getContractNo() : null,
+                  contract != null ? contract.getName() : null,
+                  stringValue(site != null ? site.getId() : permit.getSiteId()),
+                  site != null ? site.getName() : null);
+            })
+        .toList();
   }
 
   private List<ProjectContractSummaryDto> loadContractDetails(Long tenantId, Long projectId) {
@@ -498,6 +569,13 @@ public class ProjectsController {
       return false;
     }
     return scope.hasProjectAccess(project.getId()) || scope.hasOrgAccess(project.getOrgId());
+  }
+
+  private boolean belongsToTenant(Project project, Org org, Long tenantId) {
+    if (project == null || project.getOrgId() == null || tenantId == null) {
+      return true;
+    }
+    return org != null && Objects.equals(org.getTenantId(), tenantId);
   }
 
   private String resolveProjectStatusLabel(Integer status) {

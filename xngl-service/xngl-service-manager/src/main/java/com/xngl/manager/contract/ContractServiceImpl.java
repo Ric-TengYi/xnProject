@@ -242,6 +242,18 @@ public class ContractServiceImpl implements ContractService {
     contractReceiptMapper.updateById(cancelled);
 
     Long effectiveTenantId = resolveTenantId(original.getTenantId(), operatorTenantId);
+    ContractReceipt reversal = new ContractReceipt();
+    reversal.setTenantId(effectiveTenantId);
+    reversal.setContractId(original.getContractId());
+    reversal.setReceiptNo(generateReceiptNo());
+    reversal.setReceiptDate(LocalDate.now());
+    reversal.setAmount(original.getAmount().negate());
+    reversal.setReceiptType(RECEIPT_TYPE_REVERSAL);
+    reversal.setStatus(RECEIPT_STATUS_NORMAL);
+    reversal.setOperatorId(operatorId);
+    reversal.setRemark(buildReversalRemark(original.getReceiptNo(), cancelRemark));
+    contractReceiptMapper.insert(reversal);
+
     Contract update = new Contract();
     update.setId(contract.getId());
     update.setReceivedAmount(currentReceivedAmount.subtract(original.getAmount()));
@@ -249,7 +261,7 @@ public class ContractServiceImpl implements ContractService {
       update.setTenantId(effectiveTenantId);
     }
     contractMapper.updateById(update);
-    return original.getId();
+    return reversal.getId();
   }
 
   private void validateCreateCommand(CreateContractReceiptCommand command) {

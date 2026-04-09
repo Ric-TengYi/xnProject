@@ -17,6 +17,7 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { EditOutlined, EyeOutlined, PlusOutlined, SearchOutlined, SyncOutlined } from '@ant-design/icons';
+import { useSearchParams } from 'react-router-dom';
 import {
   createDisposalPermit,
   fetchDisposalPermitDetail,
@@ -26,7 +27,7 @@ import {
   type DisposalPermitRecord,
   type DisposalPermitUpsertPayload,
 } from '../utils/permitApi';
-import { mockSyncGovPermits } from '../utils/platformApi';
+import { syncGovPermits } from '../utils/platformApi';
 import { fetchContractList, type ContractRecord } from '../utils/contractApi';
 import { fetchProjects, type ProjectRecord } from '../utils/projectApi';
 import { fetchSites, type SiteRecord } from '../utils/siteApi';
@@ -73,6 +74,11 @@ const resolveStatus = (value?: string | null) => {
 };
 
 const resolveBindStatus = (value?: string | null) => (value === 'BOUND' ? '已绑定' : '未绑定');
+const resolveSourcePlatform = (value?: string | null) => {
+  if (value === 'GOV_PORTAL') return '政务网同步';
+  if (value === 'MANUAL' || !value) return '手工新增';
+  return value;
+};
 
 const statusColorMap: Record<string, string> = {
   ACTIVE: 'success',
@@ -82,6 +88,7 @@ const statusColorMap: Record<string, string> = {
 };
 
 const ProjectsPermits: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -94,10 +101,19 @@ const ProjectsPermits: React.FC = () => {
   const [permitType, setPermitType] = useState('ALL');
   const [status, setStatus] = useState('ALL');
   const [bindStatus, setBindStatus] = useState('ALL');
-  const [sourcePlatform, setSourcePlatform] = useState('ALL');
-  const [projectId, setProjectId] = useState<number>();
-  const [contractId, setContractId] = useState<number>();
-  const [siteId, setSiteId] = useState<number>();
+  const [sourcePlatform, setSourcePlatform] = useState(searchParams.get('sourcePlatform') || 'ALL');
+  const [projectId, setProjectId] = useState<number | undefined>(() => {
+    const value = searchParams.get('projectId');
+    return value ? Number(value) : undefined;
+  });
+  const [contractId, setContractId] = useState<number | undefined>(() => {
+    const value = searchParams.get('contractId');
+    return value ? Number(value) : undefined;
+  });
+  const [siteId, setSiteId] = useState<number | undefined>(() => {
+    const value = searchParams.get('siteId');
+    return value ? Number(value) : undefined;
+  });
   const [detailOpen, setDetailOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [bindModalOpen, setBindModalOpen] = useState(false);
@@ -297,7 +313,13 @@ const ProjectsPermits: React.FC = () => {
   const handleGovSync = async () => {
     try {
       setSyncing(true);
-      const result = await mockSyncGovPermits({ syncMode: 'MANUAL', includeTransportPermits: true });
+      const result = await syncGovPermits({
+        syncMode: 'MANUAL',
+        includeTransportPermits: true,
+        projectId,
+        contractId,
+        siteId,
+      });
       message.success(`政务网同步完成，批次 ${result.batchNo}`);
       await loadData();
     } catch (error) {
@@ -367,7 +389,7 @@ const ProjectsPermits: React.FC = () => {
       key: 'sync',
       render: (_, record) => (
         <div className="flex flex-col">
-            <span>{record.sourcePlatform || 'MANUAL'}</span>
+          <span>{resolveSourcePlatform(record.sourcePlatform)}</span>
           <span style={{ color: 'var(--text-secondary)' }}>
             {record.syncBatchNo || record.lastSyncTime || '未同步'}
           </span>
@@ -484,7 +506,7 @@ const ProjectsPermits: React.FC = () => {
               <Tag color={statusColorMap[currentRecord?.status || ''] || 'default'}>{resolveStatus(currentRecord?.status)}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="绑定状态">{resolveBindStatus(currentRecord?.bindStatus)}</Descriptions.Item>
-            <Descriptions.Item label="来源平台">{currentRecord?.sourcePlatform || 'MANUAL'}</Descriptions.Item>
+            <Descriptions.Item label="来源平台">{resolveSourcePlatform(currentRecord?.sourcePlatform)}</Descriptions.Item>
             <Descriptions.Item label="外部流水号">{currentRecord?.externalRefNo || '-'}</Descriptions.Item>
             <Descriptions.Item label="同步批次">{currentRecord?.syncBatchNo || '-'}</Descriptions.Item>
             <Descriptions.Item label="最近同步">{currentRecord?.lastSyncTime || '-'}</Descriptions.Item>

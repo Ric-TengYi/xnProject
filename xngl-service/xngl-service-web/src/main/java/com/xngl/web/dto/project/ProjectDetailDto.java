@@ -13,5 +13,6 @@ public class ProjectDetailDto extends ProjectListItemDto {
   private String paymentStatusLabel;
   private List<ProjectContractSummaryDto> contractDetails;
   private List<ProjectSiteSummaryDto> siteDetails;
+  private List<ProjectPermitSummaryDto> permits;
   private ProjectConfigDto config;
 }

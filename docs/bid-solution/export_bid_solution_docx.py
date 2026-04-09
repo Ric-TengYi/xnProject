@@ -51,6 +51,10 @@ INDIVIDUAL_EXPORT_DIRS = [
     ROOT / "05-商务技术文件章节",
 ]
 
+EXTRA_SINGLE_EXPORTS = [
+    ROOT / "投标交付检查清单.md",
+]
+
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
 ORDERED_RE = re.compile(r"^(\d+)\.\s+(.*)$")
@@ -87,8 +91,8 @@ def configure_document(document: Document, title: str, subject: str) -> None:
     core = document.core_properties
     core.title = title
     core.subject = subject
-    core.author = "OpenAI Codex"
-    core.company = "OpenAI"
+    core.author = "项目投标方案编制组"
+    core.company = "项目投标方案编制组"
 
 
 def add_cover(document: Document, title: str, subject: str) -> None:
@@ -330,6 +334,8 @@ def main() -> None:
             file for file in directory.glob("[0-9][0-9]_*.md") if file.stem[:2] >= "05"
         ):
             generated.append(build_single_markdown_docx(markdown_file, target_dir / f"{markdown_file.stem}.docx"))
+    for markdown_file in EXTRA_SINGLE_EXPORTS:
+        generated.append(build_single_markdown_docx(markdown_file, OUTPUT_DIR / f"{markdown_file.stem}.docx"))
     for path in generated:
         print(path.relative_to(ROOT))
 

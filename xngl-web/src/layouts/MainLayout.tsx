@@ -8,17 +8,16 @@ import {
   EnvironmentOutlined,
   CarOutlined,
   BellOutlined,
-  SearchOutlined,
   UserOutlined,
   SettingOutlined,
   DatabaseOutlined,
+  MobileOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   FullscreenOutlined,
   FullscreenExitOutlined,
   LogoutOutlined,
   LockOutlined,
-  CloseOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -101,6 +100,9 @@ const items: MenuItem[] = [
   getItem('消息中心', 'messages', <BellOutlined />, [
     getItem(<Link to="/messages">消息管理</Link>, '/messages'),
   ]),
+  getItem('移动作业端', 'mobile-workbench-group', <MobileOutlined />, [
+    getItem(<Link to="/mobile-workbench">移动演示</Link>, '/mobile-workbench'),
+  ]),
   getItem('系统设置', 'settings', <SettingOutlined />, [
     getItem(<Link to="/settings/org">组织管理</Link>, '/settings/org'),
     getItem(<Link to="/settings/units">单位管理</Link>, '/settings/units'),
@@ -163,6 +165,8 @@ const MainLayout: React.FC = () => {
         'contracts': '合同与结算',
         'alerts': '预警与安全',
         'messages': '消息中心',
+        'mobile-workbench': '移动演示',
+        'mobile-showcase': '移动端演示',
         'settings': '系统设置',
         'payments': '交款数据',
         'permits': '处置证清单',

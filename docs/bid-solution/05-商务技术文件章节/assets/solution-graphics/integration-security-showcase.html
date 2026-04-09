@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>专项方案展示图</title>
+    <style>
+      :root {
+        --ink: #17324d;
+        --muted: #677c90;
+        --line: rgba(23, 50, 77, 0.08);
+        --panel: rgba(255,255,255,0.92);
+        --brand: #0b63ce;
+        --teal: #109b9a;
+        --orange: #f59e0b;
+        --danger: #dc5b59;
+        --good: #1ea672;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at left top, rgba(11,99,206,0.12), transparent 22%),
+          radial-gradient(circle at right bottom, rgba(16,155,154,0.12), transparent 26%),
+          linear-gradient(180deg, #f8fbfe 0%, #eef3f8 100%);
+      }
+      .wrap {
+        max-width: 1580px;
+        margin: 0 auto;
+        padding: 38px 34px 46px;
+      }
+      .artboard {
+        border: 1px solid var(--line);
+        border-radius: 30px;
+        padding: 30px;
+        background: rgba(255,255,255,0.55);
+        box-shadow: 0 24px 60px rgba(23, 50, 77, 0.08);
+        backdrop-filter: blur(10px);
+      }
+      .artboard + .artboard { margin-top: 28px; }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: rgba(11, 99, 206, 0.08);
+        color: var(--brand);
+        font-size: 13px;
+        font-weight: 700;
+      }
+      h1 {
+        margin: 16px 0 10px;
+        font-size: 34px;
+        line-height: 1.18;
+      }
+      p.lead {
+        margin: 0 0 26px;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.8;
+        max-width: 980px;
+      }
+      .grid4 {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0,1fr));
+        gap: 18px;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: var(--panel);
+        padding: 18px 18px 16px;
+        box-shadow: 0 12px 28px rgba(23, 50, 77, 0.06);
+      }
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 15px;
+      }
+      .card span, .card li {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.7;
+      }
+      .flow {
+        margin-top: 24px;
+        display: grid;
+        grid-template-columns: 1fr 96px 1fr 96px 1fr 96px 1fr;
+        gap: 12px;
+        align-items: stretch;
+      }
+      .node {
+        border-radius: 24px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.82));
+        min-height: 184px;
+        box-shadow: 0 14px 30px rgba(23, 50, 77, 0.06);
+      }
+      .node h3 {
+        margin: 0 0 10px;
+        font-size: 18px;
+      }
+      .node ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+      .node li { margin-bottom: 4px; }
+      .arrow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--brand);
+        font-size: 44px;
+        font-weight: 700;
+      }
+      .bands {
+        margin-top: 22px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0,1fr));
+        gap: 16px;
+      }
+      .band {
+        border-radius: 20px;
+        padding: 16px 18px;
+        color: white;
+      }
+      .band strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 15px;
+      }
+      .band span {
+        font-size: 12px;
+        line-height: 1.7;
+        opacity: 0.96;
+      }
+      .blue { background: linear-gradient(135deg, #0b63ce, #2b82e5); }
+      .teal { background: linear-gradient(135deg, #0f8e8b, #18b6ac); }
+      .amber { background: linear-gradient(135deg, #d78510, #f59e0b); }
+      .security-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 22px;
+      }
+      .matrix {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0,1fr));
+        gap: 16px;
+      }
+      .metric {
+        border-radius: 20px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        box-shadow: 0 12px 28px rgba(23, 50, 77, 0.06);
+      }
+      .metric strong {
+        display: block;
+        font-size: 28px;
+        margin-bottom: 6px;
+      }
+      .metric label {
+        display: block;
+        font-size: 14px;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .pill {
+        padding: 7px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        background: rgba(11,99,206,0.08);
+        color: var(--brand);
+      }
+      .timeline {
+        display: grid;
+        gap: 12px;
+      }
+      .item {
+        position: relative;
+        padding: 14px 16px 14px 44px;
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        box-shadow: 0 12px 28px rgba(23, 50, 77, 0.06);
+      }
+      .dot {
+        position: absolute;
+        left: 16px;
+        top: 18px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--brand);
+      }
+      .item strong {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 14px;
+      }
+      .item span {
+        font-size: 12px;
+        line-height: 1.7;
+        color: var(--muted);
+      }
+      .caption {
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <section class="artboard" data-shot="integration">
+        <div class="eyebrow">第三方系统对接展示图</div>
+        <h1>政务网、定位、地磅、视频一体化对接闭环</h1>
+        <p class="lead">
+          通过统一集成交换层承接多源外部系统，形成“标准接入、统一治理、异常补偿、对账验收、监控告警”的对接体系，
+          同时将证件、轨迹、称重和视频数据统一沉淀到渣土业务主线中。
+        </p>
+        <div class="grid4">
+          <div class="card"><strong>政务网审批</strong><span>同步处置证、准运证、审批结果，作为项目和车辆准入依据。</span></div>
+          <div class="card"><strong>GPS 定位</strong><span>实时接收位置与轨迹数据，支撑线路监管、停留分析和车辆跟踪。</span></div>
+          <div class="card"><strong>地磅称重</strong><span>自动采集进出场称重结果，驱动消纳确认、容量统计和结算核验。</span></div>
+          <div class="card"><strong>视频监控</strong><span>接入场地和通道视频流，支撑远程监管、抓拍取证和事件复盘。</span></div>
+        </div>
+        <div class="flow">
+          <div class="node">
+            <h3>外部系统层</h3>
+            <ul>
+              <li>政务审批平台</li>
+              <li>车辆定位平台</li>
+              <li>地磅采集系统</li>
+              <li>视频监控平台</li>
+            </ul>
+          </div>
+          <div class="arrow">→</div>
+          <div class="node">
+            <h3>统一集成层</h3>
+            <ul>
+              <li>接口鉴权与签名</li>
+              <li>字段映射与编码转换</li>
+              <li>消息队列与重试补偿</li>
+              <li>接口日志与白名单控制</li>
+            </ul>
+          </div>
+          <div class="arrow">→</div>
+          <div class="node">
+            <h3>业务联动层</h3>
+            <ul>
+              <li>处置证台账更新</li>
+              <li>轨迹监管与预警</li>
+              <li>消纳记录与结算</li>
+              <li>事件与视频证据关联</li>
+            </ul>
+          </div>
+          <div class="arrow">→</div>
+          <div class="node">
+            <h3>运维验收层</h3>
+            <ul>
+              <li>对账机制</li>
+              <li>联调测试记录</li>
+              <li>异常工单闭环</li>
+              <li>成功率与延迟监控</li>
+            </ul>
+          </div>
+        </div>
+        <div class="bands">
+          <div class="band blue"><strong>接口规范统一</strong><span>统一请求协议、返回码、幂等控制和日志留痕，降低多系统接入复杂度。</span></div>
+          <div class="band teal"><strong>异常补偿闭环</strong><span>对超时、失败、重复、断网、补传和对账差异建立统一处理机制。</span></div>
+          <div class="band amber"><strong>联调验收可追</strong><span>按照连通、样例、场景、异常、试运行五阶段组织联调与验收。</span></div>
+        </div>
+        <div class="caption">适用章节：第8章第三方系统对接方案</div>
+      </section>
+
+      <section class="artboard" data-shot="security">
+        <div class="eyebrow">安全合规与运维保障展示图</div>
+        <h1>从安全合规到底层运维的双重保障体系</h1>
+        <p class="lead">
+          面向甲方正式交付，平台在等保二级、信创适配、数据安全、权限控制、监控告警、故障响应和备份恢复等方面建立制度与技术一体化保障体系。
+        </p>
+        <div class="security-grid">
+          <div>
+            <div class="matrix">
+              <div class="metric">
+                <label>权限控制</label>
+                <strong>7 层</strong>
+                <span>租户、组织、用户、角色、菜单、按钮、数据范围分层授权</span>
+              </div>
+              <div class="metric">
+                <label>运行监控</label>
+                <strong>7×24</strong>
+                <span>覆盖服务、数据库、接口对接、设备接入和业务告警</span>
+              </div>
+              <div class="metric">
+                <label>恢复指标</label>
+                <strong>RPO 30m</strong>
+                <span>建议恢复点目标不高于 30 分钟，支持全量与增量备份结合</span>
+              </div>
+              <div class="metric">
+                <label>恢复时效</label>
+                <strong>RTO 4h</strong>
+                <span>重大故障场景建议 4 小时内恢复核心业务服务</span>
+              </div>
+            </div>
+            <div class="pill-row">
+              <div class="pill">等保二级配合</div>
+              <div class="pill">信创兼容</div>
+              <div class="pill">日志审计</div>
+              <div class="pill">接口安全</div>
+              <div class="pill">备份恢复</div>
+              <div class="pill">应急演练</div>
+            </div>
+          </div>
+          <div class="timeline">
+            <div class="item">
+              <div class="dot"></div>
+              <strong>事前防护</strong>
+              <span>账号认证、权限控制、边界防护、漏洞治理和配置核查前置落实。</span>
+            </div>
+            <div class="item">
+              <div class="dot" style="background: var(--teal);"></div>
+              <strong>事中监控</strong>
+              <span>应用、数据库、接口、设备和业务告警统一纳管，避免异常长时间失控。</span>
+            </div>
+            <div class="item">
+              <div class="dot" style="background: var(--orange);"></div>
+              <strong>事后恢复</strong>
+              <span>按故障等级执行通报、恢复、回滚和复盘，保障核心服务连续性。</span>
+            </div>
+            <div class="item">
+              <div class="dot" style="background: var(--danger);"></div>
+              <strong>持续合规</strong>
+              <span>支撑等保测评整改、信创迁移验证、日志审计留痕和定期演练。</span>
+            </div>
+          </div>
+        </div>
+        <div class="bands">
+          <div class="band blue"><strong>安全合规可检查</strong><span>等保二级要求、权限模型、日志审计和接口安全均具备明确落地措施。</span></div>
+          <div class="band teal"><strong>运维保障可量化</strong><span>对监控、巡检、漏洞处理、发布管控和恢复目标给出量化口径。</span></div>
+          <div class="band amber"><strong>服务连续可承诺</strong><span>通过备份、演练、主备和应急流程保障平台长期稳定运行。</span></div>
+        </div>
+        <div class="caption">适用章节：第10章安全合规与运维保障方案</div>
+      </section>
+    </div>
+  </body>
+</html>

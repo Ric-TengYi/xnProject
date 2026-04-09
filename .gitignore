@@ -36,3 +36,8 @@ pnpm-debug.log*
 .env
 .env.local
 .env.*.local
+
+# Test Artifacts
+test-screenshots*
+tests/e2e/screenshots
+

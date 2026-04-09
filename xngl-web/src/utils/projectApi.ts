@@ -26,6 +26,7 @@ export interface ProjectRecord {
   paymentStatusLabel?: string | null;
   contractDetails?: ProjectContractSummary[];
   siteDetails?: ProjectSiteSummary[];
+  permits?: ProjectPermitSummary[];
   config?: ProjectConfigRecord | null;
   createTime?: string | null;
   updateTime?: string | null;
@@ -59,6 +60,24 @@ export interface ProjectSiteSummary {
   contractVolume?: number | null;
   disposedVolume?: number | null;
   remainingVolume?: number | null;
+}
+
+export interface ProjectPermitSummary {
+  permitId?: string | null;
+  permitNo?: string | null;
+  permitType?: string | null;
+  status?: string | null;
+  bindStatus?: string | null;
+  vehicleNo?: string | null;
+  sourcePlatform?: string | null;
+  syncBatchNo?: string | null;
+  issueDate?: string | null;
+  expireDate?: string | null;
+  contractId?: string | null;
+  contractNo?: string | null;
+  contractName?: string | null;
+  siteId?: string | null;
+  siteName?: string | null;
 }
 
 export interface ProjectConfigRecord {

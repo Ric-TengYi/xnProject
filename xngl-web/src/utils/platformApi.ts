@@ -210,13 +210,13 @@ export async function fetchDamMonitorRecords(siteId?: string) {
   return Array.isArray(res.data) ? res.data : [];
 }
 
-export async function mockSyncDamMonitorRecord(payload: DamMonitorRecordPayload) {
-  const res = await http.post<DamMonitorRecord>('/platform-integrations/dam/mock-sync', payload);
+export async function syncDamMonitorRecord(payload: DamMonitorRecordPayload) {
+  const res = await http.post<DamMonitorRecord>('/platform-integrations/dam/sync', payload);
   return res.data;
 }
 
-export async function mockSyncGovPermits(payload: GovPermitSyncPayload = {}) {
-  const res = await http.post<GovPermitSyncResult>('/platform-integrations/gov/mock-sync', payload);
+export async function syncGovPermits(payload: GovPermitSyncPayload = {}) {
+  const res = await http.post<GovPermitSyncResult>('/platform-integrations/gov/sync', payload);
   return res.data;
 }
 
@@ -239,8 +239,8 @@ export async function fetchWeighbridgeRecords(siteId?: string) {
   return Array.isArray(res.data) ? res.data : [];
 }
 
-export async function mockSyncWeighbridgeRecord(payload: WeighbridgeRecordPayload) {
-  const res = await http.post<WeighbridgeRecord>('/platform-integrations/weighbridge/mock-sync', payload);
+export async function syncWeighbridgeRecord(payload: WeighbridgeRecordPayload) {
+  const res = await http.post<WeighbridgeRecord>('/platform-integrations/weighbridge/sync', payload);
   return res.data;
 }
 

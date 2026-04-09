@@ -9,10 +9,12 @@ const pages = [
   { path: '/', file: 'dashboard-overview.png' },
   { path: '/contracts', file: 'contracts-management.png' },
   { path: '/projects', file: 'projects-management.png' },
+  { path: '/projects/permits', file: 'permits-management.png' },
   { path: '/sites', file: 'sites-management.png' },
   { path: '/vehicles', file: 'vehicles-management.png' },
   { path: '/alerts', file: 'alerts-monitor.png' },
   { path: '/settings/platform-integrations', file: 'platform-integrations.png' },
+  { path: '/mobile-workbench', file: 'mobile-workbench.png' },
 ];
 
 const prototypeHtmlPath = path.resolve(
@@ -20,6 +22,12 @@ const prototypeHtmlPath = path.resolve(
 );
 const prototypeOutputDir = path.resolve(
   'docs/bid-solution/05-商务技术文件章节/assets/mobile-prototypes'
+);
+const solutionGraphicsHtmlPath = path.resolve(
+  'docs/bid-solution/05-商务技术文件章节/assets/solution-graphics/integration-security-showcase.html'
+);
+const solutionGraphicsOutputDir = path.resolve(
+  'docs/bid-solution/05-商务技术文件章节/assets/solution-graphics'
 );
 
 async function ensureDir(dir) {
@@ -52,6 +60,7 @@ async function login(page) {
 async function capture() {
   await ensureDir(outputDir);
   await ensureDir(prototypeOutputDir);
+  await ensureDir(solutionGraphicsOutputDir);
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: 1440, height: 960 },
@@ -91,6 +100,20 @@ async function capture() {
   for (const [shot, file] of shots) {
     await prototypePage.locator(`[data-shot="${shot}"]`).screenshot({
       path: path.join(prototypeOutputDir, file),
+    });
+    console.log(file);
+  }
+
+  const graphicsPage = await context.newPage();
+  await graphicsPage.goto(`file://${solutionGraphicsHtmlPath}`, { waitUntil: 'load' });
+  await graphicsPage.setViewportSize({ width: 1680, height: 1360 });
+  await graphicsPage.waitForTimeout(800);
+  for (const [shot, file] of [
+    ['integration', 'integration-architecture-showcase.png'],
+    ['security', 'security-ops-showcase.png'],
+  ]) {
+    await graphicsPage.locator(`[data-shot="${shot}"]`).screenshot({
+      path: path.join(solutionGraphicsOutputDir, file),
     });
     console.log(file);
   }

@@ -50,6 +50,16 @@ import SystemParams from './pages/SystemParams';
 import SystemLogs from './pages/SystemLogs';
 import MessageCenter from './pages/MessageCenter';
 import PlatformIntegrations from './pages/PlatformIntegrations';
+import MiniProgramDemo from './pages/MiniProgramDemo';
+import MobileShowcase from './pages/MobileShowcase';
+import MobileLayout from './layouts/MobileLayout';
+import MobileLogin from './pages/mobile/MobileLogin';
+import MobileHome from './pages/mobile/MobileHome';
+import MobileProfile from './pages/mobile/MobileProfile';
+import MobilePunchIn from './pages/mobile/MobilePunchIn';
+import MobileDisposal from './pages/mobile/MobileDisposal';
+import MobileEventReport from './pages/mobile/MobileEventReport';
+import MobileVehicleTracking from './pages/mobile/MobileVehicleTracking';
 
 function App() {
   return (
@@ -102,6 +112,8 @@ function App() {
           <Route path="alerts/events" element={<EventsManagement />} />
           <Route path="alerts/security" element={<SecurityLedger />} />
           <Route path="messages" element={<MessageCenter />} />
+          <Route path="mobile-workbench" element={<MiniProgramDemo />} />
+          <Route path="mobile-showcase/:screen" element={<MobileShowcase />} />
 
           <Route path="settings/org" element={<OrgManagement />} />
           <Route path="settings/units" element={<UnitsManagement />} />
@@ -112,6 +124,16 @@ function App() {
           <Route path="settings/system-params" element={<SystemParams />} />
           <Route path="settings/platform-integrations" element={<PlatformIntegrations />} />
           <Route path="settings/logs" element={<SystemLogs />} />
+        </Route>
+        <Route path="/mobile" element={<MobileLayout />}>
+          <Route index element={<Navigate to="/mobile/home" replace />} />
+          <Route path="login" element={<MobileLogin />} />
+          <Route path="home" element={<MobileHome />} />
+          <Route path="profile" element={<MobileProfile />} />
+          <Route path="punch-in" element={<MobilePunchIn />} />
+          <Route path="disposal" element={<MobileDisposal />} />
+          <Route path="event-report" element={<MobileEventReport />} />
+          <Route path="vehicle-tracking" element={<MobileVehicleTracking />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
