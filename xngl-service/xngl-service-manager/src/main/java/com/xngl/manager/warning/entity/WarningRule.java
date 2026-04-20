@@ -1,7 +1,7 @@
 package com.xngl.manager.warning.entity;
 
-import lombok.Data;
 import java.time.LocalDateTime;
+import lombok.Data;
 
 @Data
 public class WarningRule {
@@ -14,4 +14,8 @@ public class WarningRule {
     private String status;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+
+    public void setId(Long id) {
+        this.id = id;
+    }
 }

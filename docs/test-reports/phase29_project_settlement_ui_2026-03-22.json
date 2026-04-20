@@ -1,0 +1,14 @@
+{
+  "results": [
+    {
+      "name": "UI page load",
+      "ok": true,
+      "detail": "结算管理页面成功打开"
+    },
+    {
+      "name": "UI contract summary",
+      "ok": true,
+      "detail": "项目结算详情抽屉可见关联合同编号 HT-APPROVAL-APPROVE-1774151741"
+    }
+  ]
+}

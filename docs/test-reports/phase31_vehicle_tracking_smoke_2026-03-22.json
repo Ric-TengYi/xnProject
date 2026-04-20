@@ -1,0 +1,19 @@
+{
+  "results": [
+    {
+      "name": "API login",
+      "ok": true,
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "API vehicle track history",
+      "ok": true,
+      "detail": "车辆 1 轨迹历史接口返回 4 个真实轨迹点"
+    },
+    {
+      "name": "API vehicle track fallback",
+      "ok": true,
+      "detail": "车辆 8 无轨迹点时返回空轨迹数组，前端可退化为实时定位展示"
+    }
+  ]
+}

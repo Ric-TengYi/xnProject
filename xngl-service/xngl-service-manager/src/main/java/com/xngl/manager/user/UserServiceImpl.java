@@ -9,6 +9,7 @@ import com.xngl.infrastructure.persistence.entity.organization.UserRoleRel;
 import com.xngl.infrastructure.persistence.mapper.UserMapper;
 import com.xngl.infrastructure.persistence.mapper.UserOrgRelMapper;
 import com.xngl.infrastructure.persistence.mapper.UserRoleRelMapper;
+import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -83,6 +84,15 @@ public class UserServiceImpl implements UserService {
   public void update(User user) {
     encodePasswordIfNeeded(user);
     userMapper.updateById(user);
+  }
+
+  @Override
+  public void updateLastLoginTime(Long userId) {
+    User u = userMapper.selectById(userId);
+    if (u != null) {
+      u.setLastLoginTime(LocalDateTime.now());
+      userMapper.updateById(u);
+    }
   }
 
   @Override

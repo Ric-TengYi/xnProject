@@ -1,0 +1,57 @@
+{
+  "phase": "phase57",
+  "title": "送货跟踪专项烟测",
+  "date": "2026-03-23",
+  "scope": [
+    "134 送货跟踪"
+  ],
+  "summary": {
+    "passed": 7,
+    "total": 7,
+    "status": "PASS"
+  },
+  "results": [
+    {
+      "name": "health",
+      "status": "PASS",
+      "detail": "{\"code\":200,\"message\":\"OK\",\"data\":{\"service\":\"xngl-service\",\"status\":\"UP\"}}"
+    },
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "管理员账号登录成功"
+    },
+    {
+      "name": "tracking.summary",
+      "status": "PASS",
+      "detail": "{\"totalVehicles\": 8, \"movingVehicles\": 0, \"stoppedVehicles\": 0, \"offlineVehicles\": 8, \"deliveringVehicles\": 1, \"warningVehicles\": 8}"
+    },
+    {
+      "name": "tracking.list",
+      "status": "PASS",
+      "detail": "records=8"
+    },
+    {
+      "name": "tracking.delivering.filter",
+      "status": "PASS",
+      "detail": "deliveringRecords=1"
+    },
+    {
+      "name": "tracking.history",
+      "status": "PASS",
+      "detail": "{\"plateNo\": \"浙A12345\", \"vehicleId\": \"1\", \"pointCount\": 4, \"stopCount\": 0, \"distance\": 1.97, \"status\": \"PASS\"}"
+    },
+    {
+      "name": "ui.route",
+      "status": "PASS",
+      "detail": "status=200"
+    }
+  ],
+  "verification": [
+    "cd xngl-service && mvn -q -DskipTests compile",
+    "cd xngl-web && npm run build",
+    "cd xngl-service && mvn -q -DskipTests install",
+    "cd xngl-service && mvn spring-boot:run -pl xngl-service-starter",
+    "python3 - <<'PY' ..."
+  ]
+}

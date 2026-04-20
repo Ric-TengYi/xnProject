@@ -1,0 +1,52 @@
+{
+  "date": "2026-03-21",
+  "total": 8,
+  "passed": 8,
+  "failed": 0,
+  "results": [
+    {
+      "name": "SQL patch apply",
+      "passed": true,
+      "detail": "034_error_log_foundation.sql executed successfully"
+    },
+    {
+      "name": "API login",
+      "passed": true,
+      "detail": "userId=6"
+    },
+    {
+      "name": "Error log list",
+      "passed": true,
+      "detail": "total=2 firstLevel=WARN"
+    },
+    {
+      "name": "Error log level filter",
+      "passed": true,
+      "detail": "filteredTotal=1 exception=Phase17TestException"
+    },
+    {
+      "name": "Error log keyword filter",
+      "passed": true,
+      "detail": "filteredTotal=1 message=phase17 temporary warning record"
+    },
+    {
+      "name": "Frontend error log binding",
+      "passed": true,
+      "detail": "xngl-web/src/pages/SystemLogs.tsx:77"
+    },
+    {
+      "name": "Backend error log controller",
+      "passed": true,
+      "detail": "xngl-service/xngl-service-web/src/main/java/com/xngl/web/controller/ErrorLogsController.java:19"
+    },
+    {
+      "name": "Build verification",
+      "passed": true,
+      "detail": "backend mvn -q -DskipTests install; frontend npm run build"
+    }
+  ],
+  "notes": [
+    "Temporary WARN error log row was created for smoke filtering and deleted after verification.",
+    "Unhandled exception persistence was wired into GlobalExceptionHandler and validated by source integration points."
+  ]
+}

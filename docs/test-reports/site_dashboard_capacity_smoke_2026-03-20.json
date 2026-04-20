@@ -1,0 +1,33 @@
+{
+  "login_code": 200,
+  "checks": {
+    "site_summary": {
+      "http_status": 200,
+      "code": 200
+    },
+    "site_list": {
+      "http_status": 200,
+      "code": 200
+    },
+    "site_trend": {
+      "http_status": 200,
+      "code": 200
+    },
+    "dashboard_overview": {
+      "http_status": 200,
+      "code": 200
+    },
+    "dashboard_trend": {
+      "http_status": 200,
+      "code": 200
+    },
+    "project_alerts": {
+      "http_status": 200,
+      "code": 200
+    },
+    "vehicle_capacity": {
+      "http_status": 200,
+      "code": 200
+    }
+  }
+}

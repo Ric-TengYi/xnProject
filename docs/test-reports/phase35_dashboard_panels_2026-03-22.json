@@ -1,0 +1,29 @@
+{
+  "results": [
+    {
+      "name": "API login",
+      "ok": true,
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "API dashboard overview org fields",
+      "ok": true,
+      "detail": "总体分析返回单位总数 5、活跃单位 4"
+    },
+    {
+      "name": "API dashboard org analysis",
+      "ok": true,
+      "detail": "单位分析返回 5 条记录，首条 浙江广源建设工程有限公司"
+    },
+    {
+      "name": "API sites yearly report",
+      "ok": true,
+      "detail": "场地年报返回 1 条记录，本期消纳 5308.0 方"
+    },
+    {
+      "name": "API projects yearly report",
+      "ok": true,
+      "detail": "项目年报返回 1 条记录，累计完成率 7%"
+    }
+  ]
+}

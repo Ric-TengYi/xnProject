@@ -1,0 +1,78 @@
+{
+  "date": "2026-03-21",
+  "total": 14,
+  "passed": 14,
+  "failed": 0,
+  "results": [
+    {
+      "name": "API login",
+      "passed": true,
+      "detail": "userId=6"
+    },
+    {
+      "name": "Approval flow list",
+      "passed": true,
+      "detail": "count=3"
+    },
+    {
+      "name": "Approval flow create",
+      "passed": true,
+      "detail": "id=2035244546782269442"
+    },
+    {
+      "name": "Approval flow status update",
+      "passed": true,
+      "detail": "DISABLED"
+    },
+    {
+      "name": "Approval flow detail",
+      "passed": true,
+      "detail": "TEST_NODE_1774075087"
+    },
+    {
+      "name": "Alert generate",
+      "passed": true,
+      "detail": "created=0 updated=1 closed=0"
+    },
+    {
+      "name": "Alert summary",
+      "passed": true,
+      "detail": "contract=1 user=1"
+    },
+    {
+      "name": "Contract top-risk endpoint",
+      "passed": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "UI login",
+      "passed": true,
+      "detail": "http://127.0.0.1:5173/"
+    },
+    {
+      "name": "Alerts page open",
+      "passed": true,
+      "detail": "title visible"
+    },
+    {
+      "name": "Alerts page data",
+      "passed": true,
+      "detail": "rows=6"
+    },
+    {
+      "name": "Approval page open",
+      "passed": true,
+      "detail": "title visible"
+    },
+    {
+      "name": "Approval flow tab",
+      "passed": true,
+      "detail": "flow tab rendered"
+    },
+    {
+      "name": "Approval flow cleanup",
+      "passed": true,
+      "detail": "id=2035244546782269442"
+    }
+  ]
+}

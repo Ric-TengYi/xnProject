@@ -1,251 +1,485 @@
-import React from 'react';
-import { Card, Tabs, Descriptions, Tag, Button, Space, Timeline, List, Switch, InputNumber, Row, Col } from 'antd';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Button,
+  Card,
+  Descriptions,
+  Empty,
+  Divider,
+  List,
+  Space,
+  Spin,
+  Tabs,
+  Tag,
+  message,
+} from 'antd';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
+import TiandituMap from '../components/TiandituMap';
+import ProjectConfigModal from '../components/ProjectConfigModal';
+import type { MapPoint, MapPolygon, MapPolyline } from '../components/TiandituMap';
+import { parseGeoJsonLine, parseGeoJsonPolygon } from '../utils/mapGeometry';
+import {
+  fetchProjectDetail,
+  type ProjectRecord,
+  type ProjectPermitSummary,
+} from '../utils/projectApi';
 
-const ProjectDetail: React.FC = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
-    const defaultTab = searchParams.get('tab') || 'info';
-
-    // 模拟数据
-    const projectInfo = {
-        id: id || 'PRJ-24001',
-        name: '滨海新区基础建设B标段',
-        builder: '中建八局',
-        transporter: '顺达土方工程队',
-        status: '在建',
-        startDate: '2024-01-15',
-        totalAmount: 1500000,
-        usedAmount: 1250000,
-        address: '滨海新区科技路与创新大道交汇处',
-        manager: '张建国',
-        phone: '13800138000',
-    };
-
-    const items = [
-        {
-            key: 'info',
-            label: '基础信息与交款',
-            children: (
-                <div className="space-y-6">
-                    <Card title="基础信息" className="glass-panel g-border-panel border" extra={<Button type="link" icon={<EditOutlined />}>编辑</Button>}>
-                        <Descriptions column={3} className="g-text-secondary">
-                            <Descriptions.Item label="项目编号">{projectInfo.id}</Descriptions.Item>
-                            <Descriptions.Item label="项目名称">{projectInfo.name}</Descriptions.Item>
-                            <Descriptions.Item label="项目状态"><Tag color="processing">{projectInfo.status}</Tag></Descriptions.Item>
-                            <Descriptions.Item label="建设单位">{projectInfo.builder}</Descriptions.Item>
-                            <Descriptions.Item label="运输单位">{projectInfo.transporter}</Descriptions.Item>
-                            <Descriptions.Item label="开工日期">{projectInfo.startDate}</Descriptions.Item>
-                            <Descriptions.Item label="项目地址" span={2}>{projectInfo.address}</Descriptions.Item>
-                            <Descriptions.Item label="项目负责人">{projectInfo.manager} ({projectInfo.phone})</Descriptions.Item>
-                        </Descriptions>
-                    </Card>
-                    <Card title="交款数据" className="glass-panel g-border-panel border">
-                        <Row gutter={16}>
-                            <Col span={8}>
-                                <Card type="inner" className="bg-white g-border-panel border">
-                                    <div className="g-text-secondary mb-2">应消纳金额 (元)</div>
-                                    <div className="text-2xl font-bold g-text-primary">¥ 4,500,000</div>
-                                </Card>
-                            </Col>
-                            <Col span={8}>
-                                <Card type="inner" className="bg-white g-border-panel border">
-                                    <div className="g-text-secondary mb-2">累计交款金额 (元)</div>
-                                    <div className="text-2xl font-bold g-text-success">¥ 3,000,000</div>
-                                </Card>
-                            </Col>
-                            <Col span={8}>
-                                <Card type="inner" className="bg-white g-border-panel border">
-                                    <div className="g-text-secondary mb-2">欠款金额 (元)</div>
-                                    <div className="text-2xl font-bold g-text-error">¥ 1,500,000</div>
-                                </Card>
-                            </Col>
-                        </Row>
-                    </Card>
-                </div>
-            ),
-        },
-        {
-            key: 'contracts',
-            label: '合同与场地清单',
-            children: (
-                <div className="space-y-6">
-                    <Card title="场地消纳进度" className="glass-panel g-border-panel border">
-                        <List
-                            itemLayout="horizontal"
-                            dataSource={[
-                                { site: '城东一号消纳场', contractId: 'HT-2024-001', total: 800000, used: 650000 },
-                                { site: '高新区临时堆场', contractId: 'HT-2024-005', total: 700000, used: 600000 },
-                            ]}
-                            renderItem={item => {
-                                const percent = Math.round((item.used / item.total) * 100);
-                                return (
-                                    <List.Item>
-                                        <List.Item.Meta
-                                            title={<span className="g-text-primary">{item.site}</span>}
-                                            description={<span className="g-text-secondary">关联合同: {item.contractId}</span>}
-                                        />
-                                        <div className="w-1/2 flex items-center gap-4">
-                                            <div className="flex-1 bg-white rounded-full h-2 overflow-hidden">
-                                                <div className={`h-full ${percent > 80 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${percent}%` }}></div>
-                                            </div>
-                                            <span className="g-text-secondary w-32 text-right">{item.used / 10000} / {item.total / 10000} 万方</span>
-                                        </div>
-                                    </List.Item>
-                                );
-                            }}
-                        />
-                    </Card>
-                </div>
-            ),
-        },
-        {
-            key: 'permits',
-            label: '处置证清单',
-            children: (
-                <Card className="glass-panel g-border-panel border">
-                    <List
-                        dataSource={[
-                            { id: 'CZ-2024-0012', type: '处置证', car: '鲁A·12345', site: '城东一号消纳场', status: '已绑定', expire: '2024-12-31' },
-                            { id: 'CZ-2024-0013', type: '处置证', car: '鲁A·54321', site: '高新区临时堆场', status: '已过期', expire: '2024-01-31' },
-                        ]}
-                        renderItem={item => (
-                            <List.Item extra={<Button type="link">查看详情</Button>}>
-                                <List.Item.Meta
-                                    title={
-                                        <Space>
-                                            <span className="g-text-primary">{item.id}</span>
-                                            <Tag color={item.status === '已绑定' ? 'success' : 'error'}>{item.status}</Tag>
-                                        </Space>
-                                    }
-                                    description={
-                                        <Space className="g-text-secondary mt-2" size="large">
-                                            <span>关联车辆: {item.car}</span>
-                                            <span>消纳场地: {item.site}</span>
-                                            <span className={item.status === '已过期' ? 'g-text-error' : ''}>有效期至: {item.expire}</span>
-                                        </Space>
-                                    }
-                                />
-                            </List.Item>
-                        )}
-                    />
-                </Card>
-            ),
-        },
-        {
-            key: 'daily',
-            label: '项目日报与违规',
-            children: (
-                <div className="space-y-6">
-                    <Card title="违规记录" className="glass-panel g-border-panel border">
-                        <Timeline
-                            items={[
-                                {
-                                    color: 'red',
-                                    children: (
-                                        <>
-                                            <p className="g-text-primary mb-1">车辆偏航预警 - 鲁A·12345</p>
-                                            <p className="g-text-secondary text-sm">2024-03-05 14:30:00</p>
-                                        </>
-                                    ),
-                                },
-                                {
-                                    color: 'orange',
-                                    children: (
-                                        <>
-                                            <p className="g-text-primary mb-1">未打卡入场 - 鲁A·54321</p>
-                                            <p className="g-text-secondary text-sm">2024-03-04 09:15:00</p>
-                                        </>
-                                    ),
-                                }
-                            ]}
-                        />
-                    </Card>
-                </div>
-            ),
-        },
-        {
-            key: 'config',
-            label: '项目配置',
-            children: (
-                <div className="space-y-6">
-                    <Card title="打卡与位置判断配置" className="glass-panel g-border-panel border">
-                        <Descriptions column={1} labelStyle={{ width: '200px' }}>
-                            <Descriptions.Item label="车辆位置校验">
-                                <Switch defaultChecked /> <span className="ml-2 g-text-secondary">开启后打卡将校验车辆GPS与场地距离</span>
-                            </Descriptions.Item>
-                            <Descriptions.Item label="人员位置校验">
-                                <Switch defaultChecked /> <span className="ml-2 g-text-secondary">开启后打卡将校验手机定位与场地距离</span>
-                            </Descriptions.Item>
-                            <Descriptions.Item label="位置偏差阈值 (米)">
-                                <InputNumber defaultValue={100} min={10} max={500} />
-                            </Descriptions.Item>
-                            <Descriptions.Item label="出土预扣值 (m³)">
-                                <InputNumber defaultValue={500} min={0} /> <span className="ml-2 g-text-secondary">剩余量低于此值时拦截打卡</span>
-                            </Descriptions.Item>
-                        </Descriptions>
-                        <div className="mt-4">
-                            <Button type="primary">保存配置</Button>
-                        </div>
-                    </Card>
-                    
-                    <Card title="违规围栏与线路配置" className="glass-panel g-border-panel border" extra={<Button type="primary" size="small">新增围栏/线路</Button>}>
-                        <List
-                            dataSource={[
-                                { name: 'A区入场围栏', type: '入场围栏', status: '启用' },
-                                { name: '主干道运输线路', type: '运输线路', status: '启用', rule: '偏航>100米预警' },
-                            ]}
-                            renderItem={item => (
-                                <List.Item actions={[<a key="edit">编辑</a>, <a key="delete" className="g-text-error">删除</a>]}>
-                                    <List.Item.Meta
-                                        title={<span className="g-text-primary">{item.name}</span>}
-                                        description={
-                                            <Space className="g-text-secondary mt-1">
-                                                <Tag>{item.type}</Tag>
-                                                {item.rule && <span>{item.rule}</span>}
-                                            </Space>
-                                        }
-                                    />
-                                    <Switch checked={item.status === '启用'} size="small" />
-                                </List.Item>
-                            )}
-                        />
-                    </Card>
-                </div>
-            ),
-        }
-    ];
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6 pb-10"
-        >
-            <div className="flex items-center gap-4 mb-6">
-                <Button 
-                    type="text" 
-                    icon={<ArrowLeftOutlined />} 
-                    onClick={() => navigate('/projects')}
-                    className="g-text-secondary hover:g-text-primary"
-                />
-                <div>
-                    <h1 className="text-2xl font-bold g-text-primary m-0">{projectInfo.name}</h1>
-                    <p className="g-text-secondary mt-1">项目编号: {projectInfo.id}</p>
-                </div>
-            </div>
-
-            <Tabs 
-                defaultActiveKey={defaultTab} 
-                items={items} 
-                className="custom-tabs"
-            />
-        </motion.div>
-    );
+const statusColorMap: Record<string, string> = {
+  立项: 'warning',
+  在建: 'processing',
+  预警: 'error',
+  完工: 'success',
 };
 
+const paymentStatusColorMap: Record<string, string> = {
+  已结清: 'success',
+  欠款中: 'error',
+};
+
+const formatMoney = (value?: number | null) =>
+  '¥ ' + Number(value || 0).toLocaleString();
+
+const formatVolume = (value?: number | null) =>
+  Number(value || 0).toLocaleString() + ' 方';
+
+const DEFAULT_MAP_CENTER: MapPoint = [120.1551, 30.2741];
+const resolvePermitType = (value?: string | null) => (value === 'TRANSPORT' ? '准运证' : '排放证');
+const resolvePermitSource = (value?: string | null) => {
+  if (value === 'GOV_PORTAL') return '政务同步';
+  if (value === 'MANUAL' || !value) return '手工维护';
+  return value;
+};
+
+const ProjectDetail: React.FC = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get('tab') || 'info';
+  const [loading, setLoading] = useState(false);
+  const [project, setProject] = useState<ProjectRecord | null>(null);
+  const [permits, setPermits] = useState<ProjectPermitSummary[]>([]);
+  const [configModalVisible, setConfigModalVisible] = useState(false);
+
+  const loadData = async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const projectDetail = await fetchProjectDetail(id);
+      setProject(projectDetail);
+      setPermits(projectDetail.permits || []);
+    } catch (error) {
+      console.error(error);
+      message.error('获取项目详情失败');
+      setProject(null);
+      setPermits([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadData();
+  }, [id]);
+
+  const contracts = project?.contractDetails || [];
+  const sites = project?.siteDetails || [];
+  const projectConfig = project?.config || null;
+  const routePath = useMemo<MapPoint[]>(
+    () => parseGeoJsonLine(projectConfig?.routeGeoJson),
+    [projectConfig?.routeGeoJson]
+  );
+  const violationFencePath = useMemo<MapPolygon[]>(
+    () => {
+      const path = parseGeoJsonPolygon(projectConfig?.violationFenceGeoJson);
+      if (path.length < 3) {
+        return [];
+      }
+      return [{
+        id: 'project-violation-fence',
+        path,
+        color: '#fa8c16',
+        fillColor: '#ffd591',
+        fillOpacity: 0.2,
+        weight: 3,
+        opacity: 0.85,
+      }];
+    },
+    [projectConfig?.violationFenceGeoJson]
+  );
+  const routeLines = useMemo<MapPolyline[]>(
+    () => (routePath.length >= 2 ? [{ id: 'project-route', path: routePath, color: '#1677ff', weight: 5, opacity: 0.9 }] : []),
+    [routePath]
+  );
+  const configMapCenter = useMemo<MapPoint>(() => {
+    if (routePath.length > 0) {
+      return routePath[0];
+    }
+    const site = sites.find((item) => item.lng != null && item.lat != null);
+    if (site?.lng != null && site?.lat != null) {
+      return [Number(site.lng), Number(site.lat)];
+    }
+    return DEFAULT_MAP_CENTER;
+  }, [routePath, sites]);
+
+  const items = [
+    {
+      key: 'info',
+      label: '基础信息与交款',
+      children: (
+        <div className="space-y-6">
+          <Card
+            title={<span className="font-bold text-lg">基础信息</span>}
+            className="glass-panel g-border-panel border"
+            extra={<Button type="primary" ghost icon={<EditOutlined />}>编辑信息</Button>}
+          >
+            <Descriptions column={{ xxl: 4, xl: 3, lg: 3, md: 2, sm: 1, xs: 1 }} className="g-text-secondary" layout="vertical" bordered size="small">
+              <Descriptions.Item label="项目编号">
+                <span className="font-mono text-gray-600">{project?.code || 'PRJ-' + String(project?.id || '')}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="项目名称">
+                <span className="font-medium text-gray-800">{project?.name || '-'}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="项目状态">
+                <Tag color={statusColorMap[project?.statusLabel || ''] || 'default'} className="m-0">
+                  {project?.statusLabel || '未知'}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="所属组织">{project?.orgName || '-'}</Descriptions.Item>
+              <Descriptions.Item label="关联合同">
+                <span className="font-medium text-blue-600">{(project?.contractCount || 0)} 份</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="关联场地">
+                <span className="font-medium text-blue-600">{(project?.siteCount || 0)} 个</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="项目地址" span={2}>
+                {project?.address || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="创建时间">{project?.createTime || '-'}</Descriptions.Item>
+              <Descriptions.Item label="更新时间">{project?.updateTime || '-'}</Descriptions.Item>
+            </Descriptions>
+          </Card>
+
+          <Card title={<span className="font-bold text-lg">交款数据概览</span>} className="glass-panel g-border-panel border">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card type="inner" className="bg-white g-border-panel border">
+                <div className="g-text-secondary mb-2">应收总额</div>
+                <div className="text-2xl font-bold g-text-primary">
+                  {formatMoney(project?.totalAmount)}
+                </div>
+              </Card>
+              <Card type="inner" className="bg-white g-border-panel border">
+                <div className="g-text-secondary mb-2">累计交款</div>
+                <div className="text-2xl font-bold g-text-success">
+                  {formatMoney(project?.paidAmount)}
+                </div>
+              </Card>
+              <Card type="inner" className="bg-white g-border-panel border">
+                <div className="g-text-secondary mb-2">欠款金额</div>
+                <div className="text-2xl font-bold g-text-error">
+                  {formatMoney(project?.debtAmount)}
+                </div>
+              </Card>
+              <Card type="inner" className="bg-white g-border-panel border">
+                <div className="g-text-secondary mb-2">结算状态</div>
+                <div className="text-2xl font-bold">
+                  <Tag
+                    color={
+                      paymentStatusColorMap[project?.paymentStatusLabel || ''] ||
+                      'processing'
+                    }
+                  >
+                    {project?.paymentStatusLabel || '-'}
+                  </Tag>
+                </div>
+                <div className="mt-2 text-xs g-text-secondary">
+                  最近交款: {project?.lastPaymentDate || '-'}
+                </div>
+              </Card>
+            </div>
+          </Card>
+        </div>
+      ),
+    },
+    {
+      key: 'contracts',
+      label: '合同与场地清单',
+      children: (
+        <div className="space-y-6">
+          <Card title={<span className="font-bold text-lg">项目合同清单</span>} className="glass-panel g-border-panel border">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <Card type="inner" className="bg-blue-50/50 g-border-panel border hover:shadow-sm transition-shadow">
+                <div className="g-text-secondary mb-2 text-sm">合同总量</div>
+                <div className="text-3xl font-bold g-text-primary">{contracts.length}</div>
+              </Card>
+              <Card type="inner" className="bg-blue-50/50 g-border-panel border hover:shadow-sm transition-shadow">
+                <div className="g-text-secondary mb-2 text-sm">合同方量</div>
+                <div className="text-3xl font-bold g-text-primary-link">
+                  {formatVolume(contracts.reduce((sum, item) => sum + Number(item.agreedVolume || 0), 0))}
+                </div>
+              </Card>
+              <Card type="inner" className="bg-orange-50/50 g-border-panel border hover:shadow-sm transition-shadow">
+                <div className="g-text-secondary mb-2 text-sm">剩余方量</div>
+                <div className="text-3xl font-bold g-text-warning">
+                  {formatVolume(contracts.reduce((sum, item) => sum + Number(item.remainingVolume || 0), 0))}
+                </div>
+              </Card>
+            </div>
+            <List
+              locale={{ emptyText: <Empty description="暂无关联合同" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+              dataSource={contracts}
+              renderItem={(item) => (
+                <List.Item
+                  actions={[
+                    <a key="detail" onClick={() => navigate('/contracts/' + item.contractId)}>
+                      查看合同
+                    </a>,
+                  ]}
+                >
+                  <List.Item.Meta
+                    title={<span className="g-text-primary">{item.contractNo || 'HT-' + item.contractId}</span>}
+                    description={
+                      <div className="g-text-secondary">
+                        <Space size="large" wrap>
+                          <span>{item.contractName}</span>
+                          <span>场地: {item.siteName || '-'}</span>
+                          <span>方量: {formatVolume(item.agreedVolume)}</span>
+                          <span>已消纳: {formatVolume(item.disposedVolume)}</span>
+                          <span>剩余: {formatVolume(item.remainingVolume)}</span>
+                          <span>金额: {formatMoney(item.contractAmount)}</span>
+                        </Space>
+                        <div className="mt-2 text-xs">
+                          审批状态: {item.approvalStatus || '-'} · 到期: {item.expireDate || '-'}
+                        </div>
+                      </div>
+                    }
+                  />
+                  <Tag color={item.contractStatus === 'EFFECTIVE' ? 'success' : item.contractStatus === 'REJECTED' ? 'error' : 'processing'}>
+                    {item.contractStatus || '未知'}
+                  </Tag>
+                </List.Item>
+              )}
+            />
+          </Card>
+
+          <Card title="项目场地清单" className="glass-panel g-border-panel border">
+            <List
+              locale={{ emptyText: <Empty description="暂无关联场地" /> }}
+              dataSource={sites}
+              renderItem={(item) => (
+                <List.Item
+                  actions={[
+                    <a key="site" onClick={() => item.siteId && navigate('/sites/' + item.siteId)}>
+                      查看场地
+                    </a>,
+                  ]}
+                >
+                  <List.Item.Meta
+                    title={<span className="g-text-primary">{item.siteName}</span>}
+                    description={
+                      <div className="g-text-secondary">
+                        <Space size="large" wrap>
+                          <span>场地类型: {item.siteType || '-'}</span>
+                          <span>容量: {formatVolume(item.capacity)}</span>
+                          <span>关联合同: {item.contractCount || 0}</span>
+                          <span>合同方量: {formatVolume(item.contractVolume)}</span>
+                          <span>已消纳: {formatVolume(item.disposedVolume)}</span>
+                          <span>剩余: {formatVolume(item.remainingVolume)}</span>
+                        </Space>
+                      </div>
+                    }
+                  />
+                </List.Item>
+              )}
+            />
+          </Card>
+        </div>
+      ),
+    },
+    {
+      key: 'permits',
+      label: '处置证清单',
+      children: (
+        <Card
+          className="glass-panel g-border-panel border"
+          extra={
+            <Space>
+              <Button type="link" onClick={() => navigate('/projects/permits')}>
+                查看处置证台账
+              </Button>
+              <Button type="link" onClick={() => navigate(`/projects/permits?projectId=${project?.id || ''}`)}>
+                查看项目关联证照
+              </Button>
+              <Button type="link" onClick={() => void loadData()}>
+                刷新
+              </Button>
+            </Space>
+          }
+        >
+          <List
+            locale={{
+              emptyText: <Empty description="暂无处置证记录，可先在平台对接或处置证台账中同步/新增" />,
+            }}
+            dataSource={permits}
+            renderItem={(item) => (
+              <List.Item
+                actions={[
+                  <a key="permits" onClick={() => navigate(`/projects/permits?projectId=${project?.id || ''}`)}>
+                    查看台账
+                  </a>,
+                ]}
+              >
+                <List.Item.Meta
+                  title={
+                    <Space>
+                      <span className="g-text-primary">{item.permitNo || `P-${item.permitId}`}</span>
+                      <Tag color={item.bindStatus === 'BOUND' ? 'success' : 'warning'}>
+                        {item.bindStatus === 'BOUND' ? '已绑定' : '未绑定'}
+                      </Tag>
+                      <Tag color={item.sourcePlatform === 'GOV_PORTAL' ? 'blue' : 'default'}>
+                        {resolvePermitSource(item.sourcePlatform)}
+                      </Tag>
+                    </Space>
+                  }
+                  description={
+                    <Space className="g-text-secondary mt-2" size="large">
+                      <span>证件类型: {resolvePermitType(item.permitType)}</span>
+                      <span>关联车辆: {item.vehicleNo || '-'}</span>
+                      <span>消纳场地: {item.siteId || '-'}</span>
+                      <span>有效期至: {item.expireDate || '-'}</span>
+                      <span>同步批次: {item.syncBatchNo || '-'}</span>
+                    </Space>
+                  }
+                />
+              </List.Item>
+            )}
+          />
+        </Card>
+      ),
+    },
+    {
+      key: 'config',
+      label: '项目配置',
+      children: (
+        <div className="space-y-6">
+          <Card 
+            title={<span className="font-bold text-lg">项目配置</span>} 
+            className="glass-panel g-border-panel border"
+            extra={<Button type="primary" ghost icon={<EditOutlined />} onClick={() => setConfigModalVisible(true)}>编辑配置</Button>}
+          >
+            <Descriptions column={2} className="g-text-secondary">
+              <Descriptions.Item label="打卡配置">
+                <Tag color={projectConfig?.checkinEnabled ? 'success' : 'default'}>
+                  {projectConfig?.checkinEnabled ? '已启用' : '未启用'}
+                </Tag>
+                <span className="ml-2">{projectConfig?.checkinAccount || '-'}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="打卡授权范围">{projectConfig?.checkinAuthScope || '-'}</Descriptions.Item>
+              <Descriptions.Item label="位置判断配置">
+                <Tag color={projectConfig?.locationCheckRequired ? 'blue' : 'default'}>
+                  {projectConfig?.locationCheckRequired ? '启用位置判断' : '未启用'}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="位置判断半径">
+                {Number(projectConfig?.locationRadiusMeters || 0).toLocaleString()} 米
+              </Descriptions.Item>
+              <Descriptions.Item label="出土预扣值">
+                {formatVolume(projectConfig?.preloadVolume)}
+              </Descriptions.Item>
+              <Descriptions.Item label="违规配置">
+                <Tag color={projectConfig?.violationRuleEnabled ? 'error' : 'default'}>
+                  {projectConfig?.violationRuleEnabled ? '围栏规则启用' : '围栏规则关闭'}
+                </Tag>
+                <span className="ml-2">{projectConfig?.violationFenceName || projectConfig?.violationFenceCode || '-'}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="备注" span={2}>
+                {projectConfig?.remark || '-'}
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+
+          <Card title="线路与违规围栏预览" className="glass-panel g-border-panel border">
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px] gap-4">
+              <div className="relative h-80 rounded overflow-hidden border g-border-panel">
+                <TiandituMap
+                  className="absolute inset-0"
+                  center={configMapCenter}
+                  zoom={13}
+                  polylines={routeLines}
+                  polygons={violationFencePath}
+                  loadingText="项目配置地图加载中..."
+                />
+              </div>
+              <div className="space-y-3">
+                <div className="p-3 rounded border g-border-panel bg-white">
+                  <div className="text-sm g-text-primary">线路状态</div>
+                  <div className="text-xs g-text-secondary mt-1">{routePath.length >= 2 ? '已配置真实线路' : '暂无线路数据'}</div>
+                </div>
+                <div className="p-3 rounded border g-border-panel bg-white">
+                  <div className="text-sm g-text-primary">违规围栏</div>
+                  <div className="text-xs g-text-secondary mt-1">{projectConfig?.violationFenceName || '未配置'}</div>
+                </div>
+                <div className="p-3 rounded border g-border-panel bg-white">
+                  <div className="text-sm g-text-primary">中心坐标</div>
+                  <div className="text-xs g-text-secondary mt-1">{configMapCenter[0]}, {configMapCenter[1]}</div>
+                </div>
+              </div>
+            </div>
+            <Divider />
+            <div className="text-xs g-text-secondary">
+              当前项目配置已收口打卡配置、位置判断、出土预扣值、线路配置与违规围栏 5 类数据。
+            </div>
+          </Card>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6 pb-10"
+    >
+      <div className="flex items-center gap-4 mb-6">
+        <Button
+          type="text"
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate('/projects')}
+          className="g-text-secondary hover:g-text-primary"
+        />
+        <div>
+          <h1 className="text-2xl font-bold g-text-primary m-0">
+            {project?.name || '项目详情'}
+          </h1>
+          <p className="g-text-secondary mt-1">
+            项目编号: {project?.code || (project?.id ? 'PRJ-' + project.id : '-')}
+          </p>
+        </div>
+      </div>
+      <Spin spinning={loading}>
+        {project ? (
+          <Tabs defaultActiveKey={defaultTab} items={items} className="custom-tabs" />
+        ) : (
+          <Card className="glass-panel g-border-panel border">
+            <Empty description="项目不存在或暂无数据" />
+          </Card>
+        )}
+      </Spin>
+      {id && (
+        <ProjectConfigModal
+          projectId={id}
+          visible={configModalVisible}
+          initialValues={project?.config || null}
+          onCancel={() => setConfigModalVisible(false)}
+          onSuccess={() => {
+            setConfigModalVisible(false);
+            void loadData();
+          }}
+        />
+      )}
+    </motion.div>
+  );
+};
 export default ProjectDetail;

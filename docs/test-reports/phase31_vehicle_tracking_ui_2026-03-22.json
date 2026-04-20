@@ -1,0 +1,19 @@
+{
+  "results": [
+    {
+      "name": "UI page load",
+      "ok": true,
+      "detail": "车辆追踪页面成功打开"
+    },
+    {
+      "name": "UI track query controls",
+      "ok": true,
+      "detail": "页面可见轨迹查询控件与状态标签"
+    },
+    {
+      "name": "UI vehicle list",
+      "ok": true,
+      "detail": "车辆列表已加载"
+    }
+  ]
+}

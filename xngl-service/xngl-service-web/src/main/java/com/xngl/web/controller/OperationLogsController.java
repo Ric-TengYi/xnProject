@@ -6,6 +6,8 @@ import com.xngl.manager.log.OperationLogService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
 import com.xngl.web.dto.user.OperationLogListItemDto;
+import com.xngl.web.support.CsvExportSupport;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -29,6 +31,7 @@ public class OperationLogsController {
   public ApiResult<PageResult<OperationLogListItemDto>> list(
       @RequestParam(required = false) Long tenantId,
       @RequestParam(required = false) Long userId,
+      @RequestParam(required = false) String keyword,
       @RequestParam(required = false) String module,
       @RequestParam(required = false) String startTime,
       @RequestParam(required = false) String endTime,
@@ -37,11 +40,42 @@ public class OperationLogsController {
     LocalDateTime start = parseTime(startTime);
     LocalDateTime end = parseTime(endTime);
     IPage<OperationLog> page =
-        operationLogService.page(tenantId, userId, module, start, end, pageNo, pageSize);
+        operationLogService.page(tenantId, userId, keyword, module, start, end, pageNo, pageSize);
     List<OperationLogListItemDto> records =
         page.getRecords().stream().map(this::toListItem).collect(Collectors.toList());
     return ApiResult.ok(
         new PageResult<>(page.getCurrent(), page.getSize(), page.getTotal(), records));
+  }
+
+  @GetMapping("/export")
+  public ResponseEntity<byte[]> export(
+      @RequestParam(required = false) Long tenantId,
+      @RequestParam(required = false) Long userId,
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String module,
+      @RequestParam(required = false) String startTime,
+      @RequestParam(required = false) String endTime) {
+    List<OperationLog> rows =
+        operationLogService
+            .page(tenantId, userId, keyword, module, parseTime(startTime), parseTime(endTime), 1, 2000)
+            .getRecords();
+    return CsvExportSupport.csvResponse(
+        "operation_logs",
+        List.of("操作人", "模块", "操作类型", "操作内容", "请求URI", "请求方式", "耗时(ms)", "IP", "操作时间"),
+        rows.stream()
+            .map(
+                log ->
+                    List.of(
+                        CsvExportSupport.value(log.getUsername()),
+                        CsvExportSupport.value(log.getModule()),
+                        CsvExportSupport.value(log.getOperation()),
+                        CsvExportSupport.value(log.getContent()),
+                        CsvExportSupport.value(log.getRequestUri()),
+                        CsvExportSupport.value(log.getMethod()),
+                        CsvExportSupport.value(log.getDurationMs()),
+                        CsvExportSupport.value(log.getIp()),
+                        CsvExportSupport.value(log.getCreateTime())))
+            .toList());
   }
 
   private OperationLogListItemDto toListItem(OperationLog log) {

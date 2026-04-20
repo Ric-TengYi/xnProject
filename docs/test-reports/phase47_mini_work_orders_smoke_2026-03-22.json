@@ -1,0 +1,130 @@
+{
+  "phase": "phase47_mini_work_orders_smoke_2026-03-22",
+  "executedAt": "2026-03-22T21:37:52+08:00",
+  "modules": [
+    {
+      "id": 101,
+      "name": "出土拍照",
+      "scope": "拍照上传、车牌识别 mock、拍照记录查询"
+    },
+    {
+      "id": 102,
+      "name": "打卡异常申报",
+      "scope": "异常申报创建并联动事件中心"
+    },
+    {
+      "id": 105,
+      "name": "延期申报",
+      "scope": "延期申请创建并联动事件中心"
+    },
+    {
+      "id": 109,
+      "name": "问题反馈",
+      "scope": "反馈创建、关闭与事件状态回写"
+    }
+  ],
+  "builds": [
+    {
+      "command": "cd xngl-service && mvn -pl xngl-service-starter -am compile -DskipTests",
+      "status": "PASS",
+      "detail": "小程序工单接口后端编译通过"
+    },
+    {
+      "command": "cd xngl-service && mvn -pl xngl-service-starter -am install -DskipTests",
+      "status": "PASS",
+      "detail": "小程序工单接口后端安装打包通过"
+    }
+  ],
+  "runtime": [
+    {
+      "command": "cd xngl-service && mvn spring-boot:run -pl xngl-service-starter",
+      "status": "PASS",
+      "detail": "后端带 mini 工单接口重启成功"
+    }
+  ],
+  "checks": [
+    {
+      "name": "send_sms_code",
+      "status": "PASS",
+      "detail": {
+        "mobile": "13800000001",
+        "mockCode": "576980"
+      }
+    },
+    {
+      "name": "mini_login",
+      "status": "PASS",
+      "detail": {
+        "siteCount": 2,
+        "firstSiteId": "1"
+      }
+    },
+    {
+      "name": "create_excavation_photo",
+      "status": "PASS",
+      "detail": {
+        "id": "6",
+        "plateNo": "浙A12345",
+        "recognitionSource": "OCR_MOCK"
+      }
+    },
+    {
+      "name": "create_checkin_exception",
+      "status": "PASS",
+      "detail": {
+        "id": "6",
+        "checkinId": "8",
+        "linkedEventId": "26"
+      }
+    },
+    {
+      "name": "create_delay_apply",
+      "status": "PASS",
+      "detail": {
+        "id": "5",
+        "linkedEventId": "27",
+        "requestedEndTime": "2026-03-23T03:37:52"
+      }
+    },
+    {
+      "name": "create_feedback",
+      "status": "PASS",
+      "detail": {
+        "id": "4",
+        "linkedEventId": "28",
+        "status": "SUBMITTED"
+      }
+    },
+    {
+      "name": "close_feedback",
+      "status": "PASS",
+      "detail": {
+        "id": "4",
+        "status": "CLOSED",
+        "closeRemark": "烟测关闭反馈"
+      }
+    },
+    {
+      "name": "list_mini_events",
+      "status": "PASS",
+      "detail": {
+        "matchedEventIds": [
+          "26",
+          "27",
+          "28"
+        ],
+        "eventNos": [
+          "ME-20260322213752-F3AC02A0",
+          "ME-20260322213752-611FB1E2",
+          "ME-20260322213752-5A90202F"
+        ],
+        "closedFeedbackEventStatus": "CLOSED"
+      }
+    }
+  ],
+  "summary": {
+    "passed": 8,
+    "failed": 0,
+    "blocked": 0
+  }
+}

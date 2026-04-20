@@ -1,0 +1,27 @@
+{
+  "report": "phase78_business_core_acceptance_regression_2026-03-23",
+  "date": "2026-03-23",
+  "phaseCount": 2,
+  "passed": 17,
+  "failed": 0,
+  "results": [
+    {
+      "script": "phase71_business_master_regression.py",
+      "status": "PASS",
+      "passed": 11,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS business_units_summary_query_runtime: unit_id=13, total_units=8\nPASS business_units_upsert_cleanup_runtime: temp_unit_id=21\nPASS business_projects_list_detail_runtime: project_id=1, contracts=17\nPASS business_project_payments_runtime: project_id=1, before_total=0, payment_id=6\nPASS business_disposal_permits_runtime: permit_id=2035906049197776897, status=EXPIRING\nPASS business_checkins_void_restore_runtime: ticket_id=9, ticket_no=MD-20260323090251-B02E57\nPASS business_disposals_query_runtime: disposal_id=9, ticket_no=MD-20260323090251-B02E57\nPASS business_sites_runtime: site_id=1, map_layers=2\nPASS business_vehicles_runtime: vehicles=8, companies=4, fleets=7\nPASS business_master_pages_visible: 单位管理 / 消纳项目清单 / 项目交款管理 / 处置证清单 / 打卡数据 / 消纳信息 / 消纳场地管理 / 全局消纳清单 / 场地基础信息 / 车辆与运力资源\n",
+      "stderr_tail": ""
+    },
+    {
+      "script": "phase72_contract_settlement_regression.py",
+      "status": "PASS",
+      "passed": 6,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "PASS login: admin/admin 登录成功\nPASS contracts_list_detail_assets_runtime: contract_id=54, approvals=2, materials=2\nPASS contracts_receipts_create_cancel_cleanup_runtime: receipt_id=42, before=0, after_cancel=1\nPASS contracts_reports_runtime: export_task_id=36, trend_months=12\nPASS site_settlements_runtime: existing_site_settlement=21, temp_site_settlement=31\nPASS contracts_settlement_pages_visible: 合同与财务结算 / 合同详情: / 合同入账管理 / 月报统计 / 结算管理\n",
+      "stderr_tail": ""
+    }
+  ]
+}

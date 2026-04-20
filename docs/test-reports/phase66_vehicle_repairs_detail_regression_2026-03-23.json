@@ -1,0 +1,43 @@
+{
+  "report": "phase66_vehicle_repairs_detail_regression_2026-03-23",
+  "date": "2026-03-23",
+  "results": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "name": "repair_create_runtime",
+      "status": "PASS",
+      "detail": "repair_id=13"
+    },
+    {
+      "name": "repair_approve_runtime",
+      "status": "PASS",
+      "detail": "approved_by=Local Admin"
+    },
+    {
+      "name": "repair_complete_runtime",
+      "status": "PASS",
+      "detail": "actual=1980.0"
+    },
+    {
+      "name": "repair_detail_runtime",
+      "status": "PASS",
+      "detail": "variance=-620.0"
+    },
+    {
+      "name": "repair_export_runtime",
+      "status": "PASS",
+      "detail": "text/csv;charset=UTF-8"
+    },
+    {
+      "name": "vehicle_repairs_page_visible",
+      "status": "PASS",
+      "detail": "维修管理页面详情抽屉可见"
+    }
+  ],
+  "passed": 7,
+  "failed": 0
+}

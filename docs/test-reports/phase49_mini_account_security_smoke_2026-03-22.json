@@ -1,0 +1,126 @@
+{
+  "phase": "phase49_mini_account_security_smoke_2026-03-22",
+  "executedAt": "2026-03-22T22:06:06+08:00",
+  "modules": [
+    {
+      "id": 107,
+      "name": "密码修改",
+      "scope": "短信验证码改密、旧密码校验改密"
+    },
+    {
+      "id": 108,
+      "name": "账号绑定",
+      "scope": "微信 openId 绑定与免密登录"
+    }
+  ],
+  "builds": [
+    {
+      "command": "cd xngl-service && mvn -pl xngl-service-starter -am compile -DskipTests",
+      "status": "PASS",
+      "detail": "小程序账号安全接口后端编译通过"
+    },
+    {
+      "command": "cd xngl-service && mvn -pl xngl-service-starter -am install -DskipTests",
+      "status": "PASS",
+      "detail": "小程序账号安全接口后端安装打包通过"
+    }
+  ],
+  "runtime": [
+    {
+      "command": "cd xngl-service && mvn spring-boot:run -pl xngl-service-starter",
+      "status": "PASS",
+      "detail": "后端带 mini 密码修改/账号绑定接口重启成功"
+    }
+  ],
+  "checks": [
+    {
+      "name": "send_login_code_original",
+      "status": "PASS",
+      "detail": {
+        "mobile": "13800000001",
+        "mockCode": "810953"
+      }
+    },
+    {
+      "name": "login_original",
+      "status": "PASS",
+      "detail": {
+        "siteCount": 2,
+        "openId": "mini-openid-admin-phase49"
+      }
+    },
+    {
+      "name": "send_password_change_code",
+      "status": "PASS",
+      "detail": {
+        "mobile": "13800000001",
+        "mockCode": "951756"
+      }
+    },
+    {
+      "name": "change_password_by_sms",
+      "status": "PASS",
+      "detail": {
+        "newPassword": "Admin@20260322"
+      }
+    },
+    {
+      "name": "send_login_code_temp_password",
+      "status": "PASS",
+      "detail": {
+        "mobile": "13800000001",
+        "mockCode": "361306"
+      }
+    },
+    {
+      "name": "login_temp_password",
+      "status": "PASS",
+      "detail": {
+        "siteCount": 2
+      }
+    },
+    {
+      "name": "bind_openid",
+      "status": "PASS",
+      "detail": {
+        "openId": "mini-openid-admin-phase49",
+        "bindingStatus": "BOUND"
+      }
+    },
+    {
+      "name": "login_by_openid",
+      "status": "PASS",
+      "detail": {
+        "siteCount": 2,
+        "openId": "mini-openid-admin-phase49"
+      }
+    },
+    {
+      "name": "restore_password_by_old_password",
+      "status": "PASS",
+      "detail": {
+        "restoredPassword": "admin"
+      }
+    },
+    {
+      "name": "send_login_code_restored",
+      "status": "PASS",
+      "detail": {
+        "mobile": "13800000001",
+        "mockCode": "907508"
+      }
+    },
+    {
+      "name": "login_restored_password",
+      "status": "PASS",
+      "detail": {
+        "siteCount": 2
+      }
+    }
+  ],
+  "summary": {
+    "passed": 11,
+    "failed": 0,
+    "blocked": 0
+  }
+}

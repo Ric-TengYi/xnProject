@@ -1,0 +1,88 @@
+{
+  "report": "phase70_governance_unified_regression_2026-03-23",
+  "date": "2026-03-23",
+  "results": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "name": "governance_role_create_runtime",
+      "status": "PASS",
+      "detail": "role_id=15"
+    },
+    {
+      "name": "governance_role_update_runtime",
+      "status": "PASS",
+      "detail": "Phase70 角色-更新"
+    },
+    {
+      "name": "governance_org_create_update_runtime",
+      "status": "PASS",
+      "detail": "org_id=22"
+    },
+    {
+      "name": "governance_user_create_update_runtime",
+      "status": "PASS",
+      "detail": "user_id=20"
+    },
+    {
+      "name": "governance_org_role_user_cleanup_runtime",
+      "status": "PASS",
+      "detail": "user/org/role cleanup ok"
+    },
+    {
+      "name": "governance_data_dict_crud_runtime",
+      "status": "PASS",
+      "detail": "dict_id=2036062958697603074"
+    },
+    {
+      "name": "governance_approval_actor_rule_runtime",
+      "status": "PASS",
+      "detail": "rule_id=10"
+    },
+    {
+      "name": "governance_approval_material_runtime",
+      "status": "PASS",
+      "detail": "material_id=8"
+    },
+    {
+      "name": "governance_approval_flow_runtime",
+      "status": "PASS",
+      "detail": "flow_id=2036062959125422081"
+    },
+    {
+      "name": "governance_approval_cleanup_runtime",
+      "status": "PASS",
+      "detail": "approval cleanup ok"
+    },
+    {
+      "name": "governance_sys_param_crud_runtime",
+      "status": "PASS",
+      "detail": "sys_param_id=2036062959347720194"
+    },
+    {
+      "name": "governance_logs_export_runtime",
+      "status": "PASS",
+      "detail": "login=5, operate=0, error=5"
+    },
+    {
+      "name": "governance_messages_runtime",
+      "status": "PASS",
+      "detail": "messages=2"
+    },
+    {
+      "name": "governance_messages_cleanup_runtime",
+      "status": "PASS",
+      "detail": "message cleanup ok"
+    },
+    {
+      "name": "governance_pages_visible",
+      "status": "PASS",
+      "detail": "组织与人员管理 / 角色与权限管理 / 数据字典 / 审核审批配置 / 系统参数 / 系统日志 / 消息管理"
+    }
+  ],
+  "passed": 16,
+  "failed": 0
+}

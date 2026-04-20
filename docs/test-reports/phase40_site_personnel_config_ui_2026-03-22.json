@@ -1,0 +1,14 @@
+{
+  "results": [
+    {
+      "name": "UI site config page load",
+      "ok": true,
+      "detail": "场地配置页成功打开并展示人员配置卡片"
+    },
+    {
+      "name": "UI site personnel echo",
+      "ok": true,
+      "detail": "页面已回显 test999 的巡检员和停用状态"
+    }
+  ]
+}

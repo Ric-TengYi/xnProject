@@ -1,0 +1,69 @@
+{
+  "phase": 22,
+  "name": "role_detail_smoke",
+  "date": "2026-03-21",
+  "total": 11,
+  "passed": 11,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "admin_login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "name": "role_seed",
+      "status": "PASS",
+      "detail": "创建角色详情测试数据成功"
+    },
+    {
+      "name": "menu_seed",
+      "status": "PASS",
+      "detail": "获取权限树菜单节点成功"
+    },
+    {
+      "name": "role_detail_query",
+      "status": "PASS",
+      "detail": "角色详情查询成功"
+    },
+    {
+      "name": "role_update",
+      "status": "PASS",
+      "detail": "角色基础信息编辑成功"
+    },
+    {
+      "name": "role_permission_scope_save",
+      "status": "PASS",
+      "detail": "权限树和数据范围保存成功"
+    },
+    {
+      "name": "role_detail_after_update",
+      "status": "PASS",
+      "detail": "详情正确回显更新后的角色范围、描述、默认数据范围"
+    },
+    {
+      "name": "role_permissions_backfill",
+      "status": "PASS",
+      "detail": "权限树回显和数据范围回显正确"
+    },
+    {
+      "name": "role_delete",
+      "status": "PASS",
+      "detail": "角色删除成功"
+    },
+    {
+      "name": "role_deleted_invisible",
+      "status": "PASS",
+      "detail": "删除后详情返回 404"
+    },
+    {
+      "name": "frontend_entry_build",
+      "status": "PASS",
+      "detail": "RolesManagement 已接入详情描述、编辑角色、删除角色，且前后端构建通过"
+    }
+  ],
+  "notes": [
+    "修复了 sys_data_scope_rule 逻辑删除导致的唯一索引冲突，改为按 role_id 物理删除后重建。",
+    "历史测试角色 9/10/11 已清理。"
+  ]
+}

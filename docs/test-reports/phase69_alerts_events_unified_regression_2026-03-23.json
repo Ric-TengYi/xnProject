@@ -1,0 +1,73 @@
+{
+  "report": "phase69_alerts_events_unified_regression_2026-03-23",
+  "date": "2026-03-23",
+  "results": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "name": "manual_event_create_runtime",
+      "status": "PASS",
+      "detail": "event_id=45"
+    },
+    {
+      "name": "manual_event_update_runtime",
+      "status": "PASS",
+      "detail": "phase69 事件联调-1774270275265-更新"
+    },
+    {
+      "name": "manual_event_flow_runtime",
+      "status": "PASS",
+      "detail": "audit_logs=8"
+    },
+    {
+      "name": "manual_event_summary_export_runtime",
+      "status": "PASS",
+      "detail": "text/csv;charset=UTF-8"
+    },
+    {
+      "name": "alerts_generate_runtime",
+      "status": "PASS",
+      "detail": "created=1, updated=3, closed=0"
+    },
+    {
+      "name": "alerts_query_runtime",
+      "status": "PASS",
+      "detail": "alert_id=23, total_rows=4"
+    },
+    {
+      "name": "alerts_handle_close_runtime",
+      "status": "PASS",
+      "detail": "浙A12345 线路偏航预警"
+    },
+    {
+      "name": "alerts_summary_analytics_export_runtime",
+      "status": "PASS",
+      "detail": "summary_total=23, fences=9"
+    },
+    {
+      "name": "alert_rule_flow_runtime",
+      "status": "PASS",
+      "detail": "rule_id=18"
+    },
+    {
+      "name": "alert_fence_flow_runtime",
+      "status": "PASS",
+      "detail": "fence_id=14"
+    },
+    {
+      "name": "alert_push_flow_runtime",
+      "status": "PASS",
+      "detail": "push_id=15"
+    },
+    {
+      "name": "alerts_events_pages_visible",
+      "status": "PASS",
+      "detail": "预警与监控中心 / 事件管理 / 预警配置 / 安全台账管理"
+    }
+  ],
+  "passed": 13,
+  "failed": 0
+}

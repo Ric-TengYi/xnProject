@@ -1,0 +1,42 @@
+{
+  "name": "xngl-mp",
+  "version": "0.0.1",
+  "private": true,
+  "description": "消纳移动端 - 微信小程序 / 钉钉小程序 / H5 公用",
+  "scripts": {
+    "build:weapp": "taro build --type weapp",
+    "dev:weapp": "taro build --type weapp --watch",
+    "build:h5": "taro build --type h5",
+    "dev:h5": "taro build --type h5 --watch",
+    "build:dd": "taro build --type dd",
+    "dev:dd": "taro build --type dd --watch"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.24.0",
+    "@tarojs/components": "3.6.39",
+    "@tarojs/helper": "3.6.39",
+    "@tarojs/plugin-framework-react": "3.6.39",
+    "@tarojs/plugin-platform-alipay-dd": "0.3.1",
+    "@tarojs/plugin-platform-h5": "^3.6.39",
+    "@tarojs/react": "3.6.39",
+    "@tarojs/runtime": "3.6.39",
+    "@tarojs/taro": "3.6.39",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@pmmmwh/react-refresh-webpack-plugin": "^0.6.2",
+    "@tarojs/cli": "3.6.39",
+    "@tarojs/webpack5-runner": "3.6.39",
+    "@types/react": "^18.2.0",
+    "babel-preset-taro": "3.6.39",
+    "typescript": "~5.3.0",
+    "webpack": "5.88.0"
+  },
+  "browserslist": [
+    "last 3 versions",
+    "Android >= 4.4",
+    "ios >= 9"
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "meta": {
+    "generatedAt": "2026-03-23T11:39:19",
+    "frontend": "http://127.0.0.1:5173",
+    "backend": "http://127.0.0.1:8090/api"
+  },
+  "summary": {
+    "total": 19,
+    "passed": 19,
+    "failed": 0
+  },
+  "results": [
+    {
+      "kind": "api",
+      "name": "health",
+      "passed": true,
+      "detail": "{\"code\":200,\"message\":\"OK\",\"data\":{\"service\":\"xngl-service\",\"status\":\"UP\"}}"
+    },
+    {
+      "kind": "api",
+      "name": "login",
+      "passed": true,
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "kind": "ui",
+      "name": "/sites/documents",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "kind": "ui",
+      "name": "/sites/reports",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "kind": "ui",
+      "name": "/vehicles/violations",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "kind": "ui",
+      "name": "/alerts",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "kind": "ui",
+      "name": "/vehicles/fleet",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "kind": "api",
+      "name": "siteDocuments.summary",
+      "passed": true,
+      "detail": "rows=2"
+    },
+    {
+      "kind": "api",
+      "name": "siteReports.summary",
+      "passed": true,
+      "detail": "{\"periodType\": \"CUSTOM\", \"reportPeriod\": \"2026-03-01 ~ 2026-03-23\", \"siteCount\": 2}"
+    },
+    {
+      "kind": "api",
+      "name": "siteReports.trend",
+      "passed": true,
+      "detail": "points=5"
+    },
+    {
+      "kind": "api",
+      "name": "violations.list",
+      "passed": true,
+      "detail": "records=5"
+    },
+    {
+      "kind": "api",
+      "name": "violations.summary",
+      "passed": true,
+      "detail": "{\"totalCount\": 9, \"pendingCount\": 1, \"processedCount\": 1, \"disabledCount\": 1, \"releasedCount\": 6, \"vehicleCount\": 6}"
+    },
+    {
+      "kind": "api",
+      "name": "violations.detail",
+      "passed": true,
+      "detail": "{\"id\": \"9\", \"plateNo\": \"浙A97610\", \"fleetName\": \"测试联调车队\"}"
+    },
+    {
+      "kind": "api",
+      "name": "alerts.summary",
+      "passed": true,
+      "detail": "{\"total\": 3, \"pending\": 0, \"processing\": 0, \"closed\": 3, \"confirmed\": 0, \"vehicleCount\": 3, \"siteCount\": 0, \"projectCount\": 0, \"contractCount\": 0, \"userCount\": 0, \"highRiskCount\": 3, \"avgHandleMinutes\": 17, \"overdueCount\": 0, \"enabledRuleCount\": 8, \"enabledFenceCount\": 4, \"enabledPushCount\": 5}"
+    },
+    {
+      "kind": "api",
+      "name": "alerts.analytics",
+      "passed": true,
+      "detail": "targetBuckets=1"
+    },
+    {
+      "kind": "api",
+      "name": "alerts.topRisk",
+      "passed": true,
+      "detail": "rows=2"
+    },
+    {
+      "kind": "api",
+      "name": "fleetTracking.summary",
+      "passed": true,
+      "detail": "{\"totalVehicles\": 8, \"movingVehicles\": 0, \"stoppedVehicles\": 0, \"offlineVehicles\": 8, \"deliveringVehicles\": 1, \"warningVehicles\": 8}"
+    },
+    {
+      "kind": "api",
+      "name": "fleetTracking.list",
+      "passed": true,
+      "detail": "records=8"
+    },
+    {
+      "kind": "api",
+      "name": "fleetTracking.history",
+      "passed": true,
+      "detail": "{\"plateNo\": \"浙A12345\", \"vehicleId\": \"1\", \"pointCount\": 4, \"totalDistanceKm\": 1.97, \"ok\": true}"
+    }
+  ]
+}

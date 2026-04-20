@@ -1,0 +1,192 @@
+{
+  "phase": "phase48_mini_org_events_reports_smoke_2026-03-22",
+  "executedAt": "2026-03-22T21:57:56+08:00",
+  "modules": [
+    {
+      "id": 100,
+      "name": "出土单位",
+      "scope": "小程序当前单位、项目列表、项目详情/消纳清单"
+    },
+    {
+      "id": 99,
+      "name": "事件上报",
+      "scope": "简易事件创建、列表、详情与审核日志"
+    },
+    {
+      "id": 106,
+      "name": "统计报表",
+      "scope": "项目/场地报表摘要、趋势、导出与分享链接"
+    }
+  ],
+  "builds": [
+    {
+      "command": "cd xngl-service && mvn -pl xngl-service-starter -am compile -DskipTests",
+      "status": "PASS",
+      "detail": "小程序单位/事件/报表接口后端编译通过"
+    },
+    {
+      "command": "cd xngl-service && mvn -pl xngl-service-starter -am install -DskipTests",
+      "status": "PASS",
+      "detail": "小程序单位/事件/报表接口后端安装打包通过"
+    }
+  ],
+  "runtime": [
+    {
+      "command": "cd xngl-service && mvn spring-boot:run -pl xngl-service-starter",
+      "status": "PASS",
+      "detail": "后端带 mini 单位/事件/报表接口重启成功"
+    }
+  ],
+  "checks": [
+    {
+      "name": "send_sms_code",
+      "status": "PASS",
+      "detail": {
+        "mobile": "13800000001",
+        "mockCode": "735434"
+      }
+    },
+    {
+      "name": "mini_login",
+      "status": "PASS",
+      "detail": {
+        "siteCount": 2
+      }
+    },
+    {
+      "name": "current_excavation_org",
+      "status": "PASS",
+      "detail": {
+        "orgId": "11",
+        "orgCode": "ORG-BUILDER-ZJGY",
+        "orgName": "浙江广源建设工程有限公司",
+        "orgType": "BUILDER_UNIT",
+        "contactPerson": "王国强",
+        "contactPhone": "0571-86002222",
+        "address": "杭州市滨江区建设大道 66 号",
+        "status": "ENABLED",
+        "isMain": false,
+        "projectCount": 1
+      }
+    },
+    {
+      "name": "excavation_projects",
+      "status": "PASS",
+      "detail": {
+        "count": 1,
+        "firstProjectId": "1"
+      }
+    },
+    {
+      "name": "excavation_project_detail",
+      "status": "PASS",
+      "detail": {
+        "projectId": "1",
+        "siteDetailCount": 1
+      }
+    },
+    {
+      "name": "mini_event_create",
+      "status": "PASS",
+      "detail": {
+        "eventId": "30",
+        "eventNo": "ME-20260322215756-E7502A67",
+        "status": "PENDING_AUDIT"
+      }
+    },
+    {
+      "name": "mini_event_list",
+      "status": "PASS",
+      "detail": {
+        "count": 12,
+        "latestId": "30"
+      }
+    },
+    {
+      "name": "mini_event_detail",
+      "status": "PASS",
+      "detail": {
+        "auditLogCount": 1
+      }
+    },
+    {
+      "name": "mini_project_report_summary",
+      "status": "PASS",
+      "detail": {
+        "periodType": "MONTH",
+        "reportPeriod": "2026-03",
+        "projectCount": 1,
+        "activeProjectCount": 1,
+        "totalTrips": 1,
+        "periodVolume": 1200.0,
+        "periodAmount": 30000.0,
+        "projectTotal": 77241.5,
+        "accumulatedVolume": 1200.0,
+        "progressPercent": 2
+      }
+    },
+    {
+      "name": "mini_project_report_trend",
+      "status": "PASS",
+      "detail": {
+        "count": 3
+      }
+    },
+    {
+      "name": "mini_site_report_summary",
+      "status": "PASS",
+      "detail": {
+        "periodType": "MONTH",
+        "reportPeriod": "2026-03",
+        "siteCount": 1,
+        "activeSiteCount": 1,
+        "totalTrips": 1,
+        "periodVolume": 1200.0,
+        "periodAmount": 30000.0,
+        "totalCapacity": 400000.0,
+        "accumulatedVolume": 1200.0,
+        "utilizationRate": 0
+      }
+    },
+    {
+      "name": "mini_site_report_trend",
+      "status": "PASS",
+      "detail": {
+        "count": 3
+      }
+    },
+    {
+      "name": "mini_project_report_export_share",
+      "status": "PASS",
+      "detail": {
+        "taskId": "15",
+        "share": {
+          "taskId": "15",
+          "status": "PENDING",
+          "fileName": null,
+          "downloadUrl": "/api/export-tasks/15/download",
+          "expireTime": "2026-03-29T21:57:56"
+        }
+      }
+    },
+    {
+      "name": "mini_site_report_export_share",
+      "status": "PASS",
+      "detail": {
+        "taskId": "16",
+        "share": {
+          "taskId": "16",
+          "status": "PENDING",
+          "fileName": null,
+          "downloadUrl": "/api/export-tasks/16/download",
+          "expireTime": "2026-03-29T21:57:56"
+        }
+      }
+    }
+  ],
+  "summary": {
+    "passed": 14,
+    "failed": 0,
+    "blocked": 0
+  }
+}

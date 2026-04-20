@@ -6,6 +6,8 @@ import com.xngl.manager.log.LoginLogService;
 import com.xngl.web.dto.ApiResult;
 import com.xngl.web.dto.PageResult;
 import com.xngl.web.dto.user.LoginLogListItemDto;
+import com.xngl.web.support.CsvExportSupport;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -29,6 +31,8 @@ public class LoginLogsController {
   public ApiResult<PageResult<LoginLogListItemDto>> list(
       @RequestParam(required = false) Long tenantId,
       @RequestParam(required = false) Long userId,
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String status,
       @RequestParam(required = false) String startTime,
       @RequestParam(required = false) String endTime,
       @RequestParam(defaultValue = "1") int pageNo,
@@ -36,11 +40,39 @@ public class LoginLogsController {
     LocalDateTime start = parseTime(startTime);
     LocalDateTime end = parseTime(endTime);
     IPage<LoginLog> page =
-        loginLogService.page(tenantId, userId, start, end, pageNo, pageSize);
+        loginLogService.page(tenantId, userId, keyword, status, start, end, pageNo, pageSize);
     List<LoginLogListItemDto> records =
         page.getRecords().stream().map(this::toListItem).collect(Collectors.toList());
     return ApiResult.ok(
         new PageResult<>(page.getCurrent(), page.getSize(), page.getTotal(), records));
+  }
+
+  @GetMapping("/export")
+  public ResponseEntity<byte[]> export(
+      @RequestParam(required = false) Long tenantId,
+      @RequestParam(required = false) Long userId,
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) String startTime,
+      @RequestParam(required = false) String endTime) {
+    List<LoginLog> rows =
+        loginLogService.list(
+            tenantId, userId, keyword, status, parseTime(startTime), parseTime(endTime));
+    return CsvExportSupport.csvResponse(
+        "login_logs",
+        List.of("登录账号", "登录时间", "IP地址", "登录类型", "状态", "失败原因", "终端信息"),
+        rows.stream()
+            .map(
+                log ->
+                    List.of(
+                        CsvExportSupport.value(log.getUsername()),
+                        CsvExportSupport.value(log.getLoginTime()),
+                        CsvExportSupport.value(log.getIp()),
+                        CsvExportSupport.value(log.getLoginType()),
+                        log.getSuccessFlag() != null && log.getSuccessFlag() == 1 ? "成功" : "失败",
+                        CsvExportSupport.value(log.getFailReason()),
+                        CsvExportSupport.value(log.getUserAgent())))
+            .toList());
   }
 
   private LoginLogListItemDto toListItem(LoginLog log) {

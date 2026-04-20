@@ -1,0 +1,153 @@
+{
+  "date": "2026-03-23",
+  "phase": "Phase60",
+  "scope": [
+    "配置中心增强",
+    "系统日志增强",
+    "消息中心增强"
+  ],
+  "passed": 28,
+  "failed": 0,
+  "results": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "health",
+      "status": "PASS",
+      "detail": "{'status': 'UP', 'service': 'xngl-service'}"
+    },
+    {
+      "name": "messages_list",
+      "status": "PASS",
+      "detail": "records=10"
+    },
+    {
+      "name": "messages_summary",
+      "status": "PASS",
+      "detail": "summary={'total': 13, 'unread': 0, 'read': 13}"
+    },
+    {
+      "name": "messages_read_all",
+      "status": "PASS",
+      "detail": "updated=0"
+    },
+    {
+      "name": "messages_export",
+      "status": "PASS",
+      "detail": "bytes=2671"
+    },
+    {
+      "name": "login_logs_list",
+      "status": "PASS",
+      "detail": "records=10"
+    },
+    {
+      "name": "login_logs_filtered",
+      "status": "PASS",
+      "detail": "records=10"
+    },
+    {
+      "name": "login_logs_export",
+      "status": "PASS",
+      "detail": "bytes=26704"
+    },
+    {
+      "name": "operation_logs_list",
+      "status": "PASS",
+      "detail": "records=0"
+    },
+    {
+      "name": "operation_logs_export",
+      "status": "PASS",
+      "detail": "bytes=111"
+    },
+    {
+      "name": "error_logs_list",
+      "status": "PASS",
+      "detail": "records=10"
+    },
+    {
+      "name": "error_logs_export",
+      "status": "PASS",
+      "detail": "bytes=10280"
+    },
+    {
+      "name": "data_dicts_list",
+      "status": "PASS",
+      "detail": "records=0"
+    },
+    {
+      "name": "data_dicts_export",
+      "status": "PASS",
+      "detail": "bytes=279"
+    },
+    {
+      "name": "sys_params_list",
+      "status": "PASS",
+      "detail": "records=0"
+    },
+    {
+      "name": "sys_params_export",
+      "status": "PASS",
+      "detail": "bytes=72"
+    },
+    {
+      "name": "approval_rules_list",
+      "status": "PASS",
+      "detail": "records=1"
+    },
+    {
+      "name": "approval_rules_export",
+      "status": "PASS",
+      "detail": "bytes=153"
+    },
+    {
+      "name": "approval_materials_list",
+      "status": "PASS",
+      "detail": "records=3"
+    },
+    {
+      "name": "approval_materials_export",
+      "status": "PASS",
+      "detail": "bytes=428"
+    },
+    {
+      "name": "approval_flows_list",
+      "status": "PASS",
+      "detail": "records=3"
+    },
+    {
+      "name": "approval_flows_export",
+      "status": "PASS",
+      "detail": "bytes=600"
+    },
+    {
+      "name": "ui_logs_page",
+      "status": "PASS",
+      "detail": "title=系统日志, exportButtons=1"
+    },
+    {
+      "name": "ui_messages_page",
+      "status": "PASS",
+      "detail": "title=消息管理, exportButtons=1"
+    },
+    {
+      "name": "ui_dictionary_page",
+      "status": "PASS",
+      "detail": "title=数据字典, exportButtons=1"
+    },
+    {
+      "name": "ui_sys_params_page",
+      "status": "PASS",
+      "detail": "title=系统参数, exportButtons=1"
+    },
+    {
+      "name": "ui_approval_page",
+      "status": "PASS",
+      "detail": "title=审核审批配置, exportButtons=1"
+    }
+  ]
+}

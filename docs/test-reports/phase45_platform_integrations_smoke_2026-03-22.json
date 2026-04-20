@@ -1,0 +1,127 @@
+{
+  "phase": "phase45_platform_integrations_smoke_2026-03-22",
+  "executedAt": "2026-03-22T20:59:00+08:00",
+  "modules": [
+    {
+      "id": 45,
+      "name": "坝体数据对接",
+      "scope": "坝体监测配置预留、mock 同步、记录查询"
+    },
+    {
+      "id": 93,
+      "name": "视频对接",
+      "scope": "视频平台配置与场地设备通道聚合"
+    },
+    {
+      "id": 95,
+      "name": "平台对接",
+      "scope": "统一身份认证 SSO 票据与跨平台换 token"
+    }
+  ],
+  "builds": [
+    {
+      "command": "cd xngl-service && mvn -pl xngl-service-starter -am compile -DskipTests",
+      "status": "PASS",
+      "detail": "平台对接后端编译通过"
+    },
+    {
+      "command": "cd xngl-service && mvn -pl xngl-service-starter -am install -DskipTests",
+      "status": "PASS",
+      "detail": "平台对接后端安装打包通过"
+    },
+    {
+      "command": "cd xngl-web && npm run build",
+      "status": "PASS",
+      "detail": "平台对接前端构建通过"
+    }
+  ],
+  "database": [
+    {
+      "command": "mysql -h127.0.0.1 -P3306 -uroot -p'ForkliftDev2025' -D xngl -e \"source .../045_platform_integration_foundation.sql\"",
+      "status": "PASS",
+      "detail": "平台对接基础表与租户 1 默认配置落库成功"
+    }
+  ],
+  "runtime": [
+    {
+      "command": "mvn spring-boot:run -pl xngl-service-starter",
+      "status": "PASS",
+      "detail": "后端重启成功，HikariPool 正常连库"
+    },
+    {
+      "command": "npm run dev",
+      "status": "PASS",
+      "detail": "前端开发服务启动成功，5173 可访问"
+    }
+  ],
+  "checks": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "admin/admin 获取 JWT 成功"
+    },
+    {
+      "name": "overview",
+      "status": "PASS",
+      "detail": {
+        "enabledCount": 0,
+        "totalCount": 3,
+        "videoChannelCount": 2,
+        "onlineDamSiteCount": 0,
+        "activeSsoTicketCount": 0
+      }
+    },
+    {
+      "name": "configs",
+      "status": "PASS",
+      "detail": [
+        "DAM_MONITOR",
+        "SSO",
+        "VIDEO"
+      ]
+    },
+    {
+      "name": "update_video_config",
+      "status": "PASS",
+      "detail": "VIDEO 配置更新并回读成功"
+    },
+    {
+      "name": "sso_ticket_exchange",
+      "status": "PASS",
+      "detail": {
+        "ticket": "5250e0c836264a2083a7639ce53c6cf2",
+        "user": "admin"
+      }
+    },
+    {
+      "name": "video_channels",
+      "status": "PASS",
+      "detail": {
+        "count": 2
+      }
+    },
+    {
+      "name": "dam_mock_sync",
+      "status": "PASS",
+      "detail": {
+        "siteId": 1,
+        "records": 1
+      }
+    },
+    {
+      "name": "frontend_route",
+      "status": "PASS",
+      "detail": "http://127.0.0.1:5173/settings/platform-integrations 返回前端应用壳"
+    },
+    {
+      "name": "playwright_browser_smoke",
+      "status": "BLOCKED",
+      "detail": "本机缺少 Playwright Chromium 内核，BrowserType.launch 失败，未执行浏览器级自动化点击"
+    }
+  ],
+  "summary": {
+    "passed": 8,
+    "blocked": 1,
+    "failed": 0
+  }
+}

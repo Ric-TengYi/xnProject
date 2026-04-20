@@ -1,0 +1,29 @@
+{
+  "results": [
+    {
+      "name": "API login",
+      "ok": true,
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "API project detail aggregates",
+      "ok": true,
+      "detail": "项目详情返回 15 条合同、1 个场地和真实配置"
+    },
+    {
+      "name": "API project contract summary",
+      "ok": true,
+      "detail": "合同 HT-MSG-1774153918 返回方量汇总和剩余方量"
+    },
+    {
+      "name": "API project site summary",
+      "ok": true,
+      "detail": "场地 场地-001 返回合同方量 77241.5 和已消纳 5308.0"
+    },
+    {
+      "name": "API project config summary",
+      "ok": true,
+      "detail": "打卡配置、位置判断、预扣值、线路和违规围栏均已返回真实字段"
+    }
+  ]
+}

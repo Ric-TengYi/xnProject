@@ -1,0 +1,159 @@
+{
+  "generated_at": "2026-03-20",
+  "base_api": "http://127.0.0.1:8090/api",
+  "base_web": "http://127.0.0.1:5173",
+  "passed": 25,
+  "failed": 0,
+  "results": [
+    {
+      "module": "api",
+      "test_case": "login",
+      "passed": true,
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "module": "seed",
+      "test_case": "base_refs",
+      "passed": true,
+      "detail": "contractId=43 projectId=1 siteId=1 vehicle=浙A97610"
+    },
+    {
+      "module": "permit",
+      "test_case": "create",
+      "passed": true,
+      "detail": "id=2034941461304213505 contractId=43"
+    },
+    {
+      "module": "permit",
+      "test_case": "update",
+      "passed": true,
+      "detail": "permitType=TRANSPORT"
+    },
+    {
+      "module": "permit",
+      "test_case": "query",
+      "passed": true,
+      "detail": "records=1"
+    },
+    {
+      "module": "approval",
+      "test_case": "rule_create",
+      "passed": true,
+      "detail": "id=6"
+    },
+    {
+      "module": "approval",
+      "test_case": "rule_update",
+      "passed": true,
+      "detail": "ruleType=USER"
+    },
+    {
+      "module": "approval",
+      "test_case": "rule_status",
+      "passed": true,
+      "detail": "DISABLED"
+    },
+    {
+      "module": "approval",
+      "test_case": "rule_query",
+      "passed": true,
+      "detail": "records=2"
+    },
+    {
+      "module": "approval",
+      "test_case": "material_create",
+      "passed": true,
+      "detail": "id=4"
+    },
+    {
+      "module": "approval",
+      "test_case": "material_update",
+      "passed": true,
+      "detail": "materialType=ZIP"
+    },
+    {
+      "module": "approval",
+      "test_case": "material_status",
+      "passed": true,
+      "detail": "DISABLED"
+    },
+    {
+      "module": "approval",
+      "test_case": "material_query",
+      "passed": true,
+      "detail": "records=2"
+    },
+    {
+      "module": "dict",
+      "test_case": "create",
+      "passed": true,
+      "detail": "id=2034941461845278722"
+    },
+    {
+      "module": "dict",
+      "test_case": "update",
+      "passed": true,
+      "detail": "dictValue=AUTO2"
+    },
+    {
+      "module": "dict",
+      "test_case": "status",
+      "passed": true,
+      "detail": "DISABLED"
+    },
+    {
+      "module": "dict",
+      "test_case": "query",
+      "passed": true,
+      "detail": "records=1"
+    },
+    {
+      "module": "sysparam",
+      "test_case": "create",
+      "passed": true,
+      "detail": "id=2034941462046605314"
+    },
+    {
+      "module": "sysparam",
+      "test_case": "update",
+      "passed": true,
+      "detail": "paramType=JSON"
+    },
+    {
+      "module": "sysparam",
+      "test_case": "status",
+      "passed": true,
+      "detail": "DISABLED"
+    },
+    {
+      "module": "sysparam",
+      "test_case": "query",
+      "passed": true,
+      "detail": "records=1"
+    },
+    {
+      "module": "cleanup",
+      "test_case": "temp_records",
+      "passed": true,
+      "detail": "approval/dict/sysparam 临时数据已清理"
+    },
+    {
+      "module": "frontend",
+      "test_case": "index",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "module": "frontend",
+      "test_case": "route_registration",
+      "passed": true,
+      "detail": "四个配置/处置证页面路由已注册"
+    },
+    {
+      "module": "frontend",
+      "test_case": "menu_registration",
+      "passed": true,
+      "detail": "四个配置/处置证页面菜单已注册"
+    }
+  ]
+}

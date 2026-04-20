@@ -1,9 +1,9 @@
 package com.xngl.manager.vehicle.entity;
 
-import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.Data;
 
 @Data
 public class VehicleInsurance {
@@ -18,4 +18,8 @@ public class VehicleInsurance {
     private String status;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+
+    public void setId(Long id) {
+        this.id = id;
+    }
 }

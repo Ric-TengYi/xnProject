@@ -8,14 +8,20 @@ import static org.mockito.Mockito.when;
 
 import com.xngl.infrastructure.persistence.entity.contract.Contract;
 import com.xngl.infrastructure.persistence.entity.contract.ContractReceipt;
+import com.xngl.infrastructure.persistence.mapper.ContractApprovalRecordMapper;
+import com.xngl.infrastructure.persistence.mapper.ContractInvoiceMapper;
 import com.xngl.infrastructure.persistence.mapper.ContractMapper;
+import com.xngl.infrastructure.persistence.mapper.ContractMaterialMapper;
 import com.xngl.infrastructure.persistence.mapper.ContractReceiptMapper;
+import com.xngl.infrastructure.persistence.mapper.ContractTicketMapper;
+import com.xngl.manager.message.MessageRecordService;
+import com.xngl.manager.role.RoleService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -24,8 +30,29 @@ class ContractServiceImplTest {
 
   @Mock private ContractMapper contractMapper;
   @Mock private ContractReceiptMapper contractReceiptMapper;
+  @Mock private ContractApprovalRecordMapper approvalRecordMapper;
+  @Mock private ContractMaterialMapper materialMapper;
+  @Mock private ContractInvoiceMapper invoiceMapper;
+  @Mock private ContractTicketMapper ticketMapper;
+  @Mock private MessageRecordService messageRecordService;
+  @Mock private RoleService roleService;
 
-  @InjectMocks private ContractServiceImpl contractService;
+  private ContractServiceImpl contractService;
+
+  @BeforeEach
+  void setUp() {
+    contractService =
+        new ContractServiceImpl(
+            contractMapper,
+            contractReceiptMapper,
+            approvalRecordMapper,
+            materialMapper,
+            invoiceMapper,
+            ticketMapper,
+            messageRecordService,
+            roleService,
+            "/tmp/xngl-contract-tests");
+  }
 
   @Test
   void createReceiptShouldPersistReceiptAndUpdateContractAmount() {
@@ -154,5 +181,17 @@ class ContractServiceImplTest {
                         null)))
         .isInstanceOf(ContractServiceException.class)
         .hasMessage("累计入账金额不能超过合同总金额");
+  }
+
+  @Test
+  void getContractShouldRejectOtherTenantContract() {
+    Contract contract = new Contract();
+    contract.setId(1L);
+    contract.setTenantId(2L);
+    when(contractMapper.selectById(1L)).thenReturn(contract);
+
+    assertThatThrownBy(() -> contractService.getContract(1L, 1L))
+        .isInstanceOf(ContractServiceException.class)
+        .hasMessage("合同不存在");
   }
 }

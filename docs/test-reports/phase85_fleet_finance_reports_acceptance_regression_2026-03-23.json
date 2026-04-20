@@ -1,0 +1,18 @@
+{
+  "report": "phase85_fleet_finance_reports_acceptance_regression_2026-03-23",
+  "date": "2026-03-23",
+  "phaseCount": 1,
+  "passed": 29,
+  "failed": 0,
+  "results": [
+    {
+      "script": "phase68_vehicle_fleet_unified_regression.py",
+      "status": "PASS",
+      "passed": 29,
+      "failed": 0,
+      "detail": "returncode=0",
+      "stdout_tail": "enance_plans_runtime: maintenance_plans=8\nPASS vehicle_maintenance_summary_runtime: plans=8, overdue=1\nPASS vehicle_maintenance_records_export_runtime: text/csv;charset=UTF-8\nPASS vehicle_repair_list_runtime: repairs_total=9\nPASS vehicle_repair_summary_runtime: approved=1, completed=6\nPASS vehicle_repair_export_runtime: text/csv;charset=UTF-8\nPASS vehicle_cards_list_runtime: vehicle_cards=4\nPASS vehicle_cards_summary_runtime: balance=8861.6\nPASS vehicle_cards_transaction_summary_runtime: recharge=4333.32, consume=702.22\nPASS vehicle_cards_export_runtime: text/csv;charset=UTF-8\nPASS vehicle_cards_transaction_export_runtime: text/csv;charset=UTF-8\nPASS vehicle_personnel_list_runtime: personnel_certificates=4\nPASS vehicle_personnel_summary_runtime: unpaid=3400.0\nPASS vehicle_personnel_export_runtime: text/csv;charset=UTF-8\nPASS fleet_finance_list_runtime: fleet_finance=2\nPASS fleet_finance_summary_runtime: outstanding=88000.0, profit=77900.0\nPASS fleet_finance_export_runtime: text/csv;charset=UTF-8\nPASS fleet_report_runtime: fleet_report_rows=9\nPASS fleet_report_export_runtime: text/csv;charset=UTF-8\nPASS vehicle_fleet_pages_visible: 车辆与运力资源 / 车型管理 / 维保计划 / 维修管理 / 油电卡管理 / 人证管理 / 车队管理\n",
+      "stderr_tail": ""
+    }
+  ]
+}

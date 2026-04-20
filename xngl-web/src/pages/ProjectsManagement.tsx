@@ -1,106 +1,93 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Card,
+  Empty,
+  Input,
+  Progress,
+  Select,
+  Space,
   Table,
   Tag,
-  Input,
   Button,
-  Card,
-  Progress,
-  Space,
-  Dropdown,
-  Drawer,
-  Form,
-  Select,
-  DatePicker,
+  message,
 } from 'antd';
-import type { MenuProps } from 'antd';
-import {
-  SearchOutlined,
-  FilterOutlined,
-  PlusOutlined,
-  MoreOutlined,
-  ClockCircleOutlined,
-} from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+import { FilterOutlined, PlusOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { fetchProjects, type ProjectRecord } from '../utils/projectApi';
 
-const { RangePicker } = DatePicker;
-
-const projectsData = [
-  {
-    id: 'PRJ-24001',
-    name: '滨海新区基础建设B标段',
-    builder: '中建八局',
-    transporter: '顺达土方工程队',
-    status: '在建',
-    startDate: '2024-01-15',
-    totalAmount: 1500000,
-    usedAmount: 1250000,
-  },
-  {
-    id: 'PRJ-24005',
-    name: '老旧小区改造工程综合包',
-    builder: '市建工集团',
-    transporter: '宏基渣土运输公司',
-    status: '在建',
-    startDate: '2024-02-10',
-    totalAmount: 200000,
-    usedAmount: 45000,
-  },
-  {
-    id: 'PRJ-24012',
-    name: '市中心地铁延长线三期工程',
-    builder: '中铁十四局',
-    transporter: '联运物流、新思路运输',
-    status: '预警',
-    startDate: '2023-11-05',
-    totalAmount: 3800000,
-    usedAmount: 3750000,
-  },
-  {
-    id: 'PRJ-24028',
-    name: '科创园四期土地平整项目',
-    builder: '高新产投',
-    transporter: '顺达土方工程队',
-    status: '立项',
-    startDate: '2024-04-01',
-    totalAmount: 850000,
-    usedAmount: 0,
-  },
-  {
-    id: 'PRJ-23190',
-    name: '环城高速南段拓宽工程',
-    builder: '省交投集团',
-    transporter: '捷安运输',
-    status: '完工',
-    startDate: '2023-05-12',
-    totalAmount: 5200000,
-    usedAmount: 5198000,
-  },
+const statusOptions = [
+  { label: '全部状态', value: 'all' },
+  { label: '立项', value: 0 },
+  { label: '在建', value: 1 },
+  { label: '预警', value: 2 },
+  { label: '完工', value: 3 },
 ];
 
+const statusColorMap: Record<string, string> = {
+  立项: 'warning',
+  在建: 'processing',
+  预警: 'error',
+  完工: 'success',
+};
+
+const formatAmount = (value?: number | null) =>
+  '¥ ' + Number(value || 0).toLocaleString();
+
 const ProjectsManagement: React.FC = () => {
-  const [searchText, setSearchText] = useState('');
-  const [filterVisible, setFilterVisible] = useState(false);
-  const [form] = Form.useForm();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [keyword, setKeyword] = useState('');
+  const [status, setStatus] = useState<number | 'all'>('all');
+  const [pageNo, setPageNo] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [projects, setProjects] = useState<ProjectRecord[]>([]);
 
-  const actionItems = (id: string): MenuProps['items'] => [
-    { key: 'detail', label: '项目详情', onClick: () => navigate(`/projects/${id}`) },
-    { key: 'contract', label: '关联合同' },
-    { key: 'alert', label: '违规清单' },
-    { type: 'divider' },
-    { key: 'delay', label: '申请延期' },
-  ];
+  useEffect(() => {
+    const loadProjects = async () => {
+      setLoading(true);
+      try {
+        const page = await fetchProjects({
+          keyword: keyword.trim() || undefined,
+          status: status === 'all' ? undefined : status,
+          pageNo,
+          pageSize,
+        });
+        setProjects(page.records || []);
+        setTotal(page.total || 0);
+      } catch (error) {
+        console.error(error);
+        message.error('获取项目列表失败');
+        setProjects([]);
+        setTotal(0);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const columns = [
+    void loadProjects();
+  }, [keyword, status, pageNo, pageSize]);
+
+  const summary = useMemo(
+    () => ({
+      total,
+      active: projects.filter((item) => item.statusLabel === '在建').length,
+      warning: projects.filter((item) => item.statusLabel === '预警').length,
+      amount: projects.reduce((sum, item) => sum + Number(item.totalAmount || 0), 0),
+    }),
+    [projects, total]
+  );
+
+  const columns: ColumnsType<ProjectRecord> = [
     {
       title: '项目编号',
-      dataIndex: 'id',
-      key: 'id',
-      render: (text: string) => (
+      dataIndex: 'code',
+      key: 'code',
+      render: (value, record) => (
         <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>
-          {text}
+          {value || 'PRJ-' + record.id}
         </span>
       ),
     },
@@ -108,116 +95,96 @@ const ProjectsManagement: React.FC = () => {
       title: '项目名称',
       dataIndex: 'name',
       key: 'name',
-      render: (text: string) => (
+      render: (value, record) => (
         <a
           className="font-bold hover:opacity-80"
           style={{ color: 'var(--primary)' }}
+          onClick={() => navigate('/projects/' + record.id)}
         >
-          {text}
+          {value}
         </a>
       ),
     },
     {
       title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => {
-        let color = 'default';
-        if (status === '在建') color = 'processing';
-        if (status === '完工') color = 'success';
-        if (status === '预警') color = 'error';
-        if (status === '立项') color = 'warning';
-        return <Tag color={color} className="border-none">{status}</Tag>;
-      },
+      dataIndex: 'statusLabel',
+      key: 'statusLabel',
+      render: (value?: string | null) => (
+        <Tag color={statusColorMap[value || ''] || 'default'} className="border-none">
+          {value || '未知'}
+        </Tag>
+      ),
     },
     {
-      title: '施工与运输单位',
-      key: 'companies',
-      render: (_: unknown, record: (typeof projectsData)[0]) => (
+      title: '所属组织',
+      dataIndex: 'orgName',
+      key: 'orgName',
+      render: (value?: string | null) => (
+        <span style={{ color: 'var(--text-secondary)' }}>{value || '-'}</span>
+      ),
+    },
+    {
+      title: '合同/场地',
+      key: 'relations',
+      render: (_, record) => (
         <div className="flex flex-col gap-1">
-          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            施: {record.builder}
+          <span style={{ color: 'var(--text-secondary)' }}>
+            合同 {record.contractCount || 0} 份
           </span>
-          <span className="text-xs" style={{ color: 'var(--text-secondary)', opacity: 0.9 }}>
-            运: {record.transporter}
+          <span style={{ color: 'var(--text-secondary)' }}>
+            场地 {record.siteCount || 0} 个
           </span>
         </div>
       ),
     },
     {
-      title: '消纳进度',
-      key: 'progress',
-      width: 250,
-      render: (_: unknown, record: (typeof projectsData)[0]) => {
+      title: '交款进度',
+      key: 'payment',
+      width: 260,
+      render: (_, record) => {
+        const totalAmount = Number(record.totalAmount || 0);
+        const paidAmount = Number(record.paidAmount || 0);
         const percent =
-          record.totalAmount === 0
-            ? 0
-            : Math.round((record.usedAmount / record.totalAmount) * 100);
-        let status: 'normal' | 'exception' | 'success' | 'active' = 'normal';
-        if (percent >= 100) status = 'success';
-        else if (record.status === '预警') status = 'exception';
-        else if (record.status === '在建') status = 'active';
-
-        const remaining = record.totalAmount - record.usedAmount;
-
+          totalAmount > 0 ? Math.min(100, Math.round((paidAmount / totalAmount) * 100)) : 0;
         return (
-          <div className="flex flex-col gap-1 w-full">
+          <div className="flex flex-col gap-1">
             <Progress
               percent={percent}
               size="small"
-              status={status}
-              format={() => (
-                <span style={{ color: 'var(--text-secondary)' }}>{percent}%</span>
-              )}
+              showInfo={false}
+              strokeColor="var(--success)"
               trailColor="rgba(0,0,0,0.06)"
             />
-            <div
-              className="flex justify-between text-xs mt-1"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              <span>已消纳: {record.usedAmount / 10000}万方</span>
-              <span style={{ color: 'var(--primary)' }}>
-                剩余: {remaining / 10000}万方
-              </span>
+            <div className="flex justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
+              <span>已交 {formatAmount(record.paidAmount)}</span>
+              <span>欠款 {formatAmount(record.debtAmount)}</span>
             </div>
           </div>
         );
       },
     },
     {
-      title: '开工日期',
-      dataIndex: 'startDate',
-      key: 'startDate',
-      render: (date: string) => (
-        <span
-          className="flex items-center gap-1 text-sm"
-          style={{ color: 'var(--text-secondary)' }}
-        >
-          <ClockCircleOutlined /> {date}
-        </span>
+      title: '最后交款日',
+      dataIndex: 'lastPaymentDate',
+      key: 'lastPaymentDate',
+      render: (value?: string | null) => (
+        <span style={{ color: 'var(--text-secondary)' }}>{value || '-'}</span>
       ),
     },
     {
       title: '操作',
       key: 'action',
-      render: (_: unknown, record: (typeof projectsData)[0]) => (
+      render: (_, record) => (
         <Space size="middle">
+          <a style={{ color: 'var(--primary)' }} onClick={() => navigate('/projects/' + record.id)}>
+            详情
+          </a>
           <a
             style={{ color: 'var(--primary)' }}
-            className="hover:opacity-80"
-            onClick={() => navigate(`/projects/${record.id}?tab=config`)}
+            onClick={() => navigate('/projects/' + record.id + '?tab=config')}
           >
             配置
           </a>
-          <Dropdown menu={{ items: actionItems(record.id) }}>
-            <a
-              style={{ color: 'var(--text-secondary)' }}
-              className="hover:opacity-80"
-              onClick={(e) => e.preventDefault()}
-            >
-              更多 <MoreOutlined />
-            </a>
-          </Dropdown>
         </Space>
       ),
     },
@@ -232,19 +199,31 @@ const ProjectsManagement: React.FC = () => {
     >
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1
-            className="text-2xl font-bold m-0"
-            style={{ color: 'var(--text-primary)' }}
-          >
+          <h1 className="text-2xl font-bold m-0" style={{ color: 'var(--text-primary)' }}>
             消纳项目清单
           </h1>
-          <p
-            className="mt-1"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            管理城市各类出土项目的审批进度、消纳情况与参建单位
+          <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>
+            管理项目主档、交款进度、关联合同与场地投放情况
           </p>
         </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="glass-panel" style={{ borderColor: 'var(--border-color)' }}>
+          <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>项目总数</div>
+          <div className="text-2xl font-bold">{summary.total}</div>
+        </Card>
+        <Card className="glass-panel" style={{ borderColor: 'var(--border-color)' }}>
+          <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>在建项目</div>
+          <div className="text-2xl font-bold">{summary.active}</div>
+        </Card>
+        <Card className="glass-panel" style={{ borderColor: 'var(--border-color)' }}>
+          <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>预警项目</div>
+          <div className="text-2xl font-bold">{summary.warning}</div>
+        </Card>
+        <Card className="glass-panel" style={{ borderColor: 'var(--border-color)' }}>
+          <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>当前页合同额</div>
+          <div className="text-2xl font-bold">{formatAmount(summary.amount)}</div>
+        </Card>
       </div>
 
       <Card
@@ -253,41 +232,35 @@ const ProjectsManagement: React.FC = () => {
         bodyStyle={{ padding: 0 }}
       >
         <div
-          className="p-4 border-b flex justify-between items-center"
-          style={{
-            borderColor: 'var(--border-color)',
-            background: '#fafafa',
-          }}
+          className="p-4 border-b flex flex-col lg:flex-row justify-between gap-4 lg:items-center"
+          style={{ borderColor: 'var(--border-color)', background: '#fafafa' }}
         >
-          <div className="flex gap-4">
-            <Input
-              placeholder="搜索项目名称/编号/单位"
-              prefix={<SearchOutlined style={{ color: 'var(--text-secondary)' }} />}
-              className="w-72 bg-white hover:border-[var(--primary)] focus:border-[var(--primary)]"
-              style={{
-                borderColor: 'var(--border-color)',
-                color: 'var(--text-primary)',
+          <div className="flex gap-4 flex-wrap flex-1">
+            <Input.Search
+              placeholder="搜索项目名称/编号/地址"
+              className="w-full sm:w-72 bg-white"
+              defaultValue={keyword}
+              allowClear
+              onSearch={(value) => {
+                setKeyword(value);
+                setPageNo(1);
               }}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
             />
-            <Button
-              icon={<FilterOutlined />}
-              onClick={() => setFilterVisible(true)}
-              style={{
-                color: 'var(--text-secondary)',
-                borderColor: 'var(--border-color)',
+            <Select
+              value={status}
+              options={statusOptions}
+              onChange={(value) => {
+                setStatus(value as number | 'all');
+                setPageNo(1);
               }}
-              className="hover:border-[var(--text-primary)]"
-            >
-              高级筛选
-            </Button>
+              style={{ width: 140 }}
+            />
+            <Button icon={<FilterOutlined />}>更多筛选</Button>
           </div>
           <Button
             type="primary"
             icon={<PlusOutlined />}
             style={{ background: 'var(--primary)', border: 'none' }}
-            className="hover:opacity-90"
           >
             新建项目立项
           </Button>
@@ -295,66 +268,27 @@ const ProjectsManagement: React.FC = () => {
 
         <Table
           columns={columns}
-          dataSource={projectsData.filter(
-            (item) =>
-              item.name.includes(searchText) ||
-              item.builder.includes(searchText) ||
-              item.id.includes(searchText)
-          )}
+          dataSource={projects}
           rowKey="id"
+          loading={loading}
+          scroll={{ x: 1200 }}
+          locale={{ emptyText: <Empty description="暂无项目数据" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
           pagination={{
-            defaultPageSize: 10,
+            current: pageNo,
+            pageSize,
+            total,
             showSizeChanger: true,
+            onChange: (nextPage, nextPageSize) => {
+              setPageNo(nextPage);
+              setPageSize(nextPageSize);
+            },
             className: 'pr-4 pb-2',
           }}
           className="bg-transparent"
           rowClassName="hover:bg-[#fafafa] transition-colors"
         />
       </Card>
-
-      <Drawer
-        title="高级筛选"
-        placement="right"
-        onClose={() => setFilterVisible(false)}
-        open={filterVisible}
-        extra={
-          <Space>
-            <Button onClick={() => form.resetFields()}>重置</Button>
-            <Button
-              type="primary"
-              onClick={() => setFilterVisible(false)}
-              style={{ background: 'var(--primary)', border: 'none' }}
-            >
-              查询
-            </Button>
-          </Space>
-        }
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item name="status" label="项目状态">
-            <Select
-              placeholder="请选择项目状态"
-              options={[
-                { value: '立项', label: '立项' },
-                { value: '在建', label: '在建' },
-                { value: '完工', label: '完工' },
-                { value: '预警', label: '预警' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="dateRange" label="开工日期范围">
-            <RangePicker className="w-full" />
-          </Form.Item>
-          <Form.Item name="builder" label="建设单位">
-            <Input placeholder="请输入建设单位名称" />
-          </Form.Item>
-          <Form.Item name="transporter" label="运输单位">
-            <Input placeholder="请输入运输单位名称" />
-          </Form.Item>
-        </Form>
-      </Drawer>
     </motion.div>
   );
 };
-
 export default ProjectsManagement;

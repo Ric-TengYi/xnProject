@@ -32,6 +32,10 @@ public class SchemaSyncRunner implements ApplicationRunner {
   private static final String PATCHES_DIR = "db/schema/patches/";
   private static final Pattern ALTER_TABLE_PATTERN =
       Pattern.compile("ALTER\\s+TABLE\\s+([a-zA-Z0-9_]+)\\s+ADD\\s+COLUMN", Pattern.CASE_INSENSITIVE);
+  private static final Pattern CREATE_INDEX_PATTERN =
+      Pattern.compile(
+          "CREATE\\s+(UNIQUE\\s+)?INDEX\\s+(IF\\s+NOT\\s+EXISTS\\s+)?([a-zA-Z0-9_]+)\\s+ON\\s+([a-zA-Z0-9_]+)",
+          Pattern.CASE_INSENSITIVE);
 
   private final DataSource dataSource;
   private final SchemaSyncProperties properties;
@@ -99,6 +103,17 @@ public class SchemaSyncRunner implements ApplicationRunner {
             if (!columnMissing(tableName, s)) continue;
           }
         }
+        if (s.toUpperCase().startsWith("CREATE")) {
+          Matcher indexMatcher = CREATE_INDEX_PATTERN.matcher(s);
+          if (indexMatcher.find()) {
+            String indexName = indexMatcher.group(3);
+            String tableName = indexMatcher.group(4);
+            if (indexExists(tableName, indexName)) {
+              continue;
+            }
+            s = s.replaceFirst("(?i)\\s+IF\\s+NOT\\s+EXISTS", "");
+          }
+        }
         executeOne(s);
       }
     }
@@ -126,6 +141,25 @@ public class SchemaSyncRunner implements ApplicationRunner {
   private String extractColumnNameFromAlter(String alterSql) {
     Matcher m = ADD_COLUMN_NAME.matcher(alterSql);
     return m.find() ? m.group(1) : null;
+  }
+
+  private boolean indexExists(String tableName, String indexName) {
+    try {
+      Connection conn = DataSourceUtils.getConnection(dataSource);
+      try (ResultSet rs = conn.getMetaData().getIndexInfo(null, null, tableName, false, false)) {
+        while (rs.next()) {
+          String current = rs.getString("INDEX_NAME");
+          if (current != null && current.equalsIgnoreCase(indexName)) {
+            return true;
+          }
+        }
+        return false;
+      } finally {
+        DataSourceUtils.releaseConnection(conn, dataSource);
+      }
+    } catch (Exception e) {
+      return false;
+    }
   }
 
   private void executeStatements(String sql) throws Exception {

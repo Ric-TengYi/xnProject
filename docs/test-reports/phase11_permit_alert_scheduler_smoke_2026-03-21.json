@@ -1,0 +1,53 @@
+{
+  "date": "2026-03-21",
+  "total": 9,
+  "passed": 9,
+  "failed": 0,
+  "results": [
+    {
+      "name": "API login",
+      "passed": true,
+      "detail": "userId=6"
+    },
+    {
+      "name": "Scheduler class",
+      "passed": true,
+      "detail": "scheduled task present"
+    },
+    {
+      "name": "Scheduler config",
+      "passed": true,
+      "detail": "cron configured"
+    },
+    {
+      "name": "Project alerts generate",
+      "passed": true,
+      "detail": "created=0 updated=2"
+    },
+    {
+      "name": "Permit alert list",
+      "passed": true,
+      "detail": "alertNo=AL-1774090286738 project=项目-001"
+    },
+    {
+      "name": "Permit alert analytics",
+      "passed": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "Permit warn param",
+      "passed": true,
+      "detail": "permit.expire.warn.days=30"
+    },
+    {
+      "name": "UI login",
+      "passed": true,
+      "detail": "http://127.0.0.1:5173/"
+    },
+    {
+      "name": "UI permit alert visible",
+      "passed": true,
+      "detail": "rows=1"
+    }
+  ]
+}

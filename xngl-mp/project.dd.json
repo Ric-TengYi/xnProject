@@ -1,0 +1,7 @@
+{
+  "miniprogramRoot": "dist/",
+  "projectname": "xngl-mp",
+  "description": "消纳移动端 - 钉钉小程序",
+  "appid": "请替换为钉钉小程序 AppID",
+  "compileType": "miniprogram"
+}

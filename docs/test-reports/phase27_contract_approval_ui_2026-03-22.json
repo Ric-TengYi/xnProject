@@ -1,0 +1,24 @@
+{
+  "results": [
+    {
+      "name": "UI auth bootstrap",
+      "ok": true,
+      "detail": "通过 add_init_script 预置 token 与 userInfo"
+    },
+    {
+      "name": "UI submit action",
+      "ok": true,
+      "detail": "合同详情页打开成功，合同 51 已处于审批中并展示“审批通过”按钮"
+    },
+    {
+      "name": "UI approval timeline",
+      "ok": true,
+      "detail": "审批流程页签可见提交审批时间线记录"
+    },
+    {
+      "name": "UI materials list",
+      "ok": true,
+      "detail": "办事材料页签可见系统自动生成的提交审批文书"
+    }
+  ]
+}

@@ -14,9 +14,20 @@ public class OrgDetailDto {
   private String orgName;
   private String parentId;
   private String orgType;
+  private String orgTypeLabel;
   private String orgPath;
   private String leaderUserId;
   private String leaderName;
+  private String contactPerson;
+  private String contactPhone;
+  private String address;
+  private String unifiedSocialCode;
+  private String remark;
   private Integer sortOrder;
   private String status;
+  private Long projectCount;
+  private Long contractCount;
+  private Long vehicleCount;
+  private Long activeVehicleCount;
+  private Long userCount;
 }

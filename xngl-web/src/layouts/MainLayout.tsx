@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Input, Badge, Avatar, Dropdown } from 'antd';
+import { Layout, Menu, Button, Input, Badge, Avatar, Dropdown, Modal, Form, Descriptions, message, Tabs } from 'antd';
 import {
   PieChartOutlined,
   DesktopOutlined,
@@ -8,14 +8,16 @@ import {
   EnvironmentOutlined,
   CarOutlined,
   BellOutlined,
-  SearchOutlined,
   UserOutlined,
   SettingOutlined,
+  DatabaseOutlined,
+  MobileOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   FullscreenOutlined,
   FullscreenExitOutlined,
   LogoutOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -49,6 +51,7 @@ const items: MenuItem[] = [
     getItem(<Link to="/">总体分析</Link>, '/'),
     getItem(<Link to="/dashboard/sites">消纳场数据</Link>, '/dashboard/sites'),
     getItem(<Link to="/dashboard/projects">项目数据</Link>, '/dashboard/projects'),
+    getItem(<Link to="/dashboard/capacity-analysis">运力分析</Link>, '/dashboard/capacity-analysis'),
     getItem(<Link to="/dashboard/map">地图展示</Link>, '/dashboard/map'),
   ]),
   getItem('项目管理', 'projects', <DesktopOutlined />, [
@@ -56,23 +59,35 @@ const items: MenuItem[] = [
     getItem(<Link to="/projects/payments">交款数据</Link>, '/projects/payments'),
     getItem(<Link to="/projects/permits">处置证清单</Link>, '/projects/permits'),
     getItem(<Link to="/projects/daily-report">项目日报</Link>, '/projects/daily-report'),
+    getItem(<Link to="/projects/reports">项目报表</Link>, '/projects/reports'),
+  ]),
+  getItem('信息查询', 'queries', <DatabaseOutlined />, [
+    getItem(<Link to="/queries/checkins">打卡数据</Link>, '/queries/checkins'),
+    getItem(<Link to="/queries/disposals">消纳信息</Link>, '/queries/disposals'),
   ]),
   getItem('消纳场地', 'sites', <EnvironmentOutlined />, [
     getItem(<Link to="/sites">场地列表</Link>, '/sites'),
     getItem(<Link to="/sites/disposals">消纳清单</Link>, '/sites/disposals'),
+    getItem(<Link to="/sites/reports">消纳报表</Link>, '/sites/reports'),
     getItem(<Link to="/sites/documents">场地资料</Link>, '/sites/documents'),
     getItem(<Link to="/sites/basic-info">基础信息</Link>, '/sites/basic-info'),
   ]),
   getItem('车辆与运力', 'vehicles', <CarOutlined />, [
     getItem(<Link to="/vehicles">车辆信息</Link>, '/vehicles'),
+    getItem(<Link to="/vehicles/models">车型管理</Link>, '/vehicles/models'),
     getItem(<Link to="/vehicles/fleet">车队管理</Link>, '/vehicles/fleet'),
     getItem(<Link to="/vehicles/cards">油电卡管理</Link>, '/vehicles/cards'),
+    getItem(<Link to="/vehicles/insurances">保险管理</Link>, '/vehicles/insurances'),
+    getItem(<Link to="/vehicles/maintenance">维保计划</Link>, '/vehicles/maintenance'),
+    getItem(<Link to="/vehicles/personnel-certificates">人证管理</Link>, '/vehicles/personnel-certificates'),
+    getItem(<Link to="/vehicles/repairs">维修管理</Link>, '/vehicles/repairs'),
     getItem(<Link to="/vehicles/tracking">送货跟踪</Link>, '/vehicles/tracking'),
     getItem(<Link to="/vehicles/violations">违规车辆清单</Link>, '/vehicles/violations'),
   ]),
   getItem('合同与结算', 'contracts', <ContainerOutlined />, [
     getItem(<Link to="/contracts">合同清单</Link>, '/contracts'),
     getItem(<Link to="/contracts/payments">合同入账</Link>, '/contracts/payments'),
+    getItem(<Link to="/contracts/transfers">内拨申请</Link>, '/contracts/transfers'),
     getItem(<Link to="/contracts/settlements">结算管理</Link>, '/contracts/settlements'),
     getItem(<Link to="/contracts/monthly-report">月报统计</Link>, '/contracts/monthly-report'),
   ]),
@@ -82,11 +97,21 @@ const items: MenuItem[] = [
     getItem(<Link to="/alerts/events">事件管理</Link>, '/alerts/events'),
     getItem(<Link to="/alerts/security">安全台账</Link>, '/alerts/security'),
   ]),
+  getItem('消息中心', 'messages', <BellOutlined />, [
+    getItem(<Link to="/messages">消息管理</Link>, '/messages'),
+  ]),
+  getItem('移动作业端', 'mobile-workbench-group', <MobileOutlined />, [
+    getItem(<Link to="/mobile-workbench">移动演示</Link>, '/mobile-workbench'),
+  ]),
   getItem('系统设置', 'settings', <SettingOutlined />, [
-    getItem(<Link to="/settings/organization">组织人员</Link>, '/settings/organization'),
+    getItem(<Link to="/settings/org">组织管理</Link>, '/settings/org'),
+    getItem(<Link to="/settings/units">单位管理</Link>, '/settings/units'),
+    getItem(<Link to="/settings/users">用户管理</Link>, '/settings/users'),
     getItem(<Link to="/settings/roles">角色管理</Link>, '/settings/roles'),
     getItem(<Link to="/settings/dictionary">数据字典</Link>, '/settings/dictionary'),
     getItem(<Link to="/settings/approvals">审批配置</Link>, '/settings/approvals'),
+    getItem(<Link to="/settings/system-params">系统参数</Link>, '/settings/system-params'),
+    getItem(<Link to="/settings/platform-integrations">平台对接</Link>, '/settings/platform-integrations'),
     getItem(<Link to="/settings/logs">系统日志</Link>, '/settings/logs'),
   ]),
 ];
@@ -100,10 +125,15 @@ const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [siderWidth, setSiderWidth] = useState(SIDER_DEFAULT_WIDTH);
   const [fullscreen, setFullscreen] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [passwordForm] = Form.useForm();
+  const [passwordLoading, setPasswordLoading] = useState(false);
   const [resizing, setResizing] = useState(false);
   const [resizeStartX, setResizeStartX] = useState(0);
   const [resizeStartWidth, setResizeStartWidth] = useState(SIDER_DEFAULT_WIDTH);
   const [userInfo, setUserInfo] = useState<any>(null);
+  const [openedTabs, setOpenedTabs] = useState<Array<{ path: string; label: string }>>([]);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -121,13 +151,97 @@ const MainLayout: React.FC = () => {
     fetchUserInfo();
   }, []);
 
+  useEffect(() => {
+    const getTabLabel = () => {
+      const pathSegments = location.pathname.split('/').filter(Boolean);
+      if (pathSegments.length === 0) return '总体分析';
+      const lastSegment = pathSegments[pathSegments.length - 1];
+      const menuMap: Record<string, string> = {
+        'dashboard': '总体分析',
+        'projects': '项目清单',
+        'queries': '信息查询',
+        'sites': '消纳场地',
+        'vehicles': '车辆与运力',
+        'contracts': '合同与结算',
+        'alerts': '预警与安全',
+        'messages': '消息中心',
+        'mobile-workbench': '移动演示',
+        'mobile-showcase': '移动端演示',
+        'settings': '系统设置',
+        'payments': '交款数据',
+        'permits': '处置证清单',
+        'daily-report': '项目日报',
+        'reports': '项目报表',
+        'checkins': '打卡数据',
+        'disposals': '消纳信息',
+        'documents': '场地资料',
+        'basic-info': '基础信息',
+        'models': '车型管理',
+        'fleet': '车队管理',
+        'cards': '油电卡管理',
+        'insurances': '保险管理',
+        'maintenance': '维保计划',
+        'personnel-certificates': '人证管理',
+        'repairs': '维修管理',
+        'tracking': '送货跟踪',
+        'violations': '违规车辆清单',
+        'transfers': '内拨申请',
+        'settlements': '结算管理',
+        'monthly-report': '月报统计',
+        'config': '预警配置',
+        'events': '事件管理',
+        'security': '安全台账',
+        'org': '组织管理',
+        'users': '用户管理',
+        'roles': '角色管理',
+        'dictionary': '数据字典',
+        'approvals': '审批配置',
+        'capacity-analysis': '运力分析',
+        'map': '地图展示',
+        'platform-integrations': '平台对接',
+        'logs': '系统日志',
+      };
+      return menuMap[lastSegment] || lastSegment;
+    };
+
+    const label = getTabLabel();
+    setOpenedTabs(prev => {
+      const exists = prev.find(tab => tab.path === location.pathname);
+      if (exists) return prev;
+      return [...prev, { path: location.pathname, label }];
+    });
+  }, [location.pathname]);
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userInfo');
     navigate('/login', { replace: true });
   };
 
-  const userMenuItems = [
+  const handleCloseTab = (path: string) => {
+    setOpenedTabs(prev => prev.filter(tab => tab.path !== path));
+    if (location.pathname === path) {
+      const remaining = openedTabs.filter(tab => tab.path !== path);
+      if (remaining.length > 0) {
+        navigate(remaining[remaining.length - 1].path);
+      }
+    }
+  };
+
+  const userMenuItems: import("antd").MenuProps["items"] = [
+    {
+      key: 'profile',
+      icon: <UserOutlined />,
+      label: '个人信息',
+      onClick: () => setProfileModalOpen(true),
+    },
+    {
+      key: 'password',
+      icon: <LockOutlined />,
+      label: '修改密码',
+      onClick: () => setPasswordModalOpen(true),
+    },
+    { type: 'divider' },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
@@ -181,6 +295,31 @@ const MainLayout: React.FC = () => {
       document.documentElement.requestFullscreen?.();
     } else {
       document.exitFullscreen?.();
+    }
+  };
+
+  const handleChangePassword = async (values: any) => {
+    if (values.newPassword !== values.confirmPassword) {
+      message.error('两次输入的密码不一致');
+      return;
+    }
+    setPasswordLoading(true);
+    try {
+      const res = await request.put('/me/password', {
+        oldPassword: values.oldPassword,
+        newPassword: values.newPassword,
+      });
+      if (res.code === 200) {
+        message.success('密码修改成功');
+        setPasswordModalOpen(false);
+        passwordForm.resetFields();
+      } else {
+        message.error(res.message || '密码修改失败');
+      }
+    } catch (error) {
+      message.error('密码修改失败');
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -241,7 +380,7 @@ const MainLayout: React.FC = () => {
             theme="light"
             defaultSelectedKeys={[location.pathname]}
             selectedKeys={[location.pathname]}
-            defaultOpenKeys={['dashboard', 'projects', 'sites', 'vehicles', 'contracts', 'alerts', 'settings'].filter(
+            defaultOpenKeys={['dashboard', 'projects', 'queries', 'sites', 'vehicles', 'contracts', 'alerts', 'messages', 'settings'].filter(
               (key) => location.pathname.includes(key) || (key === 'dashboard' && location.pathname === '/')
             )}
             mode="inline"
@@ -308,23 +447,37 @@ const MainLayout: React.FC = () => {
             boxShadow: '0 3px 6px -4px rgba(0, 0, 0, 0.08)',
           }}
         >
-          <div className="w-1/3">
-            <Input
-              placeholder="搜索项目、场地或车牌号..."
-              prefix={<SearchOutlined className="text-[var(--text-secondary)]" />}
-              style={{
-                background: 'rgba(0,0,0,0.04)',
-                border: '1px solid var(--border-color)',
-                color: 'var(--text-primary)',
-              }}
-              className="hover:border-[var(--primary)] focus:border-[var(--primary)]"
-            />
+          <div className="flex-1 min-w-0">
+            {openedTabs.length > 0 && (
+              <Tabs
+                activeKey={location.pathname}
+                onChange={(key) => navigate(key)}
+                items={openedTabs.map((tab) => ({
+                  key: tab.path,
+                  label: (
+                    <div className="g-tab-label">
+                      {tab.label}
+                      <span
+                        className="g-tab-close-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCloseTab(tab.path);
+                        }}
+                      >
+                        ✕
+                      </span>
+                    </div>
+                  ),
+                }))}
+                className="g-header-tabs"
+                style={{ marginBottom: 0 }}
+              />
+            )}
           </div>
           <div className="flex items-center gap-6">
             <Badge dot color="var(--error)" size="default">
               <Button type="text" icon={<BellOutlined style={{ fontSize: '18px', color: 'var(--text-primary)' }} />} aria-label="报警" />
             </Badge>
-            {/* 后续大屏入口可放此处 */}
             <Button
               type="text"
               icon={
@@ -357,6 +510,58 @@ const MainLayout: React.FC = () => {
           </motion.div>
         </Content>
       </Layout>
+
+      <Modal
+        title="个人信息"
+        open={profileModalOpen}
+        onCancel={() => setProfileModalOpen(false)}
+        footer={null}
+        width={500}
+      >
+        <Descriptions column={1} bordered size="small">
+          <Descriptions.Item label="用户名">{userInfo?.username}</Descriptions.Item>
+          <Descriptions.Item label="姓名">{userInfo?.name}</Descriptions.Item>
+          <Descriptions.Item label="用户类型">
+            <Badge status={userInfo?.userType === 'TENANT_ADMIN' ? 'success' : 'default'} text={userInfo?.userType === 'TENANT_ADMIN' ? '租户管理员' : userInfo?.userType} />
+          </Descriptions.Item>
+        </Descriptions>
+      </Modal>
+
+      <Modal
+        title="修改密码"
+        open={passwordModalOpen}
+        onOk={() => passwordForm.submit()}
+        onCancel={() => {
+          setPasswordModalOpen(false);
+          passwordForm.resetFields();
+        }}
+        confirmLoading={passwordLoading}
+        width={400}
+      >
+        <Form form={passwordForm} layout="vertical" onFinish={handleChangePassword}>
+          <Form.Item
+            name="oldPassword"
+            label="原密码"
+            rules={[{ required: true, message: '请输入原密码' }]}
+          >
+            <Input.Password placeholder="请输入原密码" />
+          </Form.Item>
+          <Form.Item
+            name="newPassword"
+            label="新密码"
+            rules={[{ required: true, message: '请输入新密码' }]}
+          >
+            <Input.Password placeholder="请输入新密码" />
+          </Form.Item>
+          <Form.Item
+            name="confirmPassword"
+            label="确认密码"
+            rules={[{ required: true, message: '请确认新密码' }]}
+          >
+            <Input.Password placeholder="请确认新密码" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Layout>
   );
 };

@@ -1,0 +1,134 @@
+{
+  "module": "vehicle_master_and_fleet",
+  "passed": 11,
+  "total": 11,
+  "results": [
+    {
+      "name": "auth_login",
+      "passed": true,
+      "detail": "admin tenant 1 登录成功"
+    },
+    {
+      "name": "vehicle_stats",
+      "passed": true,
+      "detail": "path=/vehicles/stats"
+    },
+    {
+      "name": "vehicle_list",
+      "passed": true,
+      "detail": "path=/vehicles?pageNo=1&pageSize=10"
+    },
+    {
+      "name": "vehicle_company_capacity",
+      "passed": true,
+      "detail": "path=/vehicles/company-capacity"
+    },
+    {
+      "name": "vehicle_fleets",
+      "passed": true,
+      "detail": "path=/vehicles/fleets"
+    },
+    {
+      "name": "vehicle_seed_count",
+      "passed": true,
+      "detail": "records=8"
+    },
+    {
+      "name": "vehicle_created_record",
+      "passed": true,
+      "detail": "创建接口测试记录可见"
+    },
+    {
+      "name": "transport_org_aggregate",
+      "passed": true,
+      "detail": "orgs=4"
+    },
+    {
+      "name": "fleet_aggregate",
+      "passed": true,
+      "detail": "fleets=7"
+    },
+    {
+      "name": "backend_build",
+      "passed": true,
+      "detail": "mvn -q -DskipTests install 通过"
+    },
+    {
+      "name": "frontend_build",
+      "passed": true,
+      "detail": "npm run build 通过"
+    }
+  ],
+  "samples": {
+    "vehicle_stats": {
+      "totalVehicles": 8,
+      "activeVehicles": 5,
+      "maintenanceVehicles": 1,
+      "disabledVehicles": 1,
+      "warningVehicles": 4,
+      "activeRate": 62.5,
+      "totalLoadTons": 226.5
+    },
+    "top_vehicle": {
+      "id": "8",
+      "plateNo": "浙A97610",
+      "vin": null,
+      "orgId": "6",
+      "orgName": "宏基渣土运输公司",
+      "vehicleType": "重型自卸货车",
+      "brand": "测试品牌",
+      "model": "TEST-001",
+      "energyType": null,
+      "axleCount": null,
+      "loadWeight": 26.5,
+      "driverName": "测试司机",
+      "driverPhone": "13800990099",
+      "fleetName": "测试联调车队",
+      "captainName": null,
+      "captainPhone": null,
+      "status": 1,
+      "statusLabel": "在用",
+      "useStatus": "ACTIVE",
+      "runningStatus": "STOPPED",
+      "runningStatusLabel": "静止",
+      "currentSpeed": 0.0,
+      "currentMileage": 0.0,
+      "nextMaintainDate": "2026-05-31",
+      "annualInspectionExpireDate": null,
+      "insuranceExpireDate": "2026-12-31",
+      "warningLabel": "正常",
+      "createTime": "2026-03-20T11:33:30",
+      "updateTime": "2026-03-20T11:33:30"
+    },
+    "top_capacity": {
+      "orgId": "6",
+      "orgName": "宏基渣土运输公司",
+      "totalVehicles": 4,
+      "activeVehicles": 2,
+      "movingVehicles": 1,
+      "warningVehicles": 2,
+      "disabledVehicles": 1,
+      "totalLoadTons": 119.5,
+      "activeRate": 50.0,
+      "avgLoadTons": 29.88,
+      "captainName": "张建国",
+      "captainPhone": "13800138001"
+    },
+    "top_fleet": {
+      "id": "6::宏基第一先锋车队",
+      "fleetName": "宏基第一先锋车队",
+      "orgId": "6",
+      "orgName": "宏基渣土运输公司",
+      "captainName": "张建国",
+      "captainPhone": "13800138001",
+      "driverCount": 2,
+      "totalVehicles": 2,
+      "activeVehicles": 1,
+      "movingVehicles": 1,
+      "warningVehicles": 1,
+      "totalLoadTons": 63.0,
+      "avgLoadTons": 31.5,
+      "statusLabel": "出车"
+    }
+  }
+}

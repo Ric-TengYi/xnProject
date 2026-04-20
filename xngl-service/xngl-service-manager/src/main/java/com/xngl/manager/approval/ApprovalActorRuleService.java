@@ -8,7 +8,9 @@ public interface ApprovalActorRuleService {
   ApprovalActorRule getById(Long id);
 
   IPage<ApprovalActorRule> page(
-      Long tenantId, String processKey, String status, int pageNo, int pageSize);
+      Long tenantId, String keyword, String processKey, String status, int pageNo, int pageSize);
+
+  java.util.List<ApprovalActorRule> list(Long tenantId, String keyword, String processKey, String status);
 
   long create(ApprovalActorRule rule);
 

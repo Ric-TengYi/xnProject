@@ -1,0 +1,28 @@
+{
+  "report": "phase77_contract_message_jump_regression_2026-03-23",
+  "date": "2026-03-23",
+  "results": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "name": "contract_transfer_message_runtime",
+      "status": "PASS",
+      "detail": "transfer_id=7, transfer_no=NB202603232050331077, message_count=2"
+    },
+    {
+      "name": "settlement_message_runtime",
+      "status": "PASS",
+      "detail": "settlement_id=32, settlement_no=JS202603232050338157, message_count=2"
+    },
+    {
+      "name": "contract_message_jump_pages_visible",
+      "status": "PASS",
+      "detail": "内拨申请消息跳转 / 结算消息跳转"
+    }
+  ],
+  "passed": 4,
+  "failed": 0
+}

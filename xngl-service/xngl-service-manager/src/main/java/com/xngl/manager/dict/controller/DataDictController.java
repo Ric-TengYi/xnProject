@@ -5,7 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 @RestController
-@RequestMapping("/api/data-dicts")
+@RequestMapping("/api/_legacy/data-dicts")
 public class DataDictController {
     @Autowired
     private DataDictMapper mapper;

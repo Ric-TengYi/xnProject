@@ -1,0 +1,110 @@
+{
+  "timestamp": "2026-03-26T08:39:15.253Z",
+  "totalTests": 20,
+  "passed": 18,
+  "failed": 0,
+  "skipped": 2,
+  "results": [
+    {
+      "name": "超管可访问菜单",
+      "status": "PASS",
+      "details": "菜单数: 10"
+    },
+    {
+      "name": "组织管理员菜单权限",
+      "status": "PASS",
+      "details": "菜单数: 10"
+    },
+    {
+      "name": "创建组织成功",
+      "status": "PASS",
+      "details": "orgId: [object Object]"
+    },
+    {
+      "name": "组织编码唯一性验证",
+      "status": "PASS",
+      "details": "响应码: 400"
+    },
+    {
+      "name": "超管创建角色成功",
+      "status": "PASS",
+      "details": "roleId: 52"
+    },
+    {
+      "name": "组织管理员创建角色自动绑定orgId",
+      "status": "PASS",
+      "details": "orgId: 35"
+    },
+    {
+      "name": "角色按组织过滤",
+      "status": "PASS",
+      "details": "角色数: 27"
+    },
+    {
+      "name": "创建用户成功",
+      "status": "PASS",
+      "details": "userId: 75"
+    },
+    {
+      "name": "用户创建时组织验证",
+      "status": "PASS",
+      "details": "响应码: 400"
+    },
+    {
+      "name": "组织编码必填验证",
+      "status": "PASS",
+      "details": "响应码: 400"
+    },
+    {
+      "name": "组织名称必填验证",
+      "status": "PASS",
+      "details": "响应码: 400"
+    },
+    {
+      "name": "角色编码必填验证",
+      "status": "PASS",
+      "details": "响应码: 400"
+    },
+    {
+      "name": "越权访问其他组织角色被拒",
+      "status": "PASS",
+      "details": "响应码: 200"
+    },
+    {
+      "name": "越权删除其他组织角色被拒",
+      "status": "PASS",
+      "details": "响应码: 404"
+    },
+    {
+      "name": "无效token被拒",
+      "status": "PASS",
+      "details": "响应码: 401"
+    },
+    {
+      "name": "级联测试用户创建成功",
+      "status": "PASS",
+      "details": "userId: 76"
+    },
+    {
+      "name": "超管可编辑数据字典",
+      "status": "SKIP",
+      "details": "无数据字典数据"
+    },
+    {
+      "name": "组织管理员无权编辑数据字典",
+      "status": "SKIP",
+      "details": "无数据字典数据"
+    },
+    {
+      "name": "无maxRole组织菜单为空",
+      "status": "PASS",
+      "details": "菜单数: 0"
+    },
+    {
+      "name": "密码重置成功",
+      "status": "PASS",
+      "details": "响应码: 200"
+    }
+  ],
+  "screenshotDir": "/Users/tengyi/work/openclaw/workspace/xnProject/test-screenshots-comprehensive"
+}

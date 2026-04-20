@@ -1,0 +1,62 @@
+{
+  "phase": "phase55",
+  "title": "违法清单专项烟测",
+  "date": "2026-03-23",
+  "scope": [
+    "30 违法清单"
+  ],
+  "summary": {
+    "passed": 8,
+    "total": 8,
+    "status": "PASS"
+  },
+  "results": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "管理员账号登录成功"
+    },
+    {
+      "name": "violation_summary",
+      "status": "PASS",
+      "detail": "违法清单汇总返回 totalCount/pendingCount/processedCount/disabledCount/releasedCount/vehicleCount"
+    },
+    {
+      "name": "violation_list_filter",
+      "status": "PASS",
+      "detail": "按 violationType=证件过期 过滤返回 1 条记录"
+    },
+    {
+      "name": "violation_detail",
+      "status": "PASS",
+      "detail": "违法详情返回车牌、单位、车型、司机、车队、速度、里程等完整信息"
+    },
+    {
+      "name": "vehicle_pick_for_disable",
+      "status": "PASS",
+      "detail": "从车辆列表中选出可禁用车辆 浙A97610"
+    },
+    {
+      "name": "violation_disable_create",
+      "status": "PASS",
+      "detail": "创建闯禁区违法禁用记录成功"
+    },
+    {
+      "name": "violation_disable_detail",
+      "status": "PASS",
+      "detail": "新建禁用记录详情回查成功，触发地点 phase55-test-zone"
+    },
+    {
+      "name": "violation_release",
+      "status": "PASS",
+      "detail": "提前解禁成功，releaseReason=phase55 release"
+    }
+  ],
+  "verification": [
+    "cd xngl-service && mvn -q -DskipTests compile",
+    "cd xngl-service && mvn -q -DskipTests install",
+    "cd xngl-web && npm run build",
+    "cd xngl-service && mvn spring-boot:run -pl xngl-service-starter",
+    "python3 phase55 smoke"
+  ]
+}

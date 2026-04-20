@@ -1,0 +1,112 @@
+{
+  "generated_at": "2026-03-20",
+  "base_api": "http://127.0.0.1:8090/api",
+  "base_web": "http://127.0.0.1:5173",
+  "passed": 17,
+  "failed": 0,
+  "results": [
+    {
+      "module": "api",
+      "test_case": "login",
+      "passed": true,
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "module": "api",
+      "test_case": "vehicles_seed",
+      "passed": true,
+      "detail": "vehicleId=8 plateNo=浙A97610"
+    },
+    {
+      "module": "maintenance",
+      "test_case": "summary",
+      "passed": true,
+      "detail": "totalPlans=2"
+    },
+    {
+      "module": "maintenance",
+      "test_case": "create_plan",
+      "passed": true,
+      "detail": "planNo=MPLAN-1773997138588"
+    },
+    {
+      "module": "maintenance",
+      "test_case": "update_plan",
+      "passed": true,
+      "detail": "烟测保养-更新"
+    },
+    {
+      "module": "maintenance",
+      "test_case": "execute_plan",
+      "passed": true,
+      "detail": "recordNo=MREC-1773997138634"
+    },
+    {
+      "module": "maintenance",
+      "test_case": "records_query",
+      "passed": true,
+      "detail": "records=1"
+    },
+    {
+      "module": "repair",
+      "test_case": "summary",
+      "passed": true,
+      "detail": "totalOrders=2"
+    },
+    {
+      "module": "repair",
+      "test_case": "create_order",
+      "passed": true,
+      "detail": "orderNo=REP-1773997138704"
+    },
+    {
+      "module": "repair",
+      "test_case": "update_order",
+      "passed": true,
+      "detail": "MEDIUM"
+    },
+    {
+      "module": "repair",
+      "test_case": "approve_order",
+      "passed": true,
+      "detail": "APPROVED"
+    },
+    {
+      "module": "repair",
+      "test_case": "complete_order",
+      "passed": true,
+      "detail": "COMPLETED"
+    },
+    {
+      "module": "repair",
+      "test_case": "create_reject_order",
+      "passed": true,
+      "detail": "orderNo=REP-1773997138757"
+    },
+    {
+      "module": "repair",
+      "test_case": "reject_order",
+      "passed": true,
+      "detail": "REJECTED"
+    },
+    {
+      "module": "frontend",
+      "test_case": "dev_server_index",
+      "passed": true,
+      "detail": "GET / 返回 index.html 且天地图脚本已注入"
+    },
+    {
+      "module": "frontend",
+      "test_case": "/vehicles/maintenance",
+      "passed": true,
+      "detail": "Vite 源码路由已注册"
+    },
+    {
+      "module": "frontend",
+      "test_case": "/vehicles/repairs",
+      "passed": true,
+      "detail": "Vite 源码路由与菜单已注册"
+    }
+  ],
+  "frontend_note": "本机未安装 Playwright 浏览器，前端冒烟改为通过 dev server 与 Vite 转译源码校验路由、菜单和入口可访问性。"
+}

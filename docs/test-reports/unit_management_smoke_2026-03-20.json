@@ -1,0 +1,100 @@
+{
+  "module": "unit_management",
+  "passed": 9,
+  "total": 9,
+  "results": [
+    {
+      "name": "auth_login",
+      "passed": true,
+      "detail": "admin tenant 1 登录成功"
+    },
+    {
+      "name": "unit_summary",
+      "passed": true,
+      "detail": "path=/units/summary"
+    },
+    {
+      "name": "unit_list",
+      "passed": true,
+      "detail": "path=/units?pageNo=1&pageSize=20"
+    },
+    {
+      "name": "unit_detail",
+      "passed": true,
+      "detail": "path=/units/10"
+    },
+    {
+      "name": "unit_seed_types",
+      "passed": true,
+      "detail": "建设/施工/运输三类单位已存在"
+    },
+    {
+      "name": "transport_vehicle_binding",
+      "passed": true,
+      "detail": "运输单位已挂接车辆"
+    },
+    {
+      "name": "unit_create",
+      "passed": true,
+      "detail": "created=测试建设单位8917"
+    },
+    {
+      "name": "backend_build",
+      "passed": true,
+      "detail": "mvn -q -DskipTests install 通过"
+    },
+    {
+      "name": "frontend_build",
+      "passed": true,
+      "detail": "npm run build 通过"
+    }
+  ],
+  "samples": {
+    "summary": {
+      "totalUnits": 7,
+      "constructionUnits": 2,
+      "builderUnits": 1,
+      "transportUnits": 4,
+      "totalVehicles": 8
+    },
+    "first_unit": {
+      "id": "12",
+      "orgCode": "ORG-CONSTRUCT-108523976",
+      "orgName": "测试建设单位8858",
+      "orgType": "CONSTRUCTION_UNIT",
+      "orgTypeLabel": "建设单位",
+      "contactPerson": "单元测试",
+      "contactPhone": "0571-89990000",
+      "address": null,
+      "unifiedSocialCode": null,
+      "status": "ENABLED",
+      "statusLabel": "正常",
+      "projectCount": 0,
+      "contractCount": 0,
+      "vehicleCount": 0,
+      "activeVehicleCount": 0,
+      "createTime": "2026-03-20T11:54:18",
+      "updateTime": "2026-03-20T11:54:18"
+    },
+    "created_unit": {
+      "id": "13",
+      "orgCode": "ORG-CONSTRUCT-139301060",
+      "orgName": "测试建设单位8917",
+      "orgType": "CONSTRUCTION_UNIT",
+      "orgTypeLabel": "建设单位",
+      "contactPerson": "接口验证",
+      "contactPhone": "0571-87770000",
+      "address": null,
+      "unifiedSocialCode": null,
+      "status": "ENABLED",
+      "statusLabel": "正常",
+      "projectCount": 0,
+      "contractCount": 0,
+      "vehicleCount": 0,
+      "activeVehicleCount": 0,
+      "createTime": "2026-03-20T11:55:17",
+      "updateTime": "2026-03-20T11:55:17",
+      "remark": null
+    }
+  }
+}

@@ -46,6 +46,11 @@ app:
   jwt:
     secret: xngl-default-secret-change-in-production
     expiration-ms: 86400000
+  contract:
+    doc-dir: ${CONTRACT_DOC_DIR:${java.io.tmpdir}/xngl/contract-docs}
+  alerts:
+    auto-generate-enabled: true
+    auto-generate-cron: "0 0/30 * * * ?"
   schema-sync:
     # 启动时是否执行 SQL 校对（缺表/缺字段则补充）。稳定上线后可设为 false，避免每次启动执行导致启动变慢
     enabled: true

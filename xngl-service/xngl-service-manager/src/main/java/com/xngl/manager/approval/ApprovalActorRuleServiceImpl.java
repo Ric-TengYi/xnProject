@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xngl.infrastructure.persistence.entity.system.ApprovalActorRule;
 import com.xngl.infrastructure.persistence.mapper.ApprovalActorRuleMapper;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -25,13 +26,14 @@ public class ApprovalActorRuleServiceImpl implements ApprovalActorRuleService {
 
   @Override
   public IPage<ApprovalActorRule> page(
-      Long tenantId, String processKey, String status, int pageNo, int pageSize) {
-    LambdaQueryWrapper<ApprovalActorRule> q = new LambdaQueryWrapper<>();
-    if (tenantId != null) q.eq(ApprovalActorRule::getTenantId, tenantId);
-    if (StringUtils.hasText(processKey)) q.eq(ApprovalActorRule::getProcessKey, processKey);
-    if (StringUtils.hasText(status)) q.eq(ApprovalActorRule::getStatus, status);
-    q.orderByAsc(ApprovalActorRule::getPriority);
-    return approvalActorRuleMapper.selectPage(new Page<>(pageNo, pageSize), q);
+      Long tenantId, String keyword, String processKey, String status, int pageNo, int pageSize) {
+    return approvalActorRuleMapper.selectPage(
+        new Page<>(pageNo, pageSize), buildQuery(tenantId, keyword, processKey, status));
+  }
+
+  @Override
+  public List<ApprovalActorRule> list(Long tenantId, String keyword, String processKey, String status) {
+    return approvalActorRuleMapper.selectList(buildQuery(tenantId, keyword, processKey, status));
   }
 
   @Override
@@ -57,5 +59,33 @@ public class ApprovalActorRuleServiceImpl implements ApprovalActorRuleService {
   @Transactional(rollbackFor = Exception.class)
   public void delete(Long id) {
     approvalActorRuleMapper.deleteById(id);
+  }
+
+  private LambdaQueryWrapper<ApprovalActorRule> buildQuery(
+      Long tenantId, String keyword, String processKey, String status) {
+    LambdaQueryWrapper<ApprovalActorRule> q = new LambdaQueryWrapper<>();
+    if (tenantId != null) {
+      q.eq(ApprovalActorRule::getTenantId, tenantId);
+    }
+    if (StringUtils.hasText(processKey) && !"all".equalsIgnoreCase(processKey)) {
+      q.eq(ApprovalActorRule::getProcessKey, processKey.trim());
+    }
+    if (StringUtils.hasText(status) && !"all".equalsIgnoreCase(status)) {
+      q.eq(ApprovalActorRule::getStatus, status.trim().toUpperCase());
+    }
+    if (StringUtils.hasText(keyword)) {
+      String effectiveKeyword = keyword.trim();
+      q.and(
+          wrapper ->
+              wrapper.like(ApprovalActorRule::getRuleName, effectiveKeyword)
+                  .or()
+                  .like(ApprovalActorRule::getRuleType, effectiveKeyword)
+                  .or()
+                  .like(ApprovalActorRule::getRuleExpression, effectiveKeyword)
+                  .or()
+                  .like(ApprovalActorRule::getProcessKey, effectiveKeyword));
+    }
+    q.orderByAsc(ApprovalActorRule::getPriority).orderByAsc(ApprovalActorRule::getId);
+    return q;
   }
 }

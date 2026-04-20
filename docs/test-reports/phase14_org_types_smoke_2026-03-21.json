@@ -1,0 +1,58 @@
+{
+  "date": "2026-03-21",
+  "total": 10,
+  "passed": 10,
+  "failed": 0,
+  "results": [
+    {
+      "name": "API login",
+      "passed": true,
+      "detail": "userId=6"
+    },
+    {
+      "name": "Org type seeds",
+      "passed": true,
+      "detail": "count=2 law+company=true"
+    },
+    {
+      "name": "Org type create",
+      "passed": true,
+      "detail": "id=2035328084848177153 code=TEST_ORG_1774095004645"
+    },
+    {
+      "name": "Org type update",
+      "passed": true,
+      "detail": "label=测试组织类型升级版"
+    },
+    {
+      "name": "Org type status",
+      "passed": true,
+      "detail": "status=DISABLED"
+    },
+    {
+      "name": "Org type query",
+      "passed": true,
+      "detail": "keyword=TEST_ORG_1774095004645 disabled=true"
+    },
+    {
+      "name": "Org type delete api",
+      "passed": true,
+      "detail": "id=2035328084848177153"
+    },
+    {
+      "name": "Org type delete verify",
+      "passed": true,
+      "detail": "code=TEST_ORG_1774095004645 removed=true"
+    },
+    {
+      "name": "UI org types tab",
+      "passed": true,
+      "detail": "tab=组织类型 seedVisible=true"
+    },
+    {
+      "name": "UI org type modal",
+      "passed": true,
+      "detail": "modal=新增组织类型 codeField=true"
+    }
+  ]
+}

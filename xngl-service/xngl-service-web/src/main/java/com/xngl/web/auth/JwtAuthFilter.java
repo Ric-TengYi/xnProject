@@ -1,5 +1,6 @@
 package com.xngl.web.auth;
 
+import com.xngl.infrastructure.config.TenantContextHolder;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,12 +27,39 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    String path = request.getRequestURI();
     if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
       return true;
     }
-    List<String> skip = List.of("/api/auth/login", "/api/health", "/swagger-ui", "/v3/api-docs");
-    return skip.stream().anyMatch(path::startsWith);
+    String uri = request.getRequestURI() != null ? request.getRequestURI() : "";
+    String servletPath = request.getServletPath() != null ? request.getServletPath() : "";
+    String pathInfo = request.getPathInfo() != null ? request.getPathInfo() : "";
+    String path = servletPath + pathInfo;
+    if (path.isEmpty()) {
+      path = uri;
+    }
+    List<String> skip =
+        List.of(
+            "/api/auth/login",
+            "/api/auth/sso/exchange",
+            "/api/mini/auth/send-sms-code",
+            "/api/mini/auth/login",
+            "/api/mini/auth/openid-login",
+            "/api/health",
+            "/swagger-ui",
+            "/v3/api-docs");
+    if (skip.stream().anyMatch(path::startsWith) || skip.stream().anyMatch(uri::startsWith)) {
+      return true;
+    }
+    if ("POST".equalsIgnoreCase(request.getMethod()) && (uri.contains("login") || path.contains("login"))) {
+      return true;
+    }
+    if ("POST".equalsIgnoreCase(request.getMethod()) && (uri.contains("mini") || path.contains("mini"))) {
+      return true;
+    }
+    return uri.contains("swagger")
+        || path.contains("swagger")
+        || uri.contains("api-docs")
+        || path.contains("api-docs");
   }
 
   @Override
@@ -54,7 +82,25 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     var claims = jwtUtils.parseToken(token);
     request.setAttribute(ATTR_USER_ID, claims.get("userId", String.class));
     request.setAttribute(ATTR_USERNAME, claims.getSubject());
-    chain.doFilter(request, response);
+
+    // 设置租户上下文
+    Long tenantId = claims.get("tenantId", Long.class);
+    if (tenantId != null) {
+      TenantContextHolder.setTenantId(tenantId);
+    }
+
+    // 设置角色上下文（用于超级管理员判断）
+    String role = claims.get("role", String.class);
+    if (role != null) {
+      TenantContextHolder.setRole(role);
+    }
+
+    try {
+      chain.doFilter(request, response);
+    } finally {
+      // 请求结束后清除租户上下文
+      TenantContextHolder.clear();
+    }
   }
 
   private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {

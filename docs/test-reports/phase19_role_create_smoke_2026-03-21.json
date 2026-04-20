@@ -1,0 +1,59 @@
+{
+  "phase": 19,
+  "name": "role_create_smoke",
+  "date": "2026-03-21",
+  "total": 9,
+  "passed": 9,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "api_login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功，userId=6"
+    },
+    {
+      "name": "role_create",
+      "status": "PASS",
+      "detail": "创建临时角色成功，默认 status=ENABLED"
+    },
+    {
+      "name": "role_detail_defaults",
+      "status": "PASS",
+      "detail": "detail 返回 roleScope=TENANT，dataScopeTypeDefault=ORG_AND_CHILDREN"
+    },
+    {
+      "name": "role_permission_defaults",
+      "status": "PASS",
+      "detail": "/roles/{id}/permissions 返回空 menuIds 和空 permissionIds"
+    },
+    {
+      "name": "role_data_scope_defaults",
+      "status": "PASS",
+      "detail": "/roles/{id}/data-scope-rules 返回 ruleType=ORG_AND_CHILDREN，resourceCode=ALL"
+    },
+    {
+      "name": "db_verify",
+      "status": "PASS",
+      "detail": "sys_data_scope_rule 已落库 biz_module=ALL, scope_type=ORG_AND_CHILDREN"
+    },
+    {
+      "name": "frontend_entry",
+      "status": "PASS",
+      "detail": "RolesManagement 路由与新增弹窗源码已接入"
+    },
+    {
+      "name": "backend_build",
+      "status": "PASS",
+      "detail": "mvn -q -DskipTests install 通过"
+    },
+    {
+      "name": "frontend_build",
+      "status": "PASS",
+      "detail": "npm run build 通过"
+    }
+  ],
+  "notes": [
+    "修复 DataScopeRule 兼容字段误映射，避免查询不存在的 rule_type/rule_value/resource_code 列。",
+    "冒烟角色已在校验后清理。"
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "generatedAt": "2026-03-20 15:47:24",
+  "frontend": "http://127.0.0.1:5173",
+  "backend": "http://127.0.0.1:8090/api",
+  "passed": 13,
+  "failed": 0,
+  "results": [
+    {
+      "module": "环境",
+      "test_case": "backend可访问",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "module": "环境",
+      "test_case": "frontend可访问",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "module": "认证",
+      "test_case": "API登录",
+      "passed": true,
+      "detail": "user=admin"
+    },
+    {
+      "module": "预警中心",
+      "test_case": "汇总/分析/过滤列表",
+      "passed": true,
+      "detail": "total=3, analyticsLevels=2, list=1"
+    },
+    {
+      "module": "预警中心",
+      "test_case": "详情接口",
+      "passed": true,
+      "detail": "id=1"
+    },
+    {
+      "module": "事件管理",
+      "test_case": "创建/筛选/编辑/详情",
+      "passed": true,
+      "detail": "id=10, list=5"
+    },
+    {
+      "module": "事件管理",
+      "test_case": "提审/审核/关闭闭环",
+      "passed": true,
+      "detail": "id=10, auditCount=5"
+    },
+    {
+      "module": "安全台账",
+      "test_case": "创建/筛选/详情",
+      "passed": true,
+      "detail": "id=16, list=13"
+    },
+    {
+      "module": "安全台账",
+      "test_case": "整改流转/汇总",
+      "passed": true,
+      "detail": "id=16, nextCheck=2026-03-20T23:30:00"
+    },
+    {
+      "module": "前端页面",
+      "test_case": "登录页登录",
+      "passed": true,
+      "detail": "url=http://127.0.0.1:5173/"
+    },
+    {
+      "module": "前端页面",
+      "test_case": "路由冒烟 /alerts",
+      "passed": true,
+      "detail": "预警与监控中心"
+    },
+    {
+      "module": "前端页面",
+      "test_case": "路由冒烟 /alerts/events",
+      "passed": true,
+      "detail": "事件管理"
+    },
+    {
+      "module": "前端页面",
+      "test_case": "路由冒烟 /alerts/security",
+      "passed": true,
+      "detail": "安全台账管理"
+    }
+  ]
+}

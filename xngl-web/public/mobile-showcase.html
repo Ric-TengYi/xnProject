@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>移动端正式演示页</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --blue: #2468f2;
+        --blue-soft: #eef4ff;
+        --green: #24a148;
+        --green-soft: #eefaf2;
+        --orange: #f08c00;
+        --orange-soft: #fff4e8;
+        --red: #e03131;
+        --red-soft: #fff1f0;
+        --text: #172033;
+        --muted: #6b7280;
+        --line: #e7ebf3;
+        --card: rgba(255, 255, 255, 0.94);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(36, 104, 242, 0.18), transparent 28%),
+          radial-gradient(circle at bottom right, rgba(36, 104, 242, 0.12), transparent 24%),
+          linear-gradient(135deg, #f4f8ff 0%, #eef2f8 100%);
+        color: var(--text);
+      }
+
+      .layout {
+        width: 100%;
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 360px minmax(0, 1fr);
+        gap: 36px;
+        padding: 48px 56px;
+        align-items: center;
+      }
+
+      .panel {
+        background: var(--card);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        border-radius: 28px;
+        box-shadow: 0 24px 80px rgba(28, 44, 89, 0.12);
+        padding: 28px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: rgba(36, 104, 242, 0.08);
+        color: var(--blue);
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      h1 {
+        margin: 18px 0 10px;
+        font-size: 34px;
+        line-height: 1.25;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.8;
+      }
+
+      .point-list {
+        margin-top: 26px;
+        display: grid;
+        gap: 14px;
+      }
+
+      .point {
+        padding: 14px 16px;
+        border-radius: 18px;
+        background: #f8fbff;
+        border: 1px solid #eaf0fb;
+      }
+
+      .point strong {
+        display: block;
+        margin-bottom: 6px;
+        color: #12213f;
+        font-size: 15px;
+      }
+
+      .phone-shell {
+        width: 450px;
+        margin: 0 auto;
+        padding: 16px;
+        border-radius: 44px;
+        background: linear-gradient(180deg, #1f2432 0%, #0f1118 100%);
+        box-shadow: 0 32px 100px rgba(15, 17, 24, 0.28);
+      }
+
+      .notch {
+        width: 120px;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.16);
+        margin: 0 auto 14px;
+      }
+
+      .phone {
+        height: 820px;
+        overflow: hidden;
+        border-radius: 34px;
+        background: #f5f7fb;
+        position: relative;
+      }
+
+      .mobile-screen {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .mobile-header {
+        background: var(--blue);
+        color: #fff;
+        padding: 44px 24px 26px;
+        border-bottom-left-radius: 32px;
+        border-bottom-right-radius: 32px;
+      }
+
+      .mobile-header h2 {
+        margin: 0 0 8px;
+        font-size: 28px;
+      }
+
+      .mobile-header p {
+        color: rgba(255, 255, 255, 0.82);
+      }
+
+      .content {
+        padding: 20px;
+        display: grid;
+        gap: 16px;
+      }
+
+      .card {
+        background: #fff;
+        border-radius: 24px;
+        padding: 18px;
+        box-shadow: 0 14px 36px rgba(18, 33, 63, 0.08);
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .hero-item {
+        padding: 16px 12px;
+        border-radius: 20px;
+        text-align: center;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .hero-item.blue { background: #edf4ff; color: #2266f1; }
+      .hero-item.green { background: #edf9f1; color: #238746; }
+      .hero-item.red { background: #fff2f1; color: #d4382a; }
+      .hero-item.orange { background: #fff4e8; color: #d97a00; }
+
+      .form {
+        display: grid;
+        gap: 14px;
+      }
+
+      .field label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .input,
+      .textarea,
+      .selector {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #fbfcff;
+        color: #526070;
+        padding: 14px 16px;
+        font-size: 14px;
+      }
+
+      .textarea {
+        min-height: 92px;
+      }
+
+      .upload-box {
+        border: 1.5px dashed #cfd8e6;
+        border-radius: 18px;
+        background: #fafcff;
+        padding: 20px;
+        text-align: center;
+        color: #8b97a8;
+        font-size: 14px;
+      }
+
+      .action {
+        width: 100%;
+        border: none;
+        border-radius: 18px;
+        padding: 16px;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 700;
+      }
+
+      .action.blue { background: linear-gradient(180deg, #2e74ff, #1b5ee7); }
+      .action.green { background: linear-gradient(180deg, #2fb85a, #1f9647); }
+      .action.red { background: linear-gradient(180deg, #ff5a4f, #e0362d); }
+
+      .summary {
+        padding: 18px;
+        border-radius: 22px;
+        background: var(--green-soft);
+        border: 1px solid rgba(36, 161, 72, 0.1);
+        color: #1d7b3b;
+      }
+
+      .warning {
+        padding: 18px;
+        border-radius: 22px;
+        background: var(--red-soft);
+        border: 1px solid rgba(224, 49, 49, 0.1);
+        color: #b32727;
+      }
+
+      .notice {
+        padding: 14px 16px;
+        border-radius: 18px;
+        background: #f7f9fc;
+        border: 1px solid #edf1f7;
+        color: #4e5968;
+        font-size: 14px;
+        line-height: 1.7;
+      }
+
+      .track-search {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 14px 16px;
+        color: #95a1b1;
+      }
+
+      .track-item {
+        display: grid;
+        gap: 8px;
+        padding: 16px;
+        border-bottom: 1px solid #eef2f7;
+      }
+
+      .track-item:last-child {
+        border-bottom: none;
+      }
+
+      .track-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .track-tag {
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .tag-green { background: #edf9f1; color: #238746; }
+      .tag-orange { background: #fff4e8; color: #d97a00; }
+      .tag-gray { background: #f1f3f6; color: #758095; }
+
+      .login-wrap {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px;
+        background:
+          radial-gradient(circle at top center, rgba(36, 104, 242, 0.2), transparent 28%),
+          linear-gradient(180deg, #f6f9ff 0%, #eef2f7 100%);
+      }
+
+      .login-card {
+        width: 100%;
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.98);
+        padding: 28px;
+        box-shadow: 0 22px 50px rgba(36, 52, 94, 0.12);
+      }
+
+      .login-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        font-size: 18px;
+        font-weight: 800;
+      }
+
+      .logo {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        background: var(--blue);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+      }
+
+      .tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        background: #f0f3f8;
+        border-radius: 999px;
+        padding: 4px;
+        margin-bottom: 18px;
+      }
+
+      .tab {
+        text-align: center;
+        padding: 10px 0;
+        border-radius: 999px;
+        color: #7b8796;
+        font-size: 14px;
+      }
+
+      .tab.active {
+        background: #fff;
+        color: var(--blue);
+        box-shadow: 0 6px 16px rgba(36, 104, 242, 0.12);
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <section class="panel">
+        <div class="eyebrow">移动端正式演示</div>
+        <h1 id="title">移动端页面</h1>
+        <p id="description"></p>
+        <div class="point-list">
+          <div class="point">
+            <strong>演示目标</strong>
+            展示小程序在现场采集、消纳确认、异常上报和车辆监管场景中的完整页面形态。
+          </div>
+          <div class="point">
+            <strong>展现方式</strong>
+            使用统一手机壳画面输出，便于在正式汇报视频中清晰呈现真实功能入口与作业界面。
+          </div>
+          <div class="point">
+            <strong>讲解重点</strong>
+            强调移动端与后台平台共用同一套业务主数据和监管闭环，而不是孤立的工具页面。
+          </div>
+        </div>
+      </section>
+
+      <section class="phone-shell">
+        <div class="notch"></div>
+        <div class="phone" id="screen"></div>
+      </section>
+    </div>
+
+    <script>
+      const screens = {
+        login: {
+          title: "小程序登录",
+          description: "展示现场账号进入移动作业端的统一入口。",
+          html: `
+            <div class="mobile-screen">
+              <div class="login-wrap">
+                <div class="login-card">
+                  <div class="login-title"><span class="logo">渣</span>智慧渣土消纳管控</div>
+                  <div class="tabs">
+                    <div class="tab active">账号登录</div>
+                    <div class="tab">验证码登录</div>
+                  </div>
+                  <div class="form">
+                    <div class="input">请输入账号</div>
+                    <div class="input">请输入密码</div>
+                    <button class="action blue">登录</button>
+                    <div style="font-size:13px;color:#98a2b2;">忘记密码</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `,
+        },
+        home: {
+          title: "小程序首页",
+          description: "展示通知信息和常用功能入口，作为现场工作台首页。",
+          html: `
+            <div class="mobile-screen">
+              <div class="mobile-header">
+                <h2>小牛管土</h2>
+                <p>渣土运输数字化管理平台</p>
+              </div>
+              <div class="content">
+                <div class="card">
+                  <div style="font-weight:700;margin-bottom:14px;">常用功能</div>
+                  <div class="hero-grid">
+                    <div class="hero-item blue">出土打卡</div>
+                    <div class="hero-item green">消纳确认</div>
+                    <div class="hero-item red">事件上报</div>
+                    <div class="hero-item orange">车辆跟踪</div>
+                  </div>
+                </div>
+                <div class="card">
+                  <div style="font-weight:700;margin-bottom:12px;">最新通知</div>
+                  <div class="notice">关于近期夜间运输管理要求的补充通知，请各车队按照项目审批时间开展作业。</div>
+                  <div style="height:10px"></div>
+                  <div class="notice">一号消纳场今日运行平稳，运输车辆请继续按照既定线路进出场。</div>
+                </div>
+              </div>
+            </div>
+          `,
+        },
+        "punch-in": {
+          title: "出土打卡",
+          description: "展示项目选择、车牌登记、照片上传和备注留痕。",
+          html: `
+            <div class="mobile-screen">
+              <div class="content" style="padding-top:18px;">
+                <div style="font-size:20px;font-weight:700;">出土打卡</div>
+                <div class="card">
+                  <div class="form">
+                    <div class="field"><label>项目名称</label><div class="selector">南山区三号地铁线工地</div></div>
+                    <div class="field"><label>车牌号</label><div class="input">粤B12345</div></div>
+                    <div class="field"><label>打卡时间</label><div class="input">2026-04-08 20:18:00</div></div>
+                    <div class="field"><label>现场照片</label><div class="upload-box">上传出土现场与车辆照片</div></div>
+                    <div class="field"><label>备注说明</label><div class="textarea">夜间运输前已完成现场核验。</div></div>
+                    <button class="action blue">确认打卡</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `,
+        },
+        disposal: {
+          title: "消纳确认",
+          description: "展示合同关联、方量录入、票据上传和确认提交流程。",
+          html: `
+            <div class="mobile-screen">
+              <div class="content" style="padding-top:18px;">
+                <div style="font-size:20px;font-weight:700;">消纳确认</div>
+                <div class="summary">
+                  <div style="font-size:17px;font-weight:700;margin-bottom:6px;">一号消纳场</div>
+                  <div>今日已消纳车次 12 车，累计容量 360 方</div>
+                </div>
+                <div class="card">
+                  <div class="form">
+                    <div class="field"><label>关联项目/合同</label><div class="selector">南山区三号地铁线外运合同</div></div>
+                    <div class="field"><label>车牌号</label><div class="input">粤B12345</div></div>
+                    <div class="field"><label>消纳方量</label><div class="input">18.5 m³</div></div>
+                    <div class="field"><label>实际金额</label><div class="input">420.00 元</div></div>
+                    <div class="field"><label>凭证上传</label><div class="upload-box">上传地磅票据与现场照片</div></div>
+                    <div class="field"><label>备注说明</label><div class="textarea">本车次已完成进场核验并留存票据。</div></div>
+                    <button class="action green">提交确认</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `,
+        },
+        "event-report": {
+          title: "事件上报",
+          description: "展示异常上报、紧急程度、图片上传和即时提交能力。",
+          html: `
+            <div class="mobile-screen">
+              <div class="content" style="padding-top:18px;">
+                <div style="font-size:20px;font-weight:700;">事件上报</div>
+                <div class="warning">
+                  <div style="font-size:17px;font-weight:700;margin-bottom:6px;">注意安全，如遇紧急情况请先报警</div>
+                  <div>提交的事件将推送至调度中心并记录至平台。</div>
+                </div>
+                <div class="card">
+                  <div class="form">
+                    <div class="field"><label>事件类型</label><div class="selector">环保投诉</div></div>
+                    <div class="field"><label>紧急程度</label><div class="selector">紧急（触发短信告警）</div></div>
+                    <div class="field"><label>事件简述</label><div class="input">现场围挡破损，存在扬尘风险</div></div>
+                    <div class="field"><label>详细描述</label><div class="textarea">已发现围挡松动，运输车辆通行时存在扬尘外溢风险，建议立即安排处置。</div></div>
+                    <div class="field"><label>现场照片</label><div class="upload-box">上传异常现场图片</div></div>
+                    <button class="action red">立即上报</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `,
+        },
+        "vehicle-tracking": {
+          title: "车辆跟踪",
+          description: "展示车辆状态、位置和更新时间，支持现场协同核验。",
+          html: `
+            <div class="mobile-screen">
+              <div class="content" style="padding-top:18px;">
+                <div style="font-size:20px;font-weight:700;">车辆跟踪</div>
+                <div class="track-search">搜索车牌号...</div>
+                <div class="card" style="padding:0;">
+                  <div class="track-item">
+                    <div class="track-top"><strong>粤B12345</strong><span class="track-tag tag-green">行驶中</span></div>
+                    <div style="color:#5c6778;">南山区沙河西路</div>
+                    <div style="font-size:12px;color:#94a0b0;">更新于 10 分钟前，速度 45 km/h</div>
+                  </div>
+                  <div class="track-item">
+                    <div class="track-top"><strong>粤B54321</strong><span class="track-tag tag-orange">静止</span></div>
+                    <div style="color:#5c6778;">一号消纳场</div>
+                    <div style="font-size:12px;color:#94a0b0;">更新于 2 分钟前</div>
+                  </div>
+                  <div class="track-item">
+                    <div class="track-top"><strong>粤B99999</strong><span class="track-tag tag-gray">离线</span></div>
+                    <div style="color:#5c6778;">科技园工地</div>
+                    <div style="font-size:12px;color:#94a0b0;">更新于 2 小时前</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `,
+        },
+      };
+
+      const params = new URLSearchParams(window.location.search);
+      const key = params.get("screen") || "home";
+      const current = screens[key] || screens.home;
+
+      document.getElementById("title").textContent = current.title;
+      document.getElementById("description").textContent = current.description;
+      document.getElementById("screen").innerHTML = current.html;
+    </script>
+  </body>
+</html>

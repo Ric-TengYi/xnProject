@@ -1,0 +1,254 @@
+
+> xngl-web@0.0.0 build
+> tsc -b && vite build
+
+src/layouts/MainLayout.tsx(11,3): error TS6133: 'SearchOutlined' is declared but its value is never read.
+src/layouts/MainLayout.tsx(21,3): error TS6133: 'CloseOutlined' is declared but its value is never read.
+src/pages/ApprovalConfig.tsx(58,7): error TS6133: 'ruleTypeOptions' is declared but its value is never read.
+src/pages/ApprovalConfig.tsx(64,7): error TS6133: 'materialTypeOptions' is declared but its value is never read.
+src/pages/ApprovalConfig.tsx(81,10): error TS6133: 'submitLoading' is declared but its value is never read.
+src/pages/ApprovalConfig.tsx(83,10): error TS6133: 'modalOpen' is declared but its value is never read.
+src/pages/ApprovalConfig.tsx(91,10): error TS6133: 'materialSubmitLoading' is declared but its value is never read.
+src/pages/ApprovalConfig.tsx(93,10): error TS6133: 'materialModalOpen' is declared but its value is never read.
+src/pages/ApprovalConfig.tsx(99,10): error TS6133: 'flowLoading' is declared but its value is never read.
+src/pages/ApprovalConfig.tsx(104,24): error TS6133: 'setFlowsKeyword' is declared but its value is never read.
+src/pages/ApprovalConfig.tsx(105,27): error TS6133: 'setFlowsProcessKey' is declared but its value is never read.
+src/pages/ApprovalConfig.tsx(106,23): error TS6133: 'setFlowsStatus' is declared but its value is never read.
+src/pages/ApprovalConfig.tsx(271,9): error TS6133: 'handleSubmit' is declared but its value is never read.
+src/pages/ApprovalConfig.tsx(351,9): error TS6133: 'handleMaterialSubmit' is declared but its value is never read.
+src/pages/ApprovalConfig.tsx(627,9): error TS6133: 'flowColumns' is declared but its value is never read.
+src/pages/OrgManagement.tsx(93,10): error TS6133: 'treeLoading' is declared but its value is never read.
+src/pages/OrgManagement.tsx(102,24): error TS6133: 'setUsersLoading' is declared but its value is never read.
+src/pages/VehicleMaintenancePlans.tsx(141,16): error TS2304: Cannot find name 'keyword'.
+src/pages/VehicleMaintenancePlans.tsx(143,7): error TS18004: No value exists in scope for the shorthand property 'orgId'. Either declare one or provide an initializer.
+src/pages/VehicleMaintenancePlans.tsx(144,7): error TS18004: No value exists in scope for the shorthand property 'vehicleId'. Either declare one or provide an initializer.
+src/pages/VehicleMaintenancePlans.tsx(145,29): error TS2304: Cannot find name 'planDateRange'.
+src/pages/VehicleMaintenancePlans.tsx(146,27): error TS2304: Cannot find name 'planDateRange'.
+src/pages/VehicleMaintenancePlans.tsx(147,24): error TS2304: Cannot find name 'recordDateRange'.
+src/pages/VehicleMaintenancePlans.tsx(148,22): error TS2304: Cannot find name 'recordDateRange'.
+src/pages/VehicleMaintenancePlans.tsx(149,20): error TS2552: Cannot find name 'overdueFilter'. Did you mean 'NodeFilter'?
+src/pages/VehicleMaintenancePlans.tsx(151,6): error TS2304: Cannot find name 'keyword'.
+src/pages/VehicleMaintenancePlans.tsx(151,23): error TS2304: Cannot find name 'orgId'.
+src/pages/VehicleMaintenancePlans.tsx(151,30): error TS2304: Cannot find name 'vehicleId'.
+src/pages/VehicleMaintenancePlans.tsx(151,41): error TS2304: Cannot find name 'planDateRange'.
+src/pages/VehicleMaintenancePlans.tsx(151,56): error TS2304: Cannot find name 'recordDateRange'.
+src/pages/VehicleMaintenancePlans.tsx(151,73): error TS2304: Cannot find name 'overdueFilter'.
+src/pages/VehicleMaintenancePlans.tsx(157,73): error TS18004: No value exists in scope for the shorthand property 'pageNo'. Either declare one or provide an initializer.
+src/pages/VehicleMaintenancePlans.tsx(157,81): error TS18004: No value exists in scope for the shorthand property 'pageSize'. Either declare one or provide an initializer.
+src/pages/VehicleMaintenancePlans.tsx(159,7): error TS2304: Cannot find name 'setTotal'.
+src/pages/VehicleMaintenancePlans.tsx(164,7): error TS2304: Cannot find name 'setTotal'.
+src/pages/VehicleMaintenancePlans.tsx(175,17): error TS2304: Cannot find name 'recordPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(176,19): error TS2304: Cannot find name 'recordPageSize'.
+src/pages/VehicleMaintenancePlans.tsx(178,7): error TS2304: Cannot find name 'setRecords'.
+src/pages/VehicleMaintenancePlans.tsx(179,7): error TS2304: Cannot find name 'setRecordTotal'.
+src/pages/VehicleMaintenancePlans.tsx(183,7): error TS2304: Cannot find name 'setRecords'.
+src/pages/VehicleMaintenancePlans.tsx(184,7): error TS2304: Cannot find name 'setRecordTotal'.
+src/pages/VehicleMaintenancePlans.tsx(193,7): error TS2304: Cannot find name 'setSummary'.
+src/pages/VehicleMaintenancePlans.tsx(197,7): error TS2304: Cannot find name 'setSummary'.
+src/pages/VehicleMaintenancePlans.tsx(209,7): error TS2304: Cannot find name 'pageNo'.
+src/pages/VehicleMaintenancePlans.tsx(209,15): error TS2304: Cannot find name 'pageSize'.
+src/pages/VehicleMaintenancePlans.tsx(213,7): error TS2304: Cannot find name 'recordPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(213,21): error TS2304: Cannot find name 'recordPageSize'.
+src/pages/VehicleMaintenancePlans.tsx(222,9): error TS2304: Cannot find name 'setCompanyOptions'.
+src/pages/VehicleMaintenancePlans.tsx(227,9): error TS2304: Cannot find name 'setVehicleOptions'.
+src/pages/VehicleMaintenancePlans.tsx(242,5): error TS2304: Cannot find name 'setKeyword'.
+src/pages/VehicleMaintenancePlans.tsx(243,5): error TS2304: Cannot find name 'setStatus'.
+src/pages/VehicleMaintenancePlans.tsx(244,5): error TS2304: Cannot find name 'setOrgId'.
+src/pages/VehicleMaintenancePlans.tsx(245,5): error TS2304: Cannot find name 'setVehicleId'.
+src/pages/VehicleMaintenancePlans.tsx(246,5): error TS2304: Cannot find name 'setPlanDateRange'.
+src/pages/VehicleMaintenancePlans.tsx(247,5): error TS2304: Cannot find name 'setRecordDateRange'.
+src/pages/VehicleMaintenancePlans.tsx(248,5): error TS2304: Cannot find name 'setOverdueFilter'.
+src/pages/VehicleMaintenancePlans.tsx(249,5): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(250,5): error TS2304: Cannot find name 'setRecordPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(291,5): error TS2304: Cannot find name 'setEditorOpen'.
+src/pages/VehicleMaintenancePlans.tsx(309,5): error TS2304: Cannot find name 'setEditorOpen'.
+src/pages/VehicleMaintenancePlans.tsx(329,5): error TS2304: Cannot find name 'setExecuteOpen'.
+src/pages/VehicleMaintenancePlans.tsx(340,7): error TS2304: Cannot find name 'setPlanDetailOpen'.
+src/pages/VehicleMaintenancePlans.tsx(381,7): error TS2304: Cannot find name 'setEditorOpen'.
+src/pages/VehicleMaintenancePlans.tsx(382,7): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(423,7): error TS2304: Cannot find name 'setExecuteOpen'.
+src/pages/VehicleMaintenancePlans.tsx(424,7): error TS2304: Cannot find name 'setRecordPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(439,7): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(593,44): error TS2304: Cannot find name 'summary'.
+src/pages/VehicleMaintenancePlans.tsx(598,43): error TS2304: Cannot find name 'summary'.
+src/pages/VehicleMaintenancePlans.tsx(603,44): error TS2304: Cannot find name 'summary'.
+src/pages/VehicleMaintenancePlans.tsx(608,47): error TS2304: Cannot find name 'summary'.
+src/pages/VehicleMaintenancePlans.tsx(617,20): error TS2304: Cannot find name 'keyword'.
+src/pages/VehicleMaintenancePlans.tsx(619,15): error TS2304: Cannot find name 'setKeyword'.
+src/pages/VehicleMaintenancePlans.tsx(620,15): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(621,15): error TS2304: Cannot find name 'setRecordPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(627,57): error TS2304: Cannot find name 'setStatus'.
+src/pages/VehicleMaintenancePlans.tsx(627,75): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(627,89): error TS2304: Cannot find name 'setRecordPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(628,26): error TS2304: Cannot find name 'overdueFilter'.
+src/pages/VehicleMaintenancePlans.tsx(628,64): error TS2304: Cannot find name 'setOverdueFilter'.
+src/pages/VehicleMaintenancePlans.tsx(628,89): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(629,56): error TS2304: Cannot find name 'orgId'.
+src/pages/VehicleMaintenancePlans.tsx(629,86): error TS2304: Cannot find name 'setOrgId'.
+src/pages/VehicleMaintenancePlans.tsx(629,103): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(629,117): error TS2304: Cannot find name 'setRecordPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(629,149): error TS2304: Cannot find name 'companyOptions'.
+src/pages/VehicleMaintenancePlans.tsx(630,54): error TS2304: Cannot find name 'vehicleId'.
+src/pages/VehicleMaintenancePlans.tsx(630,88): error TS2304: Cannot find name 'setVehicleId'.
+src/pages/VehicleMaintenancePlans.tsx(630,109): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(630,123): error TS2304: Cannot find name 'setRecordPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(630,155): error TS2304: Cannot find name 'vehicleOptions'.
+src/pages/VehicleMaintenancePlans.tsx(632,20): error TS2304: Cannot find name 'planDateRange'.
+src/pages/VehicleMaintenancePlans.tsx(633,36): error TS2304: Cannot find name 'setPlanDateRange'.
+src/pages/VehicleMaintenancePlans.tsx(633,86): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(637,20): error TS2304: Cannot find name 'recordDateRange'.
+src/pages/VehicleMaintenancePlans.tsx(638,36): error TS2304: Cannot find name 'setRecordDateRange'.
+src/pages/VehicleMaintenancePlans.tsx(638,88): error TS2304: Cannot find name 'setRecordPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(651,22): error TS2304: Cannot find name 'pageNo'.
+src/pages/VehicleMaintenancePlans.tsx(652,13): error TS18004: No value exists in scope for the shorthand property 'pageSize'. Either declare one or provide an initializer.
+src/pages/VehicleMaintenancePlans.tsx(653,13): error TS18004: No value exists in scope for the shorthand property 'total'. Either declare one or provide an initializer.
+src/pages/VehicleMaintenancePlans.tsx(656,15): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(657,15): error TS2304: Cannot find name 'setPageSize'.
+src/pages/VehicleMaintenancePlans.tsx(668,23): error TS2304: Cannot find name 'records'.
+src/pages/VehicleMaintenancePlans.tsx(670,22): error TS2304: Cannot find name 'recordPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(671,23): error TS2304: Cannot find name 'recordPageSize'.
+src/pages/VehicleMaintenancePlans.tsx(672,20): error TS2304: Cannot find name 'recordTotal'.
+src/pages/VehicleMaintenancePlans.tsx(675,15): error TS2304: Cannot find name 'setRecordPageNo'.
+src/pages/VehicleMaintenancePlans.tsx(676,15): error TS2304: Cannot find name 'setRecordPageSize'.
+src/pages/VehicleMaintenancePlans.tsx(685,15): error TS2304: Cannot find name 'planDetailOpen'.
+src/pages/VehicleMaintenancePlans.tsx(686,24): error TS2304: Cannot find name 'setPlanDetailOpen'.
+src/pages/VehicleMaintenancePlans.tsx(753,15): error TS2304: Cannot find name 'editorOpen'.
+src/pages/VehicleMaintenancePlans.tsx(754,25): error TS2304: Cannot find name 'setEditorOpen'.
+src/pages/VehicleMaintenancePlans.tsx(764,34): error TS2304: Cannot find name 'vehicleOptions'.
+src/pages/VehicleMaintenancePlans.tsx(823,15): error TS2304: Cannot find name 'executeOpen'.
+src/pages/VehicleMaintenancePlans.tsx(824,25): error TS2304: Cannot find name 'setExecuteOpen'.
+src/pages/VehicleRepairs.tsx(46,6): error TS6196: 'RepairFormValues' is declared but never used.
+src/pages/VehicleRepairs.tsx(60,6): error TS6196: 'AuditFormValues' is declared but never used.
+src/pages/VehicleRepairs.tsx(64,6): error TS6196: 'CompleteFormValues' is declared but never used.
+src/pages/VehicleRepairs.tsx(136,7): error TS18004: No value exists in scope for the shorthand property 'orgId'. Either declare one or provide an initializer.
+src/pages/VehicleRepairs.tsx(137,7): error TS18004: No value exists in scope for the shorthand property 'vehicleId'. Either declare one or provide an initializer.
+src/pages/VehicleRepairs.tsx(138,22): error TS2304: Cannot find name 'applyDateRange'.
+src/pages/VehicleRepairs.tsx(139,20): error TS2304: Cannot find name 'applyDateRange'.
+src/pages/VehicleRepairs.tsx(140,26): error TS2304: Cannot find name 'completedDateRange'.
+src/pages/VehicleRepairs.tsx(141,24): error TS2304: Cannot find name 'completedDateRange'.
+src/pages/VehicleRepairs.tsx(143,37): error TS2304: Cannot find name 'orgId'.
+src/pages/VehicleRepairs.tsx(143,44): error TS2304: Cannot find name 'vehicleId'.
+src/pages/VehicleRepairs.tsx(143,55): error TS2304: Cannot find name 'applyDateRange'.
+src/pages/VehicleRepairs.tsx(143,71): error TS2304: Cannot find name 'completedDateRange'.
+src/pages/VehicleRepairs.tsx(149,64): error TS18004: No value exists in scope for the shorthand property 'pageNo'. Either declare one or provide an initializer.
+src/pages/VehicleRepairs.tsx(149,72): error TS18004: No value exists in scope for the shorthand property 'pageSize'. Either declare one or provide an initializer.
+src/pages/VehicleRepairs.tsx(151,7): error TS2304: Cannot find name 'setTotal'.
+src/pages/VehicleRepairs.tsx(156,7): error TS2304: Cannot find name 'setTotal'.
+src/pages/VehicleRepairs.tsx(181,7): error TS2304: Cannot find name 'pageNo'.
+src/pages/VehicleRepairs.tsx(181,15): error TS2304: Cannot find name 'pageSize'.
+src/pages/VehicleRepairs.tsx(190,9): error TS2304: Cannot find name 'setCompanyOptions'.
+src/pages/VehicleRepairs.tsx(195,9): error TS2304: Cannot find name 'setVehicleOptions'.
+src/pages/VehicleRepairs.tsx(213,5): error TS2304: Cannot find name 'setOrgId'.
+src/pages/VehicleRepairs.tsx(214,5): error TS2304: Cannot find name 'setVehicleId'.
+src/pages/VehicleRepairs.tsx(215,5): error TS2304: Cannot find name 'setApplyDateRange'.
+src/pages/VehicleRepairs.tsx(216,5): error TS2304: Cannot find name 'setCompletedDateRange'.
+src/pages/VehicleRepairs.tsx(217,5): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleRepairs.tsx(236,5): error TS2304: Cannot find name 'setEditingRecord'.
+src/pages/VehicleRepairs.tsx(237,5): error TS2304: Cannot find name 'form'.
+src/pages/VehicleRepairs.tsx(238,5): error TS2304: Cannot find name 'form'.
+src/pages/VehicleRepairs.tsx(244,5): error TS2304: Cannot find name 'setEditorOpen'.
+src/pages/VehicleRepairs.tsx(248,5): error TS2304: Cannot find name 'setEditingRecord'.
+src/pages/VehicleRepairs.tsx(249,5): error TS2304: Cannot find name 'form'.
+src/pages/VehicleRepairs.tsx(262,5): error TS2304: Cannot find name 'setEditorOpen'.
+src/pages/VehicleRepairs.tsx(266,5): error TS2304: Cannot find name 'setCurrentRecord'.
+src/pages/VehicleRepairs.tsx(267,5): error TS2304: Cannot find name 'setAuditAction'.
+src/pages/VehicleRepairs.tsx(268,5): error TS2304: Cannot find name 'auditForm'.
+src/pages/VehicleRepairs.tsx(269,5): error TS2304: Cannot find name 'auditForm'.
+src/pages/VehicleRepairs.tsx(272,5): error TS2304: Cannot find name 'setAuditOpen'.
+src/pages/VehicleRepairs.tsx(276,5): error TS2304: Cannot find name 'setCurrentRecord'.
+src/pages/VehicleRepairs.tsx(277,5): error TS2304: Cannot find name 'completeForm'.
+src/pages/VehicleRepairs.tsx(278,5): error TS2304: Cannot find name 'completeForm'.
+src/pages/VehicleRepairs.tsx(292,5): error TS2304: Cannot find name 'setCompleteOpen'.
+src/pages/VehicleRepairs.tsx(297,7): error TS2304: Cannot find name 'setDetailRecord'.
+src/pages/VehicleRepairs.tsx(298,7): error TS2304: Cannot find name 'setDetailOpen'.
+src/pages/VehicleRepairs.tsx(307,28): error TS2304: Cannot find name 'form'.
+src/pages/VehicleRepairs.tsx(322,11): error TS2304: Cannot find name 'editingRecord'.
+src/pages/VehicleRepairs.tsx(323,35): error TS2304: Cannot find name 'editingRecord'.
+src/pages/VehicleRepairs.tsx(329,7): error TS2304: Cannot find name 'setEditorOpen'.
+src/pages/VehicleRepairs.tsx(330,7): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleRepairs.tsx(342,10): error TS2304: Cannot find name 'currentRecord'.
+src/pages/VehicleRepairs.tsx(346,28): error TS2304: Cannot find name 'auditForm'.
+src/pages/VehicleRepairs.tsx(348,11): error TS2304: Cannot find name 'auditAction'.
+src/pages/VehicleRepairs.tsx(349,36): error TS2304: Cannot find name 'currentRecord'.
+src/pages/VehicleRepairs.tsx(352,35): error TS2304: Cannot find name 'currentRecord'.
+src/pages/VehicleRepairs.tsx(355,7): error TS2304: Cannot find name 'setAuditOpen'.
+src/pages/VehicleRepairs.tsx(367,10): error TS2304: Cannot find name 'currentRecord'.
+src/pages/VehicleRepairs.tsx(371,28): error TS2304: Cannot find name 'completeForm'.
+src/pages/VehicleRepairs.tsx(387,35): error TS2304: Cannot find name 'currentRecord'.
+src/pages/VehicleRepairs.tsx(389,7): error TS2304: Cannot find name 'setCompleteOpen'.
+src/pages/VehicleRepairs.tsx(404,7): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleRepairs.tsx(543,15): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleRepairs.tsx(549,75): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleRepairs.tsx(550,87): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleRepairs.tsx(551,56): error TS2304: Cannot find name 'orgId'.
+src/pages/VehicleRepairs.tsx(551,86): error TS2304: Cannot find name 'setOrgId'.
+src/pages/VehicleRepairs.tsx(551,103): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleRepairs.tsx(551,129): error TS2304: Cannot find name 'companyOptions'.
+src/pages/VehicleRepairs.tsx(552,54): error TS2304: Cannot find name 'vehicleId'.
+src/pages/VehicleRepairs.tsx(552,88): error TS2304: Cannot find name 'setVehicleId'.
+src/pages/VehicleRepairs.tsx(552,109): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleRepairs.tsx(552,135): error TS2304: Cannot find name 'vehicleOptions'.
+src/pages/VehicleRepairs.tsx(554,20): error TS2304: Cannot find name 'applyDateRange'.
+src/pages/VehicleRepairs.tsx(555,36): error TS2304: Cannot find name 'setApplyDateRange'.
+src/pages/VehicleRepairs.tsx(555,87): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleRepairs.tsx(559,20): error TS2304: Cannot find name 'completedDateRange'.
+src/pages/VehicleRepairs.tsx(560,36): error TS2304: Cannot find name 'setCompletedDateRange'.
+src/pages/VehicleRepairs.tsx(560,91): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleRepairs.tsx(572,22): error TS2304: Cannot find name 'pageNo'.
+src/pages/VehicleRepairs.tsx(573,13): error TS18004: No value exists in scope for the shorthand property 'pageSize'. Either declare one or provide an initializer.
+src/pages/VehicleRepairs.tsx(574,13): error TS18004: No value exists in scope for the shorthand property 'total'. Either declare one or provide an initializer.
+src/pages/VehicleRepairs.tsx(577,15): error TS2304: Cannot find name 'setPageNo'.
+src/pages/VehicleRepairs.tsx(578,15): error TS2304: Cannot find name 'setPageSize'.
+src/pages/VehicleRepairs.tsx(585,16): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(585,42): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(587,15): error TS2304: Cannot find name 'detailOpen'.
+src/pages/VehicleRepairs.tsx(588,24): error TS2304: Cannot find name 'setDetailOpen'.
+src/pages/VehicleRepairs.tsx(591,44): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(592,43): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(593,44): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(595,14): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(595,57): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(595,105): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(597,44): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(598,43): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(599,44): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(601,14): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(601,56): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(601,92): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(603,53): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(604,53): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(605,44): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(606,44): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(607,51): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(607,88): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(608,44): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(609,44): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(610,45): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(611,44): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(612,53): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(614,15): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(614,64): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(617,15): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(617,61): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(617,107): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(619,45): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(621,14): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(621,61): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(621,115): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(621,181): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(623,51): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(624,51): error TS2304: Cannot find name 'detailRecord'.
+src/pages/VehicleRepairs.tsx(629,16): error TS2304: Cannot find name 'editingRecord'.
+src/pages/VehicleRepairs.tsx(630,15): error TS2304: Cannot find name 'editorOpen'.
+src/pages/VehicleRepairs.tsx(631,25): error TS2304: Cannot find name 'setEditorOpen'.
+src/pages/VehicleRepairs.tsx(637,21): error TS2304: Cannot find name 'form'.
+src/pages/VehicleRepairs.tsx(641,34): error TS2304: Cannot find name 'vehicleOptions'.
+src/pages/VehicleRepairs.tsx(705,16): error TS2304: Cannot find name 'auditAction'.
+src/pages/VehicleRepairs.tsx(706,15): error TS2304: Cannot find name 'auditOpen'.
+src/pages/VehicleRepairs.tsx(707,25): error TS2304: Cannot find name 'setAuditOpen'.
+src/pages/VehicleRepairs.tsx(712,21): error TS2304: Cannot find name 'auditForm'.
+src/pages/VehicleRepairs.tsx(720,16): error TS2304: Cannot find name 'currentRecord'.
+src/pages/VehicleRepairs.tsx(720,42): error TS2304: Cannot find name 'currentRecord'.
+src/pages/VehicleRepairs.tsx(721,15): error TS2304: Cannot find name 'completeOpen'.
+src/pages/VehicleRepairs.tsx(722,25): error TS2304: Cannot find name 'setCompleteOpen'.
+src/pages/VehicleRepairs.tsx(727,21): error TS2304: Cannot find name 'completeForm'.

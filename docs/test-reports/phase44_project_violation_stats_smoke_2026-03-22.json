@@ -1,0 +1,64 @@
+{
+  "results": [
+    {
+      "name": "API login",
+      "ok": true,
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "API list vehicles",
+      "ok": true,
+      "detail": "获取车辆 8 台"
+    },
+    {
+      "name": "API disable vehicle 浙A97610",
+      "ok": true,
+      "detail": "违规记录ID=7"
+    },
+    {
+      "name": "API disable vehicle 浙A42345",
+      "ok": true,
+      "detail": "违规记录ID=8"
+    },
+    {
+      "name": "API release one violation",
+      "ok": true,
+      "detail": "释放一条记录以形成已处理/待处理混合样本"
+    },
+    {
+      "name": "API violation analysis",
+      "ok": true,
+      "detail": "总违规=4，车队=2，车牌=2，中队=2"
+    },
+    {
+      "name": "UI route /projects/reports",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "UI route /projects/reports?periodType=DAY",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "API cleanup release",
+      "ok": true,
+      "detail": "第二条违规记录已解禁，保留统计历史但不残留禁用状态"
+    }
+  ],
+  "baseApi": "http://127.0.0.1:8090/api",
+  "baseWeb": "http://127.0.0.1:5173",
+  "createdRecordIds": [
+    "7",
+    "8"
+  ],
+  "summary": {
+    "reportPeriod": "2026-03-22",
+    "totalViolations": 4,
+    "handledCount": 3,
+    "pendingCount": 1,
+    "vehicleCount": 2,
+    "fleetCount": 2,
+    "teamCount": 2
+  }
+}

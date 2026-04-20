@@ -5,7 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 @RestController
-@RequestMapping("/api/sys-params")
+@RequestMapping("/api/_legacy/sys-params")
 public class SysParamController {
     @Autowired
     private SysParamMapper mapper;

@@ -11,6 +11,8 @@ public interface RoleService {
 
   IPage<Role> page(String keyword, Long tenantId, String roleScope, String status, int pageNo, int pageSize);
 
+  IPage<Role> pageWithPermissionFilter(String keyword, Long tenantId, String roleScope, String status, int pageNo, int pageSize, Role currentUserRole);
+
   long create(Role role);
 
   void update(Role role);
@@ -30,4 +32,12 @@ public interface RoleService {
   List<Long> listMenuIdsByRoleId(Long roleId);
 
   void updateMenus(Long roleId, List<Long> menuIds);
+
+  List<Role> listByRoleCode(Long tenantId, String roleCode);
+
+  void validateRoleCreation(Role currentUserRole, Role newRole);
+
+  boolean canAssignDataScope(String userScope, String newScope);
+
+  boolean canAccessOrganization(Long userId, Long organizationId, String requiredScope);
 }

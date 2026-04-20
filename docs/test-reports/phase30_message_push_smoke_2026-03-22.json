@@ -1,0 +1,45 @@
+{
+  "results": [
+    {
+      "name": "API login",
+      "ok": true,
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "API contract approval push",
+      "ok": true,
+      "detail": "合同 HT-MSG-1774153918 已提交并审批通过"
+    },
+    {
+      "name": "API transfer rejection push",
+      "ok": true,
+      "detail": "内拨申请 NB202603221231581340 已驳回"
+    },
+    {
+      "name": "API settlement approval push",
+      "ok": true,
+      "detail": "结算单 JS202603221231581126 已审批通过"
+    },
+    {
+      "name": "DB message records",
+      "ok": true,
+      "detail": "3 个审批结果各生成 2 条消息记录（SYSTEM + SMS）"
+    },
+    {
+      "name": "API message summary",
+      "ok": true,
+      "detail": "summary total 5 -> 11, unread 4 -> 10"
+    },
+    {
+      "name": "API message list",
+      "ok": true,
+      "detail": "消息列表可回查本次新增审批通知"
+    },
+    {
+      "name": "API mark read",
+      "ok": true,
+      "detail": "标记消息 12 已读后未读数减 1"
+    }
+  ],
+  "context": "/tmp/phase30_message_push_context.json"
+}

@@ -1,0 +1,68 @@
+{
+  "date": "2026-03-21",
+  "total": 12,
+  "passed": 12,
+  "failed": 0,
+  "results": [
+    {
+      "name": "API login",
+      "passed": true,
+      "detail": "userId=6"
+    },
+    {
+      "name": "Vehicle org source",
+      "passed": true,
+      "detail": "orgId=6"
+    },
+    {
+      "name": "Vehicle list",
+      "passed": true,
+      "detail": "total=8"
+    },
+    {
+      "name": "Vehicle create",
+      "passed": true,
+      "detail": "id=9 plate=浙A03819"
+    },
+    {
+      "name": "Vehicle detail",
+      "passed": true,
+      "detail": "driver=李测试"
+    },
+    {
+      "name": "Vehicle update",
+      "passed": true,
+      "detail": "driver=李维护 fleet=维护二队"
+    },
+    {
+      "name": "Vehicle filter",
+      "passed": true,
+      "detail": "plate=浙A03819 filtered=true"
+    },
+    {
+      "name": "Vehicle delete api",
+      "passed": true,
+      "detail": "id=9"
+    },
+    {
+      "name": "Vehicle delete verify",
+      "passed": true,
+      "detail": "plate=浙A03819 removed=true"
+    },
+    {
+      "name": "UI vehicles page",
+      "passed": true,
+      "detail": "heading=车辆与运力资源 editCount=8"
+    },
+    {
+      "name": "UI create modal",
+      "passed": true,
+      "detail": "modal=新增车辆 templateVisible=true"
+    },
+    {
+      "name": "UI edit modal",
+      "passed": true,
+      "detail": "modal=编辑车辆档案 vinVisible=true"
+    }
+  ]
+}

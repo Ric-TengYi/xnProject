@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/vehicle-insurances")
+@RequestMapping("/api/_legacy/vehicle-insurances")
 public class VehicleInsuranceController {
 
     @Autowired

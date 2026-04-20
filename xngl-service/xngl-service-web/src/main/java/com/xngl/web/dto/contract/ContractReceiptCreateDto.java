@@ -20,6 +20,13 @@ public class ContractReceiptCreateDto {
   private String receiptType;
   private String voucherNo;
   private String bankFlowNo;
+  private Boolean isThreeParty;
+  private String sourceType;
+  private BigDecimal unitPriceInside;
+  private BigDecimal unitPriceOutside;
+  private String applicantId;
+  private String rejectReason;
+  private Integer changeVersion;
 
   @Size(max = 500, message = "备注长度不能超过 500")
   private String remark;

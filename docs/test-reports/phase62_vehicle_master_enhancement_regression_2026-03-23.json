@@ -1,0 +1,87 @@
+{
+  "report": "phase62_vehicle_master_enhancement_regression_2026-03-23",
+  "date": "2026-03-23",
+  "results": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "name": "vehicles_controller_export_endpoint",
+      "status": "PASS",
+      "detail": "VehiclesController.java contains @GetMapping(\"/export\")"
+    },
+    {
+      "name": "vehicles_controller_batch_status_endpoint",
+      "status": "PASS",
+      "detail": "VehiclesController.java contains @PutMapping(\"/batch-status\")"
+    },
+    {
+      "name": "vehicles_controller_batch_delete_endpoint",
+      "status": "PASS",
+      "detail": "VehiclesController.java contains @PostMapping(\"/batch-delete\")"
+    },
+    {
+      "name": "vehicle_models_controller_export_endpoint",
+      "status": "PASS",
+      "detail": "VehicleModelsController.java contains @GetMapping(\"/export\")"
+    },
+    {
+      "name": "vehicles_page_batch_actions",
+      "status": "PASS",
+      "detail": "VehiclesManagement.tsx contains 批量设为禁用"
+    },
+    {
+      "name": "vehicles_page_export_action",
+      "status": "PASS",
+      "detail": "VehiclesManagement.tsx contains 导出台账"
+    },
+    {
+      "name": "vehicle_models_page_export_action",
+      "status": "PASS",
+      "detail": "VehicleModelsManagement.tsx contains 导出车型库"
+    },
+    {
+      "name": "vehicles_export_runtime",
+      "status": "PASS",
+      "detail": "bytes=2090"
+    },
+    {
+      "name": "vehicles_create_temp_runtime",
+      "status": "PASS",
+      "detail": "id=13"
+    },
+    {
+      "name": "vehicles_batch_status_runtime",
+      "status": "PASS",
+      "detail": "updated=1, status=3"
+    },
+    {
+      "name": "vehicles_batch_delete_runtime",
+      "status": "PASS",
+      "detail": "deleted=1"
+    },
+    {
+      "name": "vehicle_models_export_runtime",
+      "status": "PASS",
+      "detail": "bytes=442"
+    },
+    {
+      "name": "vehicles_page_buttons",
+      "status": "PASS",
+      "detail": "车辆页面导出/批量按钮已渲染"
+    },
+    {
+      "name": "vehicle_models_page_buttons",
+      "status": "PASS",
+      "detail": "车型页面导出按钮已渲染"
+    }
+  ],
+  "passed": 15,
+  "failed": 0,
+  "notes": [
+    "前端构建已通过。",
+    "后端全量 Maven 编译已通过，服务已按最新代码重启。"
+  ]
+}

@@ -18,6 +18,11 @@ public class Org extends BaseEntity {
   private String orgPath;
   private Long leaderUserId;
   private String leaderNameCache;
+  private String contactPerson;
+  private String contactPhone;
+  private String address;
+  private String unifiedSocialCode;
+  private String remark;
   private Integer sortOrder;
   private String status;
 }

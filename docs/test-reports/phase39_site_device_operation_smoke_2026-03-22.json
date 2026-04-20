@@ -1,0 +1,29 @@
+{
+  "results": [
+    {
+      "name": "API login",
+      "ok": true,
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "API create site device",
+      "ok": true,
+      "detail": "场地设备 SITE-DEV-AUTO-1774170159 创建成功"
+    },
+    {
+      "name": "API update site device",
+      "ok": true,
+      "detail": "场地设备 SITE-DEV-AUTO-1774170159 已更新为离线地磅"
+    },
+    {
+      "name": "API update site operation config",
+      "ok": true,
+      "detail": "场地运营配置已保存并返回新配置值"
+    },
+    {
+      "name": "API site detail config echo",
+      "ok": true,
+      "detail": "场地详情已回显新增设备与最新运营配置"
+    }
+  ]
+}

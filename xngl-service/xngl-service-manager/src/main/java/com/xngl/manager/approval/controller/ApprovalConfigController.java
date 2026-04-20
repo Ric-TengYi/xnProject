@@ -5,7 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 @RestController
-@RequestMapping("/api/approval-configs")
+@RequestMapping("/internal/approval-configs")
 public class ApprovalConfigController {
     @Autowired
     private ApprovalConfigMapper mapper;

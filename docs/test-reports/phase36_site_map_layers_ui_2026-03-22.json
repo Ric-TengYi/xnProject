@@ -1,0 +1,24 @@
+{
+  "results": [
+    {
+      "name": "UI dashboard map page load",
+      "ok": true,
+      "detail": "地图展示页成功打开并进入已登录态"
+    },
+    {
+      "name": "UI dashboard map site overlays",
+      "ok": true,
+      "detail": "页面已展示场地设备统计、场地名称和红线状态文案"
+    },
+    {
+      "name": "UI site detail config devices",
+      "ok": true,
+      "detail": "场地配置页已展示真实设备清单与在线状态"
+    },
+    {
+      "name": "UI site detail geo preview",
+      "ok": true,
+      "detail": "场地详情页已展示红线预览卡片与中心坐标"
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "report": "phase65_vehicle_maintenance_detail_regression_2026-03-23",
+  "date": "2026-03-23",
+  "results": [
+    {
+      "name": "login",
+      "status": "PASS",
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "name": "maintenance_plan_create_runtime",
+      "status": "PASS",
+      "detail": "plan_id=12"
+    },
+    {
+      "name": "maintenance_plan_detail_runtime",
+      "status": "PASS",
+      "detail": "plan_no=MPLAN-1774270300579"
+    },
+    {
+      "name": "maintenance_execute_detail_runtime",
+      "status": "PASS",
+      "detail": "record_id=6, cost=1300.0"
+    },
+    {
+      "name": "maintenance_record_detail_runtime",
+      "status": "PASS",
+      "detail": "signoff=已签字"
+    },
+    {
+      "name": "maintenance_plan_history_runtime",
+      "status": "PASS",
+      "detail": "history_count=1"
+    },
+    {
+      "name": "maintenance_record_export_runtime",
+      "status": "PASS",
+      "detail": "text/csv;charset=UTF-8"
+    },
+    {
+      "name": "vehicle_maintenance_page_visible",
+      "status": "PASS",
+      "detail": "维保计划页面详情抽屉与执行历史可见"
+    }
+  ],
+  "passed": 8,
+  "failed": 0
+}

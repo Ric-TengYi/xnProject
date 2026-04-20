@@ -1,0 +1,63 @@
+{
+  "results": [
+    {
+      "name": "API login",
+      "ok": true,
+      "detail": "admin/admin 登录成功并获取 token"
+    },
+    {
+      "name": "API list sites",
+      "ok": true,
+      "detail": "当前场地 1 个"
+    },
+    {
+      "name": "API create secondary site",
+      "ok": true,
+      "detail": "新建场地ID=2, 上级场地=场地-001, 借用地磅=场地-001"
+    },
+    {
+      "name": "API site detail echo",
+      "ok": true,
+      "detail": "二级场地、上级场地和借用地磅字段回显正确"
+    },
+    {
+      "name": "API create survey",
+      "ok": true,
+      "detail": "测绘记录ID=1, 结算方量=525.0"
+    },
+    {
+      "name": "API update survey",
+      "ok": true,
+      "detail": "测绘结算方量自动重算并更新为已确认"
+    },
+    {
+      "name": "API list surveys",
+      "ok": true,
+      "detail": "场地测绘列表返回 1 条记录"
+    },
+    {
+      "name": "API delete survey",
+      "ok": true,
+      "detail": "测绘记录删除成功"
+    },
+    {
+      "name": "UI route /sites",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "UI route /sites/2?tab=survey",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "UI route /sites/basic-info",
+      "ok": true,
+      "detail": "status=200"
+    }
+  ],
+  "createdSiteId": "2",
+  "createdSurveyId": "1",
+  "baseApi": "http://127.0.0.1:8090/api",
+  "baseWeb": "http://127.0.0.1:5173"
+}

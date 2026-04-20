@@ -1,0 +1,80 @@
+{
+  "meta": {
+    "generatedAt": "2026-03-20T11:09:34",
+    "frontend": "http://127.0.0.1:5173",
+    "backend": "http://127.0.0.1:8090/api"
+  },
+  "summary": {
+    "total": 11,
+    "passed": 11,
+    "failed": 0
+  },
+  "results": [
+    {
+      "kind": "ui",
+      "name": "/contracts/settlements",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "kind": "ui",
+      "name": "/projects/permits",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "kind": "ui",
+      "name": "/sites",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "kind": "api",
+      "name": "login",
+      "passed": true,
+      "detail": "admin/admin 登录成功"
+    },
+    {
+      "kind": "api",
+      "name": "sites.detail.rules",
+      "passed": true,
+      "detail": "siteType=STATE_OWNED, capacity=400000.0"
+    },
+    {
+      "kind": "api",
+      "name": "reports.projects.daily.nonzero",
+      "passed": true,
+      "detail": "totalVolume=1200.0"
+    },
+    {
+      "kind": "api",
+      "name": "reports.sites.ranking.nonzero",
+      "passed": true,
+      "detail": "used=1200.0"
+    },
+    {
+      "kind": "api",
+      "name": "settlements.site.classified",
+      "passed": true,
+      "detail": "amount=46800.0, items=1"
+    },
+    {
+      "kind": "api",
+      "name": "settlements.project.lines",
+      "passed": true,
+      "detail": "amount=37500.0, items=1"
+    },
+    {
+      "kind": "api",
+      "name": "permits.list",
+      "passed": true,
+      "detail": "records=2"
+    },
+    {
+      "kind": "api",
+      "name": "permits.detail",
+      "passed": true,
+      "detail": "permitNo=PZ-2026-001, status=ACTIVE"
+    }
+  ]
+}

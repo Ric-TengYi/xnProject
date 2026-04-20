@@ -34,4 +34,8 @@ public class ContractReceipt extends BaseEntity {
   private Long operatorId;
   /** 备注。 */
   private String remark;
+  /** 分次入账序号。 */
+  private Integer installmentNo;
+  /** 分次入账总数。 */
+  private Integer installmentTotal;
 }

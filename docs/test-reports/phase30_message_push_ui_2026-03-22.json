@@ -1,0 +1,24 @@
+{
+  "results": [
+    {
+      "name": "UI page load",
+      "ok": true,
+      "detail": "消息管理页面成功打开"
+    },
+    {
+      "name": "UI contract message",
+      "ok": true,
+      "detail": "消息列表可见合同审批通知 HT-MSG-1774153918"
+    },
+    {
+      "name": "UI transfer message",
+      "ok": true,
+      "detail": "消息列表可见内拨驳回通知 NB202603221231581340"
+    },
+    {
+      "name": "UI settlement message",
+      "ok": true,
+      "detail": "消息列表可见结算审批通知 JS202603221231581126"
+    }
+  ]
+}
