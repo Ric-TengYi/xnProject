@@ -42,7 +42,7 @@ public class AuthServiceImpl implements AuthService {
   @Override
   public boolean checkPassword(User user, String rawPassword) {
     if (user == null || rawPassword == null) return false;
-    String hash = user.getPasswordHash();
+    String hash = StringUtils.hasText(user.getPasswordHash()) ? user.getPasswordHash() : user.getPassword();
     if (!StringUtils.hasText(hash)) return false;
 
     String normalizedHash = normalizeHash(hash);

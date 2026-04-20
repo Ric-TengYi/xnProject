@@ -6,10 +6,12 @@ import java.util.List;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 小程序打卡异常申报。当前为 stub，后续对接 mini_checkin_exception_apply。
+ * 小程序打卡异常申报 stub。
+ *
+ * <p>真实 `/api/mini/checkin-exceptions` 已由 {@link MiniWorkOrdersController} 提供，stub 保留在独立路径避免重复映射。
  */
 @RestController
-@RequestMapping("/api/mini/checkin-exceptions")
+@RequestMapping("/api/mini/stub/checkin-exceptions")
 public class MiniCheckinExceptionsController {
 
   @GetMapping

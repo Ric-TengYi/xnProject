@@ -6,10 +6,12 @@ import java.util.List;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 小程序问题反馈。当前为 stub，后续对接 mini_feedback。
+ * 小程序问题反馈 stub。
+ *
+ * <p>真实 `/api/mini/feedbacks` 已由 {@link MiniWorkOrdersController} 提供，stub 保留在独立路径避免重复映射。
  */
 @RestController
-@RequestMapping("/api/mini/feedbacks")
+@RequestMapping("/api/mini/stub/feedbacks")
 public class MiniFeedbacksController {
 
   @GetMapping

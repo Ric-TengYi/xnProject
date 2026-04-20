@@ -1,5 +1,6 @@
 package com.xngl.web.controller;
 
+import com.xngl.infrastructure.config.TenantContextHolder;
 import com.xngl.infrastructure.persistence.entity.organization.User;
 import com.xngl.infrastructure.persistence.entity.system.LoginLog;
 import com.xngl.infrastructure.persistence.entity.system.SsoLoginTicket;
@@ -55,7 +56,13 @@ public class AuthController {
       @Valid @RequestBody LoginRequest req, HttpServletRequest request) {
     try {
       Long tenantId = parseLong(req.getTenantId());
-      User user = authService.getByTenantAndUsername(tenantId, req.getUsername());
+      User user;
+      TenantContextHolder.setTenantId(tenantId);
+      try {
+        user = authService.getByTenantAndUsername(tenantId, req.getUsername());
+      } finally {
+        TenantContextHolder.clear();
+      }
       if (user == null || !authService.checkPassword(user, req.getPassword())) {
         saveLoginLogSafe(null, req.getUsername(), false, "用户名或密码错误", request);
         throw new BizException(401, "用户名或密码错误");

@@ -6,10 +6,13 @@ import java.util.List;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 小程序延期申报。当前为 stub，后续对接 mini_delay_apply。
+ * 小程序延期申报 stub。
+ *
+ * <p>真实 `/api/mini/delay-applies` 端点已经由 {@link MiniWorkOrdersController} 提供，stub 保留在独立路径，
+ * 避免启动时与真实控制器产生重复映射。
  */
 @RestController
-@RequestMapping("/api/mini/delay-applies")
+@RequestMapping("/api/mini/stub/delay-applies")
 public class MiniDelayAppliesController {
 
   @GetMapping

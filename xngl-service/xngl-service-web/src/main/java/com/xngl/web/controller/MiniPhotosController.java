@@ -6,10 +6,12 @@ import java.util.List;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 小程序出土拍照：上传、列表。当前为 stub，后续对接 mini_excavation_photo 与统一文件。
+ * 小程序出土拍照 stub。
+ *
+ * <p>真实 `/api/mini/photos` 已由 {@link MiniWorkOrdersController} 提供，stub 保留在独立路径避免重复映射。
  */
 @RestController
-@RequestMapping("/api/mini/photos")
+@RequestMapping("/api/mini/stub/photos")
 public class MiniPhotosController {
 
   @GetMapping

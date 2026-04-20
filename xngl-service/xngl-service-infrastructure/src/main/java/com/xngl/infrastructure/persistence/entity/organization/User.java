@@ -13,6 +13,7 @@ public class User extends BaseEntity {
 
   private Long tenantId;
   private String username;
+  private String password;
   private String passwordHash;
   private String name;
   private String mobile;

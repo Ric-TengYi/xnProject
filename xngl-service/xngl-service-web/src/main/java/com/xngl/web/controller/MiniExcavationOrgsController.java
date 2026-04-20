@@ -14,10 +14,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 小程序出土单位/首页：当前单位、可用项目列表。
+ * 小程序出土单位 stub。
+ *
+ * <p>真实 `/api/mini/excavation-orgs/*` 已由 {@link MiniProgramController} 提供，stub 保留在独立路径避免重复映射。
  */
 @RestController
-@RequestMapping("/api/mini/excavation-orgs")
+@RequestMapping("/api/mini/stub/excavation-orgs")
 public class MiniExcavationOrgsController {
 
   private final UserService userService;

@@ -18,11 +18,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 小程序登录/绑定，复用现有用户体系。
- * 契约：POST /api/mini/auth/login 入参 username、password；出参 code、data.token、data.user.id/name/role。
+ * 小程序登录 stub，保留旧契约以便参考。
+ *
+ * <p>真实 `/api/mini/auth/*` 已由 {@link MiniProgramController} 提供，stub 保留在独立路径避免重复映射。
  */
 @RestController
-@RequestMapping("/api/mini/auth")
+@RequestMapping("/api/mini/stub/auth")
 public class MiniAuthController {
 
   private static final long DEFAULT_TENANT_ID = 1L;

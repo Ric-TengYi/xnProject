@@ -3,6 +3,7 @@ package com.xngl.web.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.xngl.infrastructure.config.TenantContextHolder;
 import com.xngl.infrastructure.persistence.entity.contract.Contract;
 import com.xngl.infrastructure.persistence.entity.contract.ContractTicket;
 import com.xngl.infrastructure.persistence.entity.miniprogram.MiniSmsCodeRecord;
@@ -387,7 +388,13 @@ public class MiniProgramController {
       throw new BizException(400, "账号和密码不能为空");
     }
     Long tenantId = parseTenantId(tenantIdText);
-    User user = authService.getByTenantAndUsername(tenantId, username.trim());
+    User user;
+    TenantContextHolder.setTenantId(tenantId);
+    try {
+      user = authService.getByTenantAndUsername(tenantId, username.trim());
+    } finally {
+      TenantContextHolder.clear();
+    }
     if (user == null || !authService.checkPassword(user, password.trim())) {
       throw new BizException(401, "用户名或密码错误");
     }
