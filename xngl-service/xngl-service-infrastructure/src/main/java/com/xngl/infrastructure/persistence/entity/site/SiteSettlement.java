@@ -12,6 +12,7 @@ import lombok.EqualsAndHashCode;
 @TableName("biz_site_settlement")
 public class SiteSettlement extends BaseEntity {
 
+  private Long tenantId;
   private Long siteId;
   private String settlementNo;
   private LocalDate periodStart;

@@ -10,6 +10,7 @@ import lombok.EqualsAndHashCode;
 @TableName("biz_project")
 public class Project extends BaseEntity {
 
+  private Long tenantId;
   private String name;
   private String code;
   private String address;

@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS sys_user (
 
 CREATE TABLE IF NOT EXISTS biz_project (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT,
   name VARCHAR(200),
   code VARCHAR(50),
   address VARCHAR(500),
@@ -64,11 +65,14 @@ CREATE TABLE IF NOT EXISTS biz_project (
   org_id BIGINT,
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  deleted INT DEFAULT 0
+  deleted INT DEFAULT 0,
+  KEY idx_biz_project_tenant_status (tenant_id, status),
+  KEY idx_biz_project_tenant_org (tenant_id, org_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS biz_site (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT,
   name VARCHAR(200),
   code VARCHAR(50),
   address VARCHAR(500),
@@ -77,11 +81,14 @@ CREATE TABLE IF NOT EXISTS biz_site (
   org_id BIGINT,
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  deleted INT DEFAULT 0
+  deleted INT DEFAULT 0,
+  KEY idx_biz_site_tenant_status (tenant_id, status),
+  KEY idx_biz_site_tenant_project (tenant_id, project_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS biz_site_settlement (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT,
   site_id BIGINT NOT NULL,
   settlement_no VARCHAR(64) NOT NULL,
   period_start DATE NOT NULL,
@@ -99,8 +106,8 @@ CREATE TABLE IF NOT EXISTS biz_site_settlement (
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   deleted INT DEFAULT 0,
   UNIQUE KEY uk_biz_site_settlement_no (settlement_no),
-  KEY idx_biz_site_settlement_site_status_date (site_id, settlement_status, settlement_date),
-  KEY idx_biz_site_settlement_site_period (site_id, period_start, period_end)
+  KEY idx_biz_site_settlement_tenant_site_status_date (tenant_id, site_id, settlement_status, settlement_date),
+  KEY idx_biz_site_settlement_tenant_site_period (tenant_id, site_id, period_start, period_end)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS biz_vehicle (

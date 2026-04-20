@@ -11,6 +11,10 @@ public class AuditMetaObjectHandler implements MetaObjectHandler {
   @Override
   public void insertFill(MetaObject metaObject) {
     LocalDateTime now = LocalDateTime.now();
+    Long tenantId = TenantContextHolder.getTenantId();
+    if (tenantId != null && metaObject.hasSetter("tenantId")) {
+      strictInsertFill(metaObject, "tenantId", Long.class, tenantId);
+    }
     strictInsertFill(metaObject, "createTime", LocalDateTime.class, now);
     strictInsertFill(metaObject, "updateTime", LocalDateTime.class, now);
     strictInsertFill(metaObject, "deleted", Integer.class, 0);

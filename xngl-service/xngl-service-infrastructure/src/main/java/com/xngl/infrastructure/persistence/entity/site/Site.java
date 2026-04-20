@@ -11,6 +11,7 @@ import lombok.EqualsAndHashCode;
 @TableName("biz_site")
 public class Site extends BaseEntity {
 
+  private Long tenantId;
   private String name;
   private String code;
   private String address;
