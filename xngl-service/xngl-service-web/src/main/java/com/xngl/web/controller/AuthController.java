@@ -73,7 +73,7 @@ public class AuthController {
       }
 
       String userId = String.valueOf(user.getId());
-      String token = jwtUtils.createToken(user.getUsername(), userId);
+      String token = jwtUtils.createToken(user.getUsername(), userId, user.getTenantId());
       long expiresIn = jwtUtils.parseToken(token).getExpiration().getTime() - System.currentTimeMillis();
       userService.updateLastLoginTime(user.getId());
 
@@ -140,7 +140,8 @@ public class AuthController {
     if (!"ENABLED".equalsIgnoreCase(user.getStatus())) {
       throw new BizException(403, "用户已被禁用");
     }
-    String token = jwtUtils.createToken(user.getUsername(), String.valueOf(user.getId()));
+    String token =
+        jwtUtils.createToken(user.getUsername(), String.valueOf(user.getId()), user.getTenantId());
     long expiresIn =
         jwtUtils.parseToken(token).getExpiration().getTime() - System.currentTimeMillis();
     User update = new User();

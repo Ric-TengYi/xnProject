@@ -178,7 +178,8 @@ public class MiniProgramController {
             request,
             body != null ? body.getDeviceName() : null);
 
-    String token = jwtUtils.createToken(user.getUsername(), String.valueOf(user.getId()));
+    String token =
+        jwtUtils.createToken(user.getUsername(), String.valueOf(user.getId()), user.getTenantId());
     long expiresIn =
         jwtUtils.parseToken(token).getExpiration().getTime() - System.currentTimeMillis();
     User update = new User();
@@ -223,7 +224,8 @@ public class MiniProgramController {
             body.getUnionId(),
             request,
             body.getDeviceName());
-    String token = jwtUtils.createToken(user.getUsername(), String.valueOf(user.getId()));
+    String token =
+        jwtUtils.createToken(user.getUsername(), String.valueOf(user.getId()), user.getTenantId());
     long expiresIn =
         jwtUtils.parseToken(token).getExpiration().getTime() - System.currentTimeMillis();
     User update = new User();

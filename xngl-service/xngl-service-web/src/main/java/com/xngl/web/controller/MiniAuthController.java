@@ -55,7 +55,7 @@ public class MiniAuthController {
       throw new BizException(403, "用户已被禁用");
     }
     String userId = String.valueOf(user.getId());
-    String token = jwtUtils.createToken(user.getUsername(), userId);
+    String token = jwtUtils.createToken(user.getUsername(), userId, user.getTenantId());
     String role = firstRoleCode(user.getId());
     String userType = user.getUserType() != null ? user.getUserType() : "TENANT_USER";
     MiniLoginResponse.UserInfo userInfo =

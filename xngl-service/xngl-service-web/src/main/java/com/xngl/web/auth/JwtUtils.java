@@ -18,14 +18,22 @@ public class JwtUtils {
   }
 
   public String createToken(String subject, String userId) {
+    return createToken(subject, userId, null);
+  }
+
+  public String createToken(String subject, String userId, Long tenantId) {
     SecretKey key = Keys.hmacShaKeyFor(props.getSecret().getBytes(StandardCharsets.UTF_8));
-    return Jwts.builder()
-        .setSubject(subject)
-        .claim("userId", userId)
-        .setIssuedAt(new Date())
-        .setExpiration(new Date(System.currentTimeMillis() + props.getExpirationMs()))
-        .signWith(key)
-        .compact();
+    var builder =
+        Jwts.builder()
+            .setSubject(subject)
+            .claim("userId", userId)
+            .setIssuedAt(new Date())
+            .setExpiration(new Date(System.currentTimeMillis() + props.getExpirationMs()))
+            .signWith(key);
+    if (tenantId != null) {
+      builder.claim("tenantId", tenantId);
+    }
+    return builder.compact();
   }
 
   public Claims parseToken(String token) {
